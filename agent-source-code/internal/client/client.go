@@ -287,7 +287,7 @@ func (c *Client) SendDockerStatusEvent(event *models.DockerStatusEvent) error {
 
 // SendConfigManagementData sends configuration management compliance data to the server
 func (c *Client) SendConfigManagementData(ctx context.Context, payload *models.ConfigManagementPayload) (*models.ConfigManagementResponse, error) {
-	url := fmt.Sprintf("%s/api/%s/integrations/configmanagement", c.config.PatchmonServer, c.config.APIVersion)
+	url := fmt.Sprintf("%s/api/%s/configmanagement/agent/report", c.config.PatchmonServer, c.config.APIVersion)
 
 	c.logger.WithFields(logrus.Fields{
 		"url":    url,
@@ -322,7 +322,7 @@ func (c *Client) SendConfigManagementData(ctx context.Context, payload *models.C
 
 // FetchConfigPolicy fetches the computed configuration policy for this agent from the server
 func (c *Client) FetchConfigPolicy(ctx context.Context, currentHash string) (*models.ConfigPolicyResponse, error) {
-	url := fmt.Sprintf("%s/api/%s/integrations/configmanagement/policy", c.config.PatchmonServer, c.config.APIVersion)
+	url := fmt.Sprintf("%s/api/%s/configmanagement/agent/policy", c.config.PatchmonServer, c.config.APIVersion)
 
 	c.logger.Debug("Fetching config management policy from server")
 

@@ -333,7 +333,10 @@ func sendIntegrationData() {
 
 	// Register config management integration
 	if cfgManager.IsIntegrationEnabled("configmanagement") {
-		integrationMgr.Register(configmanagement.New(logger))
+		cmIntegration := configmanagement.New(logger)
+		// Provide the HTTP client so the integration can fetch its policy from the server
+		cmIntegration.SetClient(client.New(cfgManager, logger))
+		integrationMgr.Register(cmIntegration)
 		logger.Debug("Config management integration registered")
 	} else {
 		logger.Debug("Config management integration is disabled in config")

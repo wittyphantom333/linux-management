@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"patchmon-agent/internal/client"
 	"patchmon-agent/internal/utils"
 	"patchmon-agent/pkg/models"
 
@@ -32,6 +33,7 @@ const (
 // Integration implements the Integration interface for Configuration Management.
 type Integration struct {
 	logger      *logrus.Logger
+	httpClient  *client.Client
 	policy      *models.ConfigPolicy
 	policyMu    sync.RWMutex
 	policyHash  string
@@ -44,6 +46,12 @@ func New(logger *logrus.Logger) *Integration {
 		logger:   logger,
 		executor: NewPolicyExecutor(logger),
 	}
+}
+
+// SetClient provides the HTTP client so the integration can fetch policies from the server.
+// Must be called before Collect().
+func (cm *Integration) SetClient(c *client.Client) {
+	cm.httpClient = c
 }
 
 // Name returns the integration name.
@@ -70,12 +78,34 @@ func (cm *Integration) IsAvailable() bool {
 	return true
 }
 
-// Collect evaluates the current policy against the system and returns a compliance report.
+// Collect fetches the latest policy from the server, evaluates it, and returns a compliance report.
 func (cm *Integration) Collect(ctx context.Context) (*models.IntegrationData, error) {
 	startTime := time.Now()
 	cm.logger.Info("Starting configuration management evaluation...")
 
-	// Load cached policy if we don't have one in memory
+	// Step 1: Fetch the latest policy from the server
+	if cm.httpClient != nil {
+		cm.logger.Debug("Fetching latest policy from server...")
+		currentHash := cm.GetPolicyHash()
+		policyResp, err := cm.httpClient.FetchConfigPolicy(ctx, currentHash)
+		if err != nil {
+			cm.logger.WithError(err).Warn("Failed to fetch policy from server, falling back to cached policy")
+		} else if policyResp != nil && policyResp.Policy != nil && policyResp.Changed {
+			cm.logger.WithFields(logrus.Fields{
+				"policy_id":  policyResp.Policy.PolicyID,
+				"directives": len(policyResp.Policy.Directives),
+			}).Info("Received updated policy from server")
+			if err := cm.SetPolicy(policyResp.Policy); err != nil {
+				cm.logger.WithError(err).Warn("Failed to save updated policy to disk")
+			}
+		} else if policyResp != nil && !policyResp.Changed {
+			cm.logger.Debug("Policy unchanged (hash match), using cached version")
+		}
+	} else {
+		cm.logger.Debug("No HTTP client set, using cached policy only")
+	}
+
+	// Step 2: Load cached policy if we don't have one in memory
 	cm.policyMu.RLock()
 	currentPolicy := cm.policy
 	cm.policyMu.RUnlock()
