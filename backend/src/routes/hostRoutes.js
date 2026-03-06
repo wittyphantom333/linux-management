@@ -1095,6 +1095,7 @@ router.get("/integrations", validateApiCredentials, async (req, res) => {
 				docker_enabled: true,
 				compliance_enabled: true,
 				compliance_on_demand_only: true,
+				configmanagement_enabled: true,
 			},
 		});
 
@@ -1112,6 +1113,7 @@ router.get("/integrations", validateApiCredentials, async (req, res) => {
 		const integrations = {
 			docker: host.docker_enabled ?? false,
 			compliance: host.compliance_enabled ?? false,
+			configmanagement: host.configmanagement_enabled ?? false,
 		};
 
 		res.json({
@@ -1251,6 +1253,7 @@ router.post("/ping", validateApiCredentials, async (req, res) => {
 		response.integrations = {
 			docker: req.hostRecord.docker_enabled ?? false,
 			compliance: req.hostRecord.compliance_enabled ?? false,
+			configmanagement: req.hostRecord.configmanagement_enabled ?? false,
 		};
 
 		// Check if this is a crontab update trigger
@@ -1649,6 +1652,7 @@ router.get(
 					needs_reboot: true,
 					docker_enabled: true,
 					compliance_enabled: true,
+					configmanagement_enabled: true,
 					host_group_memberships: {
 						include: {
 							host_groups: {
@@ -2998,6 +3002,7 @@ router.get(
 					compliance_on_demand_only: true,
 					compliance_openscap_enabled: true,
 					compliance_docker_bench_enabled: true,
+					configmanagement_enabled: true,
 				},
 			});
 
@@ -3018,6 +3023,7 @@ router.get(
 			const integrations = {
 				docker: host.docker_enabled ?? cachedState.docker ?? false,
 				compliance: host.compliance_enabled ?? cachedState.compliance ?? false,
+				configmanagement: host.configmanagement_enabled ?? cachedState.configmanagement ?? false,
 			};
 
 			// Calculate compliance mode from database fields
@@ -3182,7 +3188,7 @@ router.post(
 			const { enabled } = req.body;
 
 			// Validate integration name
-			const validIntegrations = ["docker", "compliance"];
+			const validIntegrations = ["docker", "compliance", "configmanagement"];
 			if (!validIntegrations.includes(integrationName)) {
 				return res.status(400).json({
 					error: "Invalid integration name",
@@ -3198,6 +3204,7 @@ router.post(
 					api_id: true,
 					friendly_name: true,
 					docker_enabled: true,
+					configmanagement_enabled: true,
 				},
 			});
 
@@ -3269,6 +3276,11 @@ router.post(
 				await prisma.hosts.update({
 					where: { id: hostId },
 					data: { docker_enabled: enabled },
+				});
+			} else if (integrationName === "configmanagement") {
+				await prisma.hosts.update({
+					where: { id: hostId },
+					data: { configmanagement_enabled: enabled },
 				});
 			}
 

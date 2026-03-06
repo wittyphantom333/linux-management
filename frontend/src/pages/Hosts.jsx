@@ -22,6 +22,7 @@ import {
 	RotateCcw,
 	Search,
 	Server,
+	Settings,
 	Shield,
 	Square,
 	Trash2,
@@ -764,11 +765,11 @@ const Hosts = () => {
 					bValue = (b.notes || "").toLowerCase();
 					break;
 				case "integrations": {
-					// Sort by integration count: both=2, one=1, none=0
+					// Sort by integration count
 					const aScore =
-						(a.docker_enabled ? 1 : 0) + (a.compliance_enabled ? 1 : 0);
+						(a.docker_enabled ? 1 : 0) + (a.compliance_enabled ? 1 : 0) + (a.configmanagement_enabled ? 1 : 0);
 					const bScore =
-						(b.docker_enabled ? 1 : 0) + (b.compliance_enabled ? 1 : 0);
+						(b.docker_enabled ? 1 : 0) + (b.compliance_enabled ? 1 : 0) + (b.configmanagement_enabled ? 1 : 0);
 					aValue = aScore;
 					bValue = bScore;
 					break;
@@ -1096,7 +1097,15 @@ const Hosts = () => {
 								<Shield className="h-3 w-3" />
 							</span>
 						)}
-						{!host.docker_enabled && !host.compliance_enabled && (
+						{host.configmanagement_enabled && (
+							<span
+								className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+								title="Config Management enabled"
+							>
+								<Settings className="h-3 w-3" />
+							</span>
+						)}
+						{!host.docker_enabled && !host.compliance_enabled && !host.configmanagement_enabled && (
 							<span className="text-xs text-secondary-400 dark:text-secondary-500">
 								—
 							</span>

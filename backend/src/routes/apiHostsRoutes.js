@@ -699,6 +699,7 @@ router.get(
 				select: {
 					id: true,
 					docker_enabled: true,
+					configmanagement_enabled: true,
 				},
 			});
 
