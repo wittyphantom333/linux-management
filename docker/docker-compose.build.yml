@@ -1,0 +1,28 @@
+# =============================================================================
+# PatchMon Docker Compose - Build Override
+# =============================================================================
+# Builds PatchMon from local source instead of pulling pre-built images.
+# Use alongside the production compose file:
+#
+#   cp env.example .env
+#   # Edit .env with your values (see env.example for guidance)
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# To rebuild after pulling new changes:
+#   git pull
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# =============================================================================
+
+services:
+  backend:
+    image: patchmon-backend:local
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+
+  frontend:
+    image: patchmon-frontend:local
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
