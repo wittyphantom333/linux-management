@@ -6,9 +6,9 @@
 # Docker images from source, and launching all services.
 #
 # Usage:
-#   curl -fsSL <raw-url>/deploy.sh | sudo bash
-#   # or
 #   sudo bash deploy.sh
+#   # or (non-interactive):
+#   sudo bash deploy.sh --non-interactive --host myserver.example.com
 #
 # Options:
 #   --non-interactive    Use defaults and auto-generated secrets (no prompts)
@@ -21,7 +21,7 @@
 #   --build-agent        Also cross-compile the Go agent binaries
 # =============================================================================
 
-set -euo pipefail
+set -eo pipefail
 
 # -----------------------------------------------------------------------------
 # Configuration defaults
@@ -34,6 +34,10 @@ SERVER_PROTOCOL="http"
 SERVER_PORT="3000"
 NON_INTERACTIVE=false
 BUILD_AGENT=false
+DETECTED_HOST=""
+DETECTED_IP=""
+DO_BUILD_AGENT="no"
+CONFIRM="yes"
 
 # Colors
 RED='\033[0;31m'
@@ -59,42 +63,37 @@ die() {
 }
 
 generate_secret() {
-    openssl rand -hex "$1" 2>/dev/null || head -c "$1" /dev/urandom | xxd -p | tr -d '\n'
-}
-
-prompt() {
-    local var_name="$1" prompt_text="$2" default="$3"
-    if $NON_INTERACTIVE; then
-        printf -v "$var_name" '%s' "$default"
-        return
+    local len="$1"
+    local secret=""
+    # Try openssl first
+    secret=$(openssl rand -hex "$len" 2>/dev/null) || true
+    if [ -n "$secret" ]; then
+        echo "$secret"
+        return 0
     fi
-    local input
-    if [ -n "$default" ]; then
-        printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "$prompt_text" "$default"
-    else
-        printf "${BLUE}%s${NC}: " "$prompt_text"
+    # Fallback: read from urandom and convert to hex
+    secret=$(od -A n -t x1 -N "$len" /dev/urandom 2>/dev/null | tr -d ' \n') || true
+    if [ -n "$secret" ]; then
+        echo "$secret"
+        return 0
     fi
-    read -r input
-    printf -v "$var_name" '%s' "${input:-$default}"
-}
-
-prompt_yes_no() {
-    local var_name="$1" prompt_text="$2" default="$3"
-    if $NON_INTERACTIVE; then
-        printf -v "$var_name" '%s' "$default"
-        return
-    fi
-    local input
-    while true; do
-        printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "$prompt_text" "$default"
-        read -r input
-        input="${input:-$default}"
-        case "$input" in
-            [Yy]|[Yy][Ee][Ss]) printf -v "$var_name" '%s' "yes"; return ;;
-            [Nn]|[Nn][Oo])     printf -v "$var_name" '%s' "no";  return ;;
-            *) warn "Please enter yes or no." ;;
-        esac
+    # Last resort: use $RANDOM (less secure but functional)
+    local i
+    for i in $(seq 1 "$len"); do
+        secret="${secret}$(printf '%02x' $((RANDOM % 256)))"
     done
+    echo "$secret"
+}
+
+# Read user input — reads from /dev/tty so it works even when script is piped
+read_input() {
+    local _input=""
+    if [ -t 0 ]; then
+        read -r _input
+    elif [ -e /dev/tty ]; then
+        read -r _input < /dev/tty
+    fi
+    echo "$_input"
 }
 
 # -----------------------------------------------------------------------------
@@ -111,7 +110,7 @@ while [[ $# -gt 0 ]]; do
         --port)            SERVER_PORT="$2";     shift 2 ;;
         --build-agent)     BUILD_AGENT=true;     shift ;;
         -h|--help)
-            sed -n '2,/^$/s/^# \?//p' "$0"
+            sed -n '2,/^$/s/^# \?//p' "$0" 2>/dev/null || true
             exit 0
             ;;
         *) die "Unknown option: $1. Use --help for usage." ;;
@@ -129,12 +128,12 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Detect OS
+OS_ID="unknown"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS_ID="${ID:-unknown}"
     info "Detected OS: ${PRETTY_NAME:-$OS_ID}"
 else
-    OS_ID="unknown"
     warn "Could not detect OS — continuing anyway."
 fi
 
@@ -158,10 +157,10 @@ else
             apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
             ;;
         centos|rhel|rocky|almalinux|fedora)
-            dnf install -y dnf-plugins-core || yum install -y yum-utils
+            dnf install -y dnf-plugins-core 2>/dev/null || yum install -y yum-utils 2>/dev/null || true
             dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null \
-                || yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin \
+                || yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null || true
+            dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin 2>/dev/null \
                 || yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
             ;;
         *)
@@ -197,7 +196,7 @@ if ! command -v openssl &>/dev/null; then
     warn "openssl not found — installing..."
     case "$OS_ID" in
         ubuntu|debian) apt-get install -y -qq openssl ;;
-        *)             dnf install -y openssl || yum install -y openssl || true ;;
+        *)             dnf install -y openssl 2>/dev/null || yum install -y openssl 2>/dev/null || true ;;
     esac
 fi
 
@@ -206,29 +205,61 @@ fi
 # -----------------------------------------------------------------------------
 header "Configuration"
 
-prompt "INSTALL_DIR"      "Installation directory"                 "$INSTALL_DIR"
-prompt "REPO_URL"         "Git repository URL"                     "$REPO_URL"
-prompt "BRANCH"           "Git branch to deploy"                   "$BRANCH"
+if ! $NON_INTERACTIVE; then
+    printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "Installation directory" "$INSTALL_DIR"
+    _input=$(read_input)
+    INSTALL_DIR="${_input:-$INSTALL_DIR}"
 
-# Auto-detect hostname
-if [ -z "$SERVER_HOST" ]; then
-    DETECTED_HOST=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
-    # Try to get external IP as alternative
-    DETECTED_IP=$(curl -s --max-time 3 https://ifconfig.me 2>/dev/null || echo "")
-fi
-prompt "SERVER_HOST"      "Server hostname or IP (for browser/agent access)" "${SERVER_HOST:-${DETECTED_IP:-$DETECTED_HOST}}"
-prompt "SERVER_PROTOCOL"  "Protocol (http/https)"                  "$SERVER_PROTOCOL"
-prompt "SERVER_PORT"      "Server port"                            "$SERVER_PORT"
+    printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "Git repository URL" "$REPO_URL"
+    _input=$(read_input)
+    REPO_URL="${_input:-$REPO_URL}"
 
-prompt_yes_no "DO_BUILD_AGENT" "Also build Go agent binaries? (requires Go)" "no"
-if [ "$DO_BUILD_AGENT" = "yes" ]; then
-    BUILD_AGENT=true
+    printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "Git branch to deploy" "$BRANCH"
+    _input=$(read_input)
+    BRANCH="${_input:-$BRANCH}"
+
+    # Auto-detect hostname
+    if [ -z "$SERVER_HOST" ]; then
+        DETECTED_HOST=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
+        DETECTED_IP=$(curl -s --max-time 3 https://ifconfig.me 2>/dev/null || echo "")
+    fi
+    _host_default="${SERVER_HOST:-${DETECTED_IP:-$DETECTED_HOST}}"
+    _host_default="${_host_default:-localhost}"
+    printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "Server hostname or IP (for browser/agent access)" "$_host_default"
+    _input=$(read_input)
+    SERVER_HOST="${_input:-$_host_default}"
+
+    printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "Protocol (http/https)" "$SERVER_PROTOCOL"
+    _input=$(read_input)
+    SERVER_PROTOCOL="${_input:-$SERVER_PROTOCOL}"
+
+    printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "Server port" "$SERVER_PORT"
+    _input=$(read_input)
+    SERVER_PORT="${_input:-$SERVER_PORT}"
+
+    printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "Also build Go agent binaries? (yes/no)" "no"
+    _input=$(read_input)
+    _input="${_input:-no}"
+    case "$_input" in
+        [Yy]|[Yy][Ee][Ss]) BUILD_AGENT=true ;;
+    esac
+else
+    # Non-interactive: auto-detect hostname if not provided
+    if [ -z "$SERVER_HOST" ]; then
+        SERVER_HOST=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
+    fi
 fi
 
 # Generate secrets
+info "Generating secure passwords and tokens..."
 POSTGRES_PASSWORD=$(generate_secret 32)
 REDIS_PASSWORD=$(generate_secret 32)
 JWT_SECRET=$(generate_secret 64)
+
+if [ -z "$POSTGRES_PASSWORD" ] || [ -z "$REDIS_PASSWORD" ] || [ -z "$JWT_SECRET" ]; then
+    die "Failed to generate secrets. Ensure openssl or /dev/urandom is available."
+fi
+success "Secrets generated."
 
 # Build CORS origin
 if [ "$SERVER_PROTOCOL" = "https" ] && [ "$SERVER_PORT" = "443" ]; then
@@ -249,8 +280,13 @@ info "  Build agent       : $BUILD_AGENT"
 info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 if ! $NON_INTERACTIVE; then
-    prompt_yes_no "CONFIRM" "Proceed with deployment?" "yes"
-    [ "$CONFIRM" != "yes" ] && { info "Aborted."; exit 0; }
+    printf "${BLUE}%s${NC} [${YELLOW}%s${NC}]: " "Proceed with deployment? (yes/no)" "yes"
+    _input=$(read_input)
+    _input="${_input:-yes}"
+    case "$_input" in
+        [Yy]|[Yy][Ee][Ss]) ;; # continue
+        *) info "Aborted."; exit 0 ;;
+    esac
 fi
 
 # -----------------------------------------------------------------------------
