@@ -961,53 +961,66 @@ setup_database() {
     
     # Check if sudo is available for user switching
     if command -v sudo >/dev/null 2>&1; then
-        # Check if user exists
-        user_exists=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" || echo "0")
-        
-        if [ "$user_exists" = "1" ]; then
-            print_info "Database user $DB_USER already exists, skipping creation"
-        else
-            print_info "Creating database user $DB_USER"
-            sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
-        fi
-        
-        # Check if database exists
+        # Check if database exists and drop it for clean redeploy
         db_exists=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" || echo "0")
         
         if [ "$db_exists" = "1" ]; then
-            print_info "Database $DB_NAME already exists, skipping creation"
-        else
-            print_info "Creating database $DB_NAME"
-            sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+            print_warning "Database $DB_NAME already exists, dropping for clean redeploy..."
+            # Terminate active connections before dropping
+            sudo -u postgres psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$DB_NAME' AND pid <> pg_backend_pid();" >/dev/null 2>&1
+            sudo -u postgres psql -c "DROP DATABASE $DB_NAME;"
+            print_info "Database $DB_NAME dropped"
         fi
         
-        # Always grant privileges (in case they were revoked)
+        # Check if user exists and drop it so we can recreate with the new password
+        user_exists=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" || echo "0")
+        
+        if [ "$user_exists" = "1" ]; then
+            print_warning "Database user $DB_USER already exists, dropping for clean redeploy..."
+            sudo -u postgres psql -c "DROP USER $DB_USER;"
+            print_info "Database user $DB_USER dropped"
+        fi
+        
+        # Create user and database fresh
+        print_info "Creating database user $DB_USER"
+        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+        
+        print_info "Creating database $DB_NAME"
+        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+        
+        # Grant privileges
         sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
     else
         # Alternative method for systems without sudo (run as postgres user directly)
         print_warning "sudo not available, using alternative method for PostgreSQL setup"
         
-        # Check if user exists
-        user_exists=$(su - postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'\"" || echo "0")
-        
-        if [ "$user_exists" = "1" ]; then
-            print_info "Database user $DB_USER already exists, skipping creation"
-        else
-            print_info "Creating database user $DB_USER"
-            su - postgres -c "psql -c \"CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';\""
-        fi
-        
-        # Check if database exists
+        # Check if database exists and drop it for clean redeploy
         db_exists=$(su - postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='$DB_NAME'\"" || echo "0")
         
         if [ "$db_exists" = "1" ]; then
-            print_info "Database $DB_NAME already exists, skipping creation"
-        else
-            print_info "Creating database $DB_NAME"
-            su - postgres -c "psql -c \"CREATE DATABASE $DB_NAME OWNER $DB_USER;\""
+            print_warning "Database $DB_NAME already exists, dropping for clean redeploy..."
+            su - postgres -c "psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$DB_NAME' AND pid <> pg_backend_pid();\"" >/dev/null 2>&1
+            su - postgres -c "psql -c \"DROP DATABASE $DB_NAME;\""
+            print_info "Database $DB_NAME dropped"
         fi
         
-        # Always grant privileges (in case they were revoked)
+        # Check if user exists and drop it so we can recreate with the new password
+        user_exists=$(su - postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'\"" || echo "0")
+        
+        if [ "$user_exists" = "1" ]; then
+            print_warning "Database user $DB_USER already exists, dropping for clean redeploy..."
+            su - postgres -c "psql -c \"DROP USER $DB_USER;\""
+            print_info "Database user $DB_USER dropped"
+        fi
+        
+        # Create user and database fresh
+        print_info "Creating database user $DB_USER"
+        su - postgres -c "psql -c \"CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';\""
+        
+        print_info "Creating database $DB_NAME"
+        su - postgres -c "psql -c \"CREATE DATABASE $DB_NAME OWNER $DB_USER;\""
+        
+        # Grant privileges
         su - postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;\""
     fi
     
