@@ -349,8 +349,8 @@ select_branch() {
                 fi
             done
         else
-            print_warning "No release tags found, using default: main"
-            DEPLOYMENT_BRANCH="main"
+            print_warning "No release tags found, using default: development"
+            DEPLOYMENT_BRANCH="development"
         fi
     else
         print_warning "Could not connect to GitHub repository"
@@ -358,8 +358,8 @@ select_branch() {
         print_warning "  • Network connectivity issues"
         print_warning "  • Firewall blocking git access"
         print_warning "  • GitHub repository access restrictions"
-        print_warning "Using default branch: main"
-        DEPLOYMENT_BRANCH="main"
+        print_warning "Using default branch: development"
+        DEPLOYMENT_BRANCH="development"
     fi
     
     # Clean up
