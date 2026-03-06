@@ -2110,74 +2110,73 @@ const HostDetail = () => {
 										</p>
 									)}
 								</div>
-							</div>
 
-							{/* Config Management Toggle */}
-							<div className="bg-secondary-50 dark:bg-secondary-700 rounded-lg p-4 border border-secondary-200 dark:border-secondary-600">
-								<div className="flex items-start justify-between gap-4">
-									<div className="flex-1">
-										<div className="flex items-center gap-3 mb-2">
-											<Settings className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-											<h4 className="text-sm font-medium text-secondary-900 dark:text-white">
-												Config Management
-											</h4>
-											{integrationsData?.data?.integrations?.configmanagement ? (
-												<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-													Enabled
-												</span>
-											) : (
-												<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-400">
-													Disabled
-												</span>
-											)}
+								{/* Config Management Toggle */}
+								<div className="bg-secondary-50 dark:bg-secondary-700 rounded-lg p-4 border border-secondary-200 dark:border-secondary-600">
+									<div className="flex items-start justify-between gap-4">
+										<div className="flex-1">
+											<div className="flex items-center gap-3 mb-2">
+												<Settings className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+												<h4 className="text-sm font-medium text-secondary-900 dark:text-white">
+													Config Management
+												</h4>
+												{integrationsData?.data?.integrations?.configmanagement ? (
+													<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+														Enabled
+													</span>
+												) : (
+													<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-400">
+														Disabled
+													</span>
+												)}
+											</div>
+											<p className="text-xs text-secondary-600 dark:text-secondary-300">
+												Evaluate configuration policies (techniques, directives, rules) and report compliance.
+											</p>
 										</div>
-										<p className="text-xs text-secondary-600 dark:text-secondary-300">
-											Evaluate configuration policies (techniques, directives, rules) and report compliance.
-										</p>
-									</div>
-									<div className="flex-shrink-0">
-										<button
-											type="button"
-											onClick={() =>
-												toggleIntegrationMutation.mutate({
-													integrationName: "configmanagement",
-													enabled:
-														!integrationsData?.data?.integrations?.configmanagement,
-												})
-											}
-											disabled={
-												toggleIntegrationMutation.isPending ||
-												!wsStatus?.connected
-											}
-											className={`relative inline-flex h-5 w-9 items-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-												integrationsData?.data?.integrations?.configmanagement
-													? "bg-primary-600 dark:bg-primary-500"
-													: "bg-secondary-200 dark:bg-secondary-600"
-											} ${
-												toggleIntegrationMutation.isPending ||
-												!integrationsData?.data?.connected
-													? "opacity-50 cursor-not-allowed"
-													: ""
-											}`}
-										>
-											<span
-												className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+										<div className="flex-shrink-0">
+											<button
+												type="button"
+												onClick={() =>
+													toggleIntegrationMutation.mutate({
+														integrationName: "configmanagement",
+														enabled:
+															!integrationsData?.data?.integrations?.configmanagement,
+													})
+												}
+												disabled={
+													toggleIntegrationMutation.isPending ||
+													!wsStatus?.connected
+												}
+												className={`relative inline-flex h-5 w-9 items-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
 													integrationsData?.data?.integrations?.configmanagement
-														? "translate-x-5"
-														: "translate-x-1"
+														? "bg-primary-600 dark:bg-primary-500"
+														: "bg-secondary-200 dark:bg-secondary-600"
+												} ${
+													toggleIntegrationMutation.isPending ||
+													!integrationsData?.data?.connected
+														? "opacity-50 cursor-not-allowed"
+														: ""
 												}`}
-											/>
-										</button>
+											>
+												<span
+													className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+														integrationsData?.data?.integrations?.configmanagement
+															? "translate-x-5"
+															: "translate-x-1"
+													}`}
+												/>
+											</button>
+										</div>
 									</div>
+									{!wsStatus?.connected && (
+										<p className="text-xs text-warning-600 dark:text-warning-400 mt-2">
+											Agent must be connected via WebSocket to toggle
+											integrations
+										</p>
+									)}
 								</div>
-								{!wsStatus?.connected && (
-									<p className="text-xs text-warning-600 dark:text-warning-400 mt-2">
-										Agent must be connected via WebSocket to toggle
-										integrations
-									</p>
-								)}
 							</div>
-						</div>
 						)}
 					</div>
 
