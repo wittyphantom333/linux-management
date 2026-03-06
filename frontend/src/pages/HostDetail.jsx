@@ -2177,6 +2177,7 @@ const HostDetail = () => {
 									</p>
 								)}
 							</div>
+						</div>
 						)}
 					</div>
 
