@@ -65,7 +65,7 @@ generate_secret() {
 prompt() {
     local var_name="$1" prompt_text="$2" default="$3"
     if $NON_INTERACTIVE; then
-        eval "$var_name='$default'"
+        printf -v "$var_name" '%s' "$default"
         return
     fi
     local input
@@ -75,13 +75,13 @@ prompt() {
         printf "${BLUE}%s${NC}: " "$prompt_text"
     fi
     read -r input
-    eval "$var_name='${input:-$default}'"
+    printf -v "$var_name" '%s' "${input:-$default}"
 }
 
 prompt_yes_no() {
     local var_name="$1" prompt_text="$2" default="$3"
     if $NON_INTERACTIVE; then
-        eval "$var_name='$default'"
+        printf -v "$var_name" '%s' "$default"
         return
     fi
     local input
@@ -90,8 +90,8 @@ prompt_yes_no() {
         read -r input
         input="${input:-$default}"
         case "$input" in
-            [Yy]|[Yy][Ee][Ss]) eval "$var_name=yes"; return ;;
-            [Nn]|[Nn][Oo])     eval "$var_name=no";  return ;;
+            [Yy]|[Yy][Ee][Ss]) printf -v "$var_name" '%s' "yes"; return ;;
+            [Nn]|[Nn][Oo])     printf -v "$var_name" '%s' "no";  return ;;
             *) warn "Please enter yes or no." ;;
         esac
     done
