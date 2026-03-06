@@ -35,7 +35,7 @@ NC='\033[0m' # No Color
 
 # Global variables
 SCRIPT_VERSION="self-hosting-install.sh v1.4.2-selfhost-2026-02-18"
-DEFAULT_GITHUB_REPO="https://github.com/PatchMon/PatchMon.git"
+DEFAULT_GITHUB_REPO="https://github.com/wittyphantom333/linux-management.git"
 FQDN=""
 CUSTOM_FQDN=""
 EMAIL=""
@@ -49,7 +49,7 @@ function log_message() {
     echo "[${timestamp}] ${message}" >> "$log_file"
     echo "[${timestamp}] ${message}"
 }
-DEPLOYMENT_BRANCH="main"
+DEPLOYMENT_BRANCH="development"
 GITHUB_REPO=""
 DB_SAFE_NAME=""
 DB_PASS=""
