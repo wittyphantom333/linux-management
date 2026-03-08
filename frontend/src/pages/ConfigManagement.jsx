@@ -21,6 +21,9 @@ import {
 	Wrench,
 	Search,
 	RefreshCw,
+	Stethoscope,
+	Play,
+	Loader2,
 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { configManagementAPI } from "../utils/configManagementApi";
@@ -390,7 +393,11 @@ function StatCard({ label, value, icon: Icon, color }) {
 // ─── Overview tab ───────────────────────────────────────────────────────────
 function OverviewTab({ dashboard, techniques, directives, rules, runs }) {
 	return (
-		<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+		<div className="space-y-6">
+			{/* Pipeline Diagnostics */}
+			<DiagnosticsPanel />
+
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 			{/* Recent runs */}
 			<div className="card p-5">
 				<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
@@ -498,6 +505,214 @@ function OverviewTab({ dashboard, techniques, directives, rules, runs }) {
 					)}
 				</div>
 			</div>
+		</div>
+		</div>
+	);
+}
+
+// ─── Pipeline Diagnostics panel ─────────────────────────────────────────────
+function DiagnosticsPanel() {
+	const toast = useToast();
+	const queryClient = useQueryClient();
+	const [testRunningHost, setTestRunningHost] = useState(null);
+
+	const {
+		data: diagnostic,
+		isLoading: diagLoading,
+		refetch: refetchDiag,
+		isFetching: diagFetching,
+	} = useQuery({
+		queryKey: ["configmgmt", "diagnose"],
+		queryFn: () => configManagementAPI.diagnose().then((r) => r.data),
+		staleTime: 30_000,
+	});
+
+	const testRunMutation = useMutation({
+		mutationFn: (hostId) => configManagementAPI.testRun(hostId),
+		onSuccess: (res) => {
+			const data = res.data;
+			toast.success(`Test run created: ${data.policy_summary?.directives || 0} directives evaluated`);
+			queryClient.invalidateQueries(["configmgmt", "runs"]);
+			queryClient.invalidateQueries(["configmgmt", "dashboard"]);
+			queryClient.invalidateQueries(["configmgmt", "diagnose"]);
+			setTestRunningHost(null);
+		},
+		onError: (err) => {
+			toast.error(`Test run failed: ${err.response?.data?.error || err.response?.data?.message || err.message}`);
+			setTestRunningHost(null);
+		},
+	});
+
+	if (diagLoading) {
+		return (
+			<div className="card p-5">
+				<div className="flex items-center gap-2 text-secondary-500">
+					<Loader2 className="h-4 w-4 animate-spin" />
+					Running diagnostics…
+				</div>
+			</div>
+		);
+	}
+
+	if (!diagnostic) return null;
+
+	const { pipeline_ok, issues, details } = diagnostic;
+	const errors = issues?.filter((i) => i.severity === "error") || [];
+	const warnings = issues?.filter((i) => i.severity === "warning") || [];
+
+	return (
+		<div className="card p-5">
+			<div className="flex items-center justify-between mb-4">
+				<div className="flex items-center gap-2">
+					<Stethoscope className="h-5 w-5 text-primary-500" />
+					<h2 className="text-lg font-medium text-secondary-900 dark:text-white">
+						Pipeline Diagnostics
+					</h2>
+					{pipeline_ok ? (
+						<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+							<CheckCircle2 className="h-3 w-3" />
+							Ready
+						</span>
+					) : (
+						<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+							<XCircle className="h-3 w-3" />
+							Issues Found
+						</span>
+					)}
+				</div>
+				<button
+					type="button"
+					onClick={() => refetchDiag()}
+					disabled={diagFetching}
+					className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-secondary-100 dark:bg-secondary-700 text-secondary-700 dark:text-secondary-300 hover:bg-secondary-200 dark:hover:bg-secondary-600 transition-colors"
+				>
+					<RefreshCw className={`h-3.5 w-3.5 ${diagFetching ? "animate-spin" : ""}`} />
+					Re-check
+				</button>
+			</div>
+
+			{/* Pipeline chain visualization */}
+			<div className="flex items-center gap-2 mb-4 text-xs overflow-x-auto">
+				{[
+					{ label: "Techniques", count: details?.techniques?.total ?? 0 },
+					{ label: "Directives", count: details?.directives?.total ?? 0 },
+					{ label: "Rules", count: details?.rules?.total ?? 0 },
+					{ label: "Enabled Hosts", count: details?.enabled_hosts?.total ?? 0 },
+					{ label: "With Policy", count: details?.host_policies?.filter((h) => h.has_policy).length ?? 0 },
+				].map((step, i, arr) => (
+					<div key={step.label} className="flex items-center gap-2">
+						<div className={`flex flex-col items-center px-3 py-2 rounded-lg border ${
+							step.count > 0
+								? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30"
+								: "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30"
+						}`}>
+							<span className={`font-bold text-base ${step.count > 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
+								{step.count}
+							</span>
+							<span className="text-secondary-600 dark:text-secondary-400 whitespace-nowrap">
+								{step.label}
+							</span>
+						</div>
+						{i < arr.length - 1 && (
+							<ChevronRight className="h-4 w-4 text-secondary-400 flex-shrink-0" />
+						)}
+					</div>
+				))}
+			</div>
+
+			{/* Issues list */}
+			{errors.length > 0 && (
+				<div className="space-y-2 mb-3">
+					{errors.map((issue, i) => (
+						<div key={`err-${i}`} className="flex items-start gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm">
+							<XCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+							<span className="text-red-700 dark:text-red-300">{issue.message}</span>
+						</div>
+					))}
+				</div>
+			)}
+			{warnings.length > 0 && (
+				<div className="space-y-2 mb-3">
+					{warnings.map((issue, i) => (
+						<div key={`warn-${i}`} className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-sm">
+							<AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+							<span className="text-amber-700 dark:text-amber-300">{issue.message}</span>
+						</div>
+					))}
+				</div>
+			)}
+
+			{/* Host policy table with test run buttons */}
+			{details?.host_policies && details.host_policies.length > 0 && (
+				<div className="mt-4">
+					<h3 className="text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-2">
+						Enabled Hosts
+					</h3>
+					<div className="border border-secondary-200 dark:border-secondary-700 rounded-lg overflow-hidden">
+						<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700 text-sm">
+							<thead className="bg-secondary-50 dark:bg-secondary-800">
+								<tr>
+									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">Host</th>
+									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">Policy</th>
+									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">Directives</th>
+									<th className="px-3 py-2 text-right text-xs font-medium text-secondary-500 uppercase">Actions</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
+								{details.host_policies.map((hp) => (
+									<tr key={hp.host_id} className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50">
+										<td className="px-3 py-2 text-secondary-900 dark:text-white font-medium">
+											{hp.host_name}
+										</td>
+										<td className="px-3 py-2">
+											{hp.has_policy ? (
+												<span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+													<CheckCircle2 className="h-3.5 w-3.5" />
+													Available
+												</span>
+											) : (
+												<span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+													<XCircle className="h-3.5 w-3.5" />
+													None
+												</span>
+											)}
+										</td>
+										<td className="px-3 py-2 text-secondary-600 dark:text-secondary-400">
+											{hp.directive_count}
+										</td>
+										<td className="px-3 py-2 text-right">
+											{hp.has_policy && (
+												<button
+													type="button"
+													onClick={() => {
+														setTestRunningHost(hp.host_id);
+														testRunMutation.mutate(hp.host_id);
+													}}
+													disabled={testRunMutation.isPending}
+													className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 transition-colors disabled:opacity-50"
+												>
+													{testRunMutation.isPending && testRunningHost === hp.host_id ? (
+														<Loader2 className="h-3 w-3 animate-spin" />
+													) : (
+														<Play className="h-3 w-3" />
+													)}
+													Test Run
+												</button>
+											)}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			)}
+
+			{issues?.length === 0 && (
+				<p className="text-sm text-green-600 dark:text-green-400 mt-2">
+					Pipeline is fully configured. Agents will evaluate policies on their next report cycle (typically every 60 minutes).
+				</p>
+			)}
 		</div>
 	);
 }

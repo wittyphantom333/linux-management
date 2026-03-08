@@ -42,4 +42,8 @@ export const configManagementAPI = {
 	listRuns: (params = {}) =>
 		api.get("/configmanagement/runs", { params }),
 	getRun: (id) => api.get(`/configmanagement/runs/${id}`),
+
+	// ── Diagnostics ────────────────────────────────────────────────────
+	diagnose: () => api.get("/configmanagement/diagnose"),
+	testRun: (hostId) => api.post(`/configmanagement/test-run/${hostId}`),
 };

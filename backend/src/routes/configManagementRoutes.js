@@ -828,4 +828,225 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
 	}
 });
 
+// ============================================================================
+// DIAGNOSTICS (trace the full pipeline to find issues)
+// ============================================================================
+
+// GET /api/v1/configmanagement/diagnose - Full pipeline diagnostic
+router.get("/diagnose", authenticateToken, async (req, res) => {
+	try {
+		const prisma = getPrismaClient();
+		const issues = [];
+		const details = {};
+
+		// Step 1: Check techniques
+		const techniques = await prisma.cm_techniques.findMany({
+			where: { enabled: true },
+			select: { id: true, name: true, methods: true },
+		});
+		details.techniques = { total: techniques.length, items: techniques.map((t) => ({ id: t.id, name: t.name, methods: Array.isArray(t.methods) ? t.methods.length : 0 })) };
+		if (techniques.length === 0) {
+			issues.push({ severity: "error", step: "techniques", message: "No enabled techniques exist. Create at least one technique with methods." });
+		}
+
+		// Step 2: Check directives
+		const directives = await prisma.cm_directives.findMany({
+			where: { enabled: true },
+			select: { id: true, name: true, technique_id: true, parameters: true },
+		});
+		details.directives = { total: directives.length, items: directives.map((d) => ({ id: d.id, name: d.name, technique_id: d.technique_id })) };
+		if (directives.length === 0) {
+			issues.push({ severity: "error", step: "directives", message: "No enabled directives exist. Create a directive from a technique." });
+		}
+		// Check that directives reference valid techniques
+		const techIds = new Set(techniques.map((t) => t.id));
+		for (const d of directives) {
+			if (!techIds.has(d.technique_id)) {
+				issues.push({ severity: "warning", step: "directives", message: `Directive "${d.name}" references technique ${d.technique_id} which is missing or disabled.` });
+			}
+		}
+
+		// Step 3: Check rules
+		const rules = await prisma.cm_rules.findMany({
+			where: { enabled: true },
+			include: {
+				cm_rule_directives: { select: { directive_id: true } },
+				cm_rule_groups: { select: { host_group_id: true } },
+			},
+		});
+		details.rules = {
+			total: rules.length,
+			items: rules.map((r) => ({
+				id: r.id,
+				name: r.name,
+				directive_count: r.cm_rule_directives.length,
+				group_count: r.cm_rule_groups.length,
+				directive_ids: r.cm_rule_directives.map((d) => d.directive_id),
+				group_ids: r.cm_rule_groups.map((g) => g.host_group_id),
+			})),
+		};
+		if (rules.length === 0) {
+			issues.push({ severity: "error", step: "rules", message: "No enabled rules exist. Create a rule linking directives to host groups." });
+		}
+		for (const r of rules) {
+			if (r.cm_rule_directives.length === 0) {
+				issues.push({ severity: "warning", step: "rules", message: `Rule "${r.name}" has no directives assigned.` });
+			}
+			if (r.cm_rule_groups.length === 0) {
+				issues.push({ severity: "warning", step: "rules", message: `Rule "${r.name}" has no host groups assigned.` });
+			}
+		}
+
+		// Step 4: Check enabled hosts
+		const enabledHosts = await prisma.hosts.findMany({
+			where: { configmanagement_enabled: true },
+			select: { id: true, friendly_name: true, hostname: true, api_id: true },
+		});
+		details.enabled_hosts = {
+			total: enabledHosts.length,
+			items: enabledHosts.map((h) => ({ id: h.id, name: h.friendly_name || h.hostname, api_id: h.api_id })),
+		};
+		if (enabledHosts.length === 0) {
+			issues.push({ severity: "error", step: "hosts", message: "No hosts have Config Management enabled. Toggle it on in each host's detail page (Integrations section)." });
+		}
+
+		// Step 5: For each enabled host, check if they have an applicable policy
+		const hostPolicies = [];
+		for (const host of enabledHosts) {
+			const policy = await computePolicyForHost(host.id);
+			hostPolicies.push({
+				host_id: host.id,
+				host_name: host.friendly_name || host.hostname,
+				has_policy: !!policy,
+				directive_count: policy ? policy.directives.length : 0,
+			});
+			if (!policy) {
+				// Check why - is the host in any groups?
+				const memberships = await prisma.host_group_memberships.findMany({
+					where: { host_id: host.id },
+					select: { host_group_id: true },
+				});
+				if (memberships.length === 0) {
+					issues.push({ severity: "warning", step: "hosts", message: `Host "${host.friendly_name || host.hostname}" is not in any host group. Add it to a group that has CM rules.` });
+				} else {
+					const groupIds = memberships.map((m) => m.host_group_id);
+					const matchingRules = await prisma.cm_rule_groups.findMany({
+						where: { host_group_id: { in: groupIds } },
+						select: { rule_id: true },
+					});
+					if (matchingRules.length === 0) {
+						issues.push({ severity: "warning", step: "hosts", message: `Host "${host.friendly_name || host.hostname}" is in ${groupIds.length} group(s) but no CM rules target those groups.` });
+					}
+				}
+			}
+		}
+		details.host_policies = hostPolicies;
+
+		// Step 6: Check recent agent contact
+		const allHosts = await prisma.hosts.findMany({
+			where: { configmanagement_enabled: true },
+			select: { id: true, friendly_name: true, hostname: true, last_seen: true, agent_version: true },
+		});
+		for (const h of allHosts) {
+			if (h.last_seen) {
+				const lastSeen = new Date(h.last_seen);
+				const minutesAgo = (Date.now() - lastSeen.getTime()) / 60000;
+				if (minutesAgo > 90) {
+					issues.push({ severity: "warning", step: "agents", message: `Host "${h.friendly_name || h.hostname}" was last seen ${Math.round(minutesAgo)} minutes ago. Agent may not be running.` });
+				}
+			}
+			if (h.agent_version && h.agent_version < "1.4.3") {
+				issues.push({ severity: "warning", step: "agents", message: `Host "${h.friendly_name || h.hostname}" is running agent ${h.agent_version}. Config Management requires v1.4.3+.` });
+			}
+		}
+
+		// Summary
+		const pipeline_ok = issues.filter((i) => i.severity === "error").length === 0 &&
+			enabledHosts.length > 0 && hostPolicies.some((hp) => hp.has_policy);
+
+		return res.json({
+			success: true,
+			pipeline_ok,
+			issues,
+			details,
+		});
+	} catch (error) {
+		logger.error(`[ConfigMgmt] Diagnose failed: ${error.message}`);
+		return res.status(500).json({ error: "Failed to run diagnostics" });
+	}
+});
+
+// POST /api/v1/configmanagement/test-run/:hostId - Evaluate policy server-side and store a test run
+router.post("/test-run/:hostId", authenticateToken, async (req, res) => {
+	try {
+		const prisma = getPrismaClient();
+		const { hostId } = req.params;
+
+		// Verify host exists and has CM enabled
+		const host = await prisma.hosts.findUnique({
+			where: { id: hostId },
+			select: { id: true, friendly_name: true, hostname: true, configmanagement_enabled: true },
+		});
+		if (!host) {
+			return res.status(404).json({ error: "Host not found" });
+		}
+
+		// Compute policy
+		const policy = await computePolicyForHost(host.id);
+		if (!policy) {
+			return res.status(400).json({
+				error: "No applicable policy for this host",
+				message: "Ensure the host is in a group targeted by an enabled rule with directives.",
+			});
+		}
+
+		// Server-side "evaluation" — since we can't run methods here, mark all as "audit_compliant" or "not_evaluated"
+		const directiveResults = policy.directives.map((item) => ({
+			directive_id: item.directive.id,
+			directive_name: item.directive.name,
+			technique_id: item.directive.technique_id,
+			policy_mode: item.effective_mode,
+			status: "not_evaluated",
+			methods: [],
+			started_at: new Date().toISOString(),
+			completed_at: new Date().toISOString(),
+		}));
+
+		const totalDirectives = directiveResults.length;
+		const run = await prisma.cm_policy_runs.create({
+			data: {
+				id: uuidv4(),
+				host_id: host.id,
+				policy_id: policy.policy_id,
+				global_mode: policy.global_mode,
+				evaluated_at: new Date(),
+				total_directives: totalDirectives,
+				compliant: 0,
+				non_compliant: 0,
+				errors: 0,
+				repaired: 0,
+				not_applicable: totalDirectives,
+				score: 0,
+				directive_results: directiveResults,
+				created_at: new Date(),
+			},
+		});
+
+		logger.info(`[ConfigMgmt] Test run created for ${host.friendly_name || host.hostname}: ${totalDirectives} directives`);
+
+		return res.json({
+			success: true,
+			run,
+			policy_summary: {
+				policy_id: policy.policy_id,
+				directives: totalDirectives,
+				techniques: policy.techniques.length,
+			},
+		});
+	} catch (error) {
+		logger.error(`[ConfigMgmt] Test run failed: ${error.message}`);
+		return res.status(500).json({ error: "Failed to create test run" });
+	}
+});
+
 module.exports = router;

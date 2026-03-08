@@ -113,10 +113,18 @@ func (cm *Integration) Collect(ctx context.Context) (*models.IntegrationData, er
 	if currentPolicy == nil {
 		if err := cm.loadCachedPolicy(); err != nil {
 			cm.logger.WithError(err).Debug("No cached policy available")
+			// Send a heartbeat report so the server knows the agent attempted CM
+			heartbeat := &models.ConfigComplianceReport{
+				PolicyID:    "",
+				HostID:      "",
+				GlobalMode:  "audit",
+				EvaluatedAt: utils.GetCurrentTimeUTC(),
+				Score:       0,
+			}
 			return &models.IntegrationData{
 				Name:          integrationName,
 				Enabled:       true,
-				Data:          &models.ConfigManagementData{CurrentHash: ""},
+				Data:          &models.ConfigManagementData{Report: heartbeat, CurrentHash: ""},
 				CollectedAt:   utils.GetCurrentTimeUTC(),
 				ExecutionTime: time.Since(startTime).Seconds(),
 			}, nil
@@ -128,10 +136,18 @@ func (cm *Integration) Collect(ctx context.Context) (*models.IntegrationData, er
 
 	if currentPolicy == nil || len(currentPolicy.Directives) == 0 {
 		cm.logger.Debug("No directives in current policy, skipping evaluation")
+		// Send a heartbeat report so the server records that the agent checked
+		heartbeat := &models.ConfigComplianceReport{
+			PolicyID:    "",
+			HostID:      "",
+			GlobalMode:  "audit",
+			EvaluatedAt: utils.GetCurrentTimeUTC(),
+			Score:       0,
+		}
 		return &models.IntegrationData{
 			Name:          integrationName,
 			Enabled:       true,
-			Data:          &models.ConfigManagementData{CurrentHash: cm.policyHash},
+			Data:          &models.ConfigManagementData{Report: heartbeat, CurrentHash: cm.policyHash},
 			CollectedAt:   utils.GetCurrentTimeUTC(),
 			ExecutionTime: time.Since(startTime).Seconds(),
 		}, nil
