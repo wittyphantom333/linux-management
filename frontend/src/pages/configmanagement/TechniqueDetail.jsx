@@ -72,7 +72,12 @@ export default function TechniqueDetail() {
 			setVersion(technique.version || "1.0");
 			setCategory(technique.category || "");
 			setParameters(technique.parameters || []);
-			setMethods(technique.methods || []);
+			// Normalize legacy method field names: args → parameters, description → name
+			setMethods((technique.methods || []).map((m) => ({
+				...m,
+				name: m.name || m.description || "",
+				parameters: m.parameters || m.args || {},
+			})));
 		}
 	}, [technique]);
 
@@ -135,8 +140,8 @@ export default function TechniqueDetail() {
 		const newMethod = {
 			id: `method_${Date.now()}`,
 			type: "file_content",
-			description: "",
-			args: {},
+			name: "",
+			parameters: {},
 			condition: "",
 		};
 		setMethods([...methods, newMethod]);
@@ -153,7 +158,7 @@ export default function TechniqueDetail() {
 		const updated = [...methods];
 		updated[idx] = {
 			...updated[idx],
-			args: { ...updated[idx].args, [key]: value },
+			parameters: { ...updated[idx].parameters, [key]: value },
 		};
 		setMethods(updated);
 	}
@@ -444,9 +449,9 @@ export default function TechniqueDetail() {
 										</span>
 										<span className="text-sm font-medium text-secondary-900 dark:text-white flex-1">
 											{methodType?.label || m.type}
-											{m.description && (
+											{m.name && (
 												<span className="text-secondary-400 font-normal ml-2">
-													— {m.description}
+													— {m.name}
 												</span>
 											)}
 										</span>
@@ -516,8 +521,8 @@ export default function TechniqueDetail() {
 													</label>
 													<input
 														type="text"
-														value={m.description || ""}
-														onChange={(e) => updateMethod(idx, "description", e.target.value)}
+														value={m.name || ""}
+														onChange={(e) => updateMethod(idx, "name", e.target.value)}
 														placeholder="Brief description of this step"
 														className="w-full px-2 py-1.5 rounded border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm"
 													/>
@@ -540,7 +545,7 @@ export default function TechniqueDetail() {
 															</label>
 															{arg.type === "textarea" ? (
 																<textarea
-																	value={m.args?.[arg.key] || ""}
+															value={m.parameters?.[arg.key] || ""}
 																	onChange={(e) =>
 																		updateMethodArg(idx, arg.key, e.target.value)
 																	}
@@ -551,7 +556,7 @@ export default function TechniqueDetail() {
 															) : arg.type === "checkbox" ? (
 																<input
 																	type="checkbox"
-																	checked={m.args?.[arg.key] || false}
+																	checked={m.parameters?.[arg.key] || false}
 																	onChange={(e) =>
 																		updateMethodArg(idx, arg.key, e.target.checked)
 																	}
@@ -560,7 +565,7 @@ export default function TechniqueDetail() {
 															) : (
 																<input
 																	type="text"
-																	value={m.args?.[arg.key] || ""}
+																	value={m.parameters?.[arg.key] || ""}
 																	onChange={(e) =>
 																		updateMethodArg(idx, arg.key, e.target.value)
 																	}

@@ -58,10 +58,14 @@ router.post("/techniques", authenticateToken, async (req, res) => {
 			return res.status(400).json({ error: "Name and at least one method are required" });
 		}
 
-		// Add IDs to methods if missing
+		// Normalize methods: add IDs if missing, remap "args" → "parameters" and "description" → "name"
 		const methodsWithIds = methods.map((m, idx) => ({
 			id: m.id || `method_${idx + 1}`,
-			...m,
+			type: m.type,
+			name: m.name || m.description || "",
+			parameters: m.parameters || m.args || {},
+			condition: m.condition || "",
+			result_alias: m.result_alias || "",
 		}));
 
 		const technique = await prisma.cm_techniques.create({
@@ -126,7 +130,17 @@ router.put("/techniques/:id", authenticateToken, async (req, res) => {
 		if (version !== undefined) data.version = version;
 		if (category !== undefined) data.category = category;
 		if (parameters !== undefined) data.parameters = parameters;
-		if (methods !== undefined) data.methods = methods;
+		if (methods !== undefined) {
+			// Normalize methods: remap "args" → "parameters" and "description" → "name"
+			data.methods = methods.map((m, idx) => ({
+				id: m.id || `method_${idx + 1}`,
+				type: m.type,
+				name: m.name || m.description || "",
+				parameters: m.parameters || m.args || {},
+				condition: m.condition || "",
+				result_alias: m.result_alias || "",
+			}));
+		}
 		if (conditions !== undefined) data.conditions = conditions;
 		if (enabled !== undefined) data.enabled = enabled;
 
@@ -554,6 +568,17 @@ async function computePolicyForHost(hostId) {
 			});
 
 			if (dir.technique && !techniqueMap.has(dir.technique.id)) {
+				// Normalize method fields: frontend may store "args" instead of "parameters"
+				// and "description" instead of "name" — remap for the Go agent.
+				const normalizedMethods = (dir.technique.methods || []).map((m) => ({
+					id: m.id,
+					type: m.type,
+					name: m.name || m.description || "",
+					parameters: m.parameters || m.args || {},
+					condition: m.condition || "",
+					result_alias: m.result_alias || "",
+				}));
+
 				techniqueMap.set(dir.technique.id, {
 					id: dir.technique.id,
 					name: dir.technique.name,
@@ -561,7 +586,7 @@ async function computePolicyForHost(hostId) {
 					version: dir.technique.version,
 					category: dir.technique.category,
 					parameters: dir.technique.parameters || [],
-					methods: dir.technique.methods || [],
+					methods: normalizedMethods,
 					conditions: dir.technique.conditions || null,
 				});
 			}
