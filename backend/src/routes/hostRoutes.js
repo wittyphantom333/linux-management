@@ -1097,6 +1097,7 @@ router.get("/integrations", validateApiCredentials, async (req, res) => {
 				compliance_enabled: true,
 				compliance_on_demand_only: true,
 				configmanagement_enabled: true,
+				patchmanagement_enabled: true,
 			},
 		});
 
@@ -1115,6 +1116,7 @@ router.get("/integrations", validateApiCredentials, async (req, res) => {
 			docker: host.docker_enabled ?? false,
 			compliance: host.compliance_enabled ?? false,
 			configmanagement: host.configmanagement_enabled ?? false,
+			patchmanagement: host.patchmanagement_enabled ?? false,
 		};
 
 		res.json({
@@ -3004,6 +3006,7 @@ router.get(
 					compliance_openscap_enabled: true,
 					compliance_docker_bench_enabled: true,
 					configmanagement_enabled: true,
+					patchmanagement_enabled: true,
 				},
 			});
 
@@ -3025,6 +3028,7 @@ router.get(
 				docker: host.docker_enabled ?? cachedState.docker ?? false,
 				compliance: host.compliance_enabled ?? cachedState.compliance ?? false,
 				configmanagement: host.configmanagement_enabled ?? cachedState.configmanagement ?? false,
+				patchmanagement: host.patchmanagement_enabled ?? cachedState.patchmanagement ?? false,
 			};
 
 			// Calculate compliance mode from database fields
@@ -3189,7 +3193,7 @@ router.post(
 			const { enabled } = req.body;
 
 			// Validate integration name
-			const validIntegrations = ["docker", "compliance", "configmanagement"];
+			const validIntegrations = ["docker", "compliance", "configmanagement", "patchmanagement"];
 			if (!validIntegrations.includes(integrationName)) {
 				return res.status(400).json({
 					error: "Invalid integration name",
@@ -3206,6 +3210,7 @@ router.post(
 					friendly_name: true,
 					docker_enabled: true,
 					configmanagement_enabled: true,
+					patchmanagement_enabled: true,
 				},
 			});
 
@@ -3282,6 +3287,11 @@ router.post(
 				await prisma.hosts.update({
 					where: { id: hostId },
 					data: { configmanagement_enabled: enabled },
+				});
+			} else if (integrationName === "patchmanagement") {
+				await prisma.hosts.update({
+					where: { id: hostId },
+					data: { patchmanagement_enabled: enabled },
 				});
 			}
 

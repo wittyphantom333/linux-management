@@ -4120,6 +4120,82 @@ const HostDetail = () => {
 							</div>
 						)}
 
+						{/* Patch Management Integration */}
+						{activeTab === "integrations" && (
+							<div className="bg-secondary-50 dark:bg-secondary-700 rounded-lg p-4 border border-secondary-200 dark:border-secondary-600">
+								<div className="flex items-start justify-between gap-4">
+									<div className="flex-1">
+										<div className="flex items-center gap-3 mb-2">
+											<Shield className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+											<h4 className="text-sm font-medium text-secondary-900 dark:text-white">
+												Patch Management
+											</h4>
+											{integrationsData?.data?.integrations?.patchmanagement ? (
+												<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+													Enabled
+												</span>
+											) : (
+												<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-400">
+													Disabled
+												</span>
+											)}
+										</div>
+										<p className="text-xs text-secondary-600 dark:text-secondary-300">
+											Apply scheduled patches via policies and maintenance windows.
+											Track per-package results, capture pre/post snapshots, and manage reboots.
+										</p>
+									</div>
+									<div className="flex-shrink-0">
+										<button
+											type="button"
+											onClick={() =>
+												toggleIntegrationMutation.mutate({
+													integrationName: "patchmanagement",
+													enabled:
+														!integrationsData?.data?.integrations?.patchmanagement,
+												})
+											}
+											disabled={
+												toggleIntegrationMutation.isPending ||
+												!wsStatus?.connected
+											}
+											title={
+												!wsStatus?.connected
+													? "Agent is not connected"
+													: integrationsData?.data?.integrations?.patchmanagement
+														? "Disable Patch Management integration"
+														: "Enable Patch Management integration"
+											}
+											className={`relative inline-flex h-5 w-9 items-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
+												integrationsData?.data?.integrations?.patchmanagement
+													? "bg-primary-600 dark:bg-primary-500"
+													: "bg-secondary-200 dark:bg-secondary-600"
+											} ${
+												toggleIntegrationMutation.isPending ||
+												!integrationsData?.data?.connected
+													? "opacity-50 cursor-not-allowed"
+													: ""
+											}`}
+										>
+											<span
+												className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+													integrationsData?.data?.integrations?.patchmanagement
+														? "translate-x-5"
+														: "translate-x-1"
+												}`}
+											/>
+										</button>
+									</div>
+								</div>
+								{!wsStatus?.connected && (
+									<p className="text-xs text-warning-600 dark:text-warning-400 mt-2">
+										Agent must be connected via WebSocket to toggle
+										integrations
+									</p>
+								)}
+							</div>
+						)}
+
 						{/* Docker Tab */}
 						{activeTab === "docker" && (
 							<div className="space-y-4">

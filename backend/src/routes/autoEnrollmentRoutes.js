@@ -818,6 +818,7 @@ router.post(
 					compliance_enabled: complianceEnabled,
 					compliance_on_demand_only: complianceOnDemandOnly,
 					configmanagement_enabled: true, // Config management enabled by default
+					patchmanagement_enabled: false, // Patch management disabled by default (enable per-host)
 					notes: `Auto-enrolled via ${req.auto_enrollment_token.token_name} on ${new Date().toISOString()}`,
 					updated_at: new Date(),
 				},
@@ -940,8 +941,7 @@ router.post(
 							api_id: api_id,
 							api_key: api_key_hash,
 							status: "pending",
-						configmanagement_enabled: true, // Config management enabled by default
-							updated_at: new Date(),
+						configmanagement_enabled: true, // Config management enabled by default						patchmanagement_enabled: false, // Patch management disabled by default (enable per-host)							updated_at: new Date(),
 						},
 					});
 

@@ -34,6 +34,7 @@ var AvailableIntegrations = []string{
 	"docker",
 	"compliance",
 	"configmanagement",
+	"patchmanagement",
 	"ssh-proxy-enabled",
 	// Future: "proxmox", "kubernetes", etc.
 }
