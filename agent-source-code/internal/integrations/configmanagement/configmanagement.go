@@ -32,19 +32,21 @@ const (
 
 // Integration implements the Integration interface for Configuration Management.
 type Integration struct {
-	logger      *logrus.Logger
-	httpClient  *client.Client
-	policy      *models.ConfigPolicy
-	policyMu    sync.RWMutex
-	policyHash  string
-	executor    *PolicyExecutor
+	logger        *logrus.Logger
+	httpClient    *client.Client
+	policy        *models.ConfigPolicy
+	policyMu      sync.RWMutex
+	policyHash    string
+	executor      *PolicyExecutor
+	scheduleState *ScheduleState
 }
 
 // New creates a new ConfigManagement integration.
 func New(logger *logrus.Logger) *Integration {
 	return &Integration{
-		logger:   logger,
-		executor: NewPolicyExecutor(logger),
+		logger:        logger,
+		executor:      NewPolicyExecutor(logger),
+		scheduleState: NewScheduleState(logger),
 	}
 }
 
@@ -153,8 +155,8 @@ func (cm *Integration) Collect(ctx context.Context) (*models.IntegrationData, er
 		}, nil
 	}
 
-	// Evaluate all directives
-	report := cm.executor.Evaluate(ctx, currentPolicy)
+	// Evaluate all directives (respecting schedules)
+	report := cm.executor.Evaluate(ctx, currentPolicy, cm.scheduleState)
 
 	data := &models.ConfigManagementData{
 		Report:      report,

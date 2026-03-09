@@ -7,6 +7,10 @@ import {
 	Network,
 	Plus,
 	X,
+	Clock,
+	RefreshCw,
+	CalendarClock,
+	Play,
 } from "lucide-react";
 import { useToast } from "../../contexts/ToastContext";
 import { configManagementAPI } from "../../utils/configManagementApi";
@@ -26,6 +30,11 @@ export default function RuleDetail() {
 	const [enabled, setEnabled] = useState(true);
 	const [selectedDirectives, setSelectedDirectives] = useState([]);
 	const [selectedGroups, setSelectedGroups] = useState([]);
+	// Schedule state
+	const [runSchedule, setRunSchedule] = useState("always");
+	const [scheduleInterval, setScheduleInterval] = useState(60);
+	const [scheduleCron, setScheduleCron] = useState("0 2 * * *");
+	const [scheduleTimezone, setScheduleTimezone] = useState("UTC");
 
 	// Available directives and groups
 	const { data: directives } = useQuery({
@@ -60,6 +69,10 @@ export default function RuleDetail() {
 			setSelectedGroups(
 				(rule.cm_rule_groups || []).map((rg) => rg.host_group_id),
 			);
+			setRunSchedule(rule.run_schedule || "always");
+			setScheduleInterval(rule.schedule_interval || 60);
+			setScheduleCron(rule.schedule_cron || "0 2 * * *");
+			setScheduleTimezone(rule.schedule_timezone || "UTC");
 		}
 	}, [rule]);
 
@@ -93,6 +106,10 @@ export default function RuleDetail() {
 			enabled,
 			directive_ids: selectedDirectives,
 			group_ids: selectedGroups,
+			run_schedule: runSchedule,
+			schedule_interval: runSchedule === "interval" ? scheduleInterval : null,
+			schedule_cron: runSchedule === "cron" ? scheduleCron : null,
+			schedule_timezone: scheduleTimezone,
 		});
 	}
 
@@ -202,6 +219,168 @@ export default function RuleDetail() {
 						</span>
 					</div>
 				</div>
+			</div>
+
+			{/* Directives selector */}
+			<div className="card p-5 space-y-4">
+				<h2 className="text-lg font-medium text-secondary-900 dark:text-white flex items-center gap-2">
+					<Clock className="h-5 w-5 text-indigo-500" />
+					Run Schedule
+				</h2>
+				<p className="text-xs text-secondary-500 dark:text-secondary-400">
+					Control when and how often the directives in this rule are evaluated by agents.
+				</p>
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					{[
+						{ value: "always", label: "Every Check-in", icon: RefreshCw, desc: "Run every time the agent checks in" },
+						{ value: "once", label: "Run Once", icon: Play, desc: "Run once per directive version" },
+						{ value: "interval", label: "Fixed Interval", icon: Clock, desc: "Run every N minutes/hours" },
+						{ value: "cron", label: "Cron Schedule", icon: CalendarClock, desc: "Run on a cron expression" },
+					].map((opt) => {
+						const Icon = opt.icon;
+						return (
+							<button
+								key={opt.value}
+								type="button"
+								onClick={() => setRunSchedule(opt.value)}
+								className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-colors ${
+									runSchedule === opt.value
+										? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
+										: "border-secondary-200 dark:border-secondary-700 hover:bg-secondary-50 dark:hover:bg-secondary-800"
+								}`}
+							>
+								<Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
+									runSchedule === opt.value ? "text-indigo-600 dark:text-indigo-400" : "text-secondary-400"
+								}`} />
+								<div>
+									<p className={`text-sm font-medium ${
+										runSchedule === opt.value
+											? "text-indigo-700 dark:text-indigo-300"
+											: "text-secondary-700 dark:text-secondary-300"
+									}`}>
+										{opt.label}
+									</p>
+									<p className="text-xs text-secondary-400 mt-0.5">{opt.desc}</p>
+								</div>
+							</button>
+						);
+					})}
+				</div>
+
+				{/* Interval settings */}
+				{runSchedule === "interval" && (
+					<div className="mt-3 p-3 rounded-lg bg-secondary-50 dark:bg-secondary-800/50 border border-secondary-200 dark:border-secondary-700">
+						<label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-2">
+							Run every
+						</label>
+						<div className="flex items-center gap-2">
+							<input
+								type="number"
+								value={scheduleInterval}
+								onChange={(e) => setScheduleInterval(Math.max(1, Number.parseInt(e.target.value, 10) || 1))}
+								min={1}
+								className="w-24 px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm text-secondary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+							/>
+							<span className="text-sm text-secondary-600 dark:text-secondary-400">minutes</span>
+							{scheduleInterval >= 60 && (
+								<span className="text-xs text-secondary-400 ml-2">
+									({Math.floor(scheduleInterval / 60)}h {scheduleInterval % 60 > 0 ? `${scheduleInterval % 60}m` : ""})
+								</span>
+							)}
+						</div>
+						<div className="flex flex-wrap gap-2 mt-2">
+							{[
+								{ label: "15 min", val: 15 },
+								{ label: "30 min", val: 30 },
+								{ label: "1 hour", val: 60 },
+								{ label: "6 hours", val: 360 },
+								{ label: "12 hours", val: 720 },
+								{ label: "24 hours", val: 1440 },
+							].map((preset) => (
+								<button
+									key={preset.val}
+									type="button"
+									onClick={() => setScheduleInterval(preset.val)}
+									className={`px-2 py-1 text-xs rounded border transition-colors ${
+										scheduleInterval === preset.val
+											? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300"
+											: "border-secondary-300 dark:border-secondary-600 text-secondary-500 hover:bg-secondary-50 dark:hover:bg-secondary-800"
+									}`}
+								>
+									{preset.label}
+								</button>
+							))}
+						</div>
+					</div>
+				)}
+
+				{/* Cron settings */}
+				{runSchedule === "cron" && (
+					<div className="mt-3 p-3 rounded-lg bg-secondary-50 dark:bg-secondary-800/50 border border-secondary-200 dark:border-secondary-700 space-y-3">
+						<div>
+							<label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">
+								Cron Expression
+							</label>
+							<input
+								type="text"
+								value={scheduleCron}
+								onChange={(e) => setScheduleCron(e.target.value)}
+								placeholder="0 2 * * *"
+								className="w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm font-mono text-secondary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+							/>
+							<p className="text-xs text-secondary-400 mt-1">
+								Format: minute hour day-of-month month day-of-week (5 fields)
+							</p>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							{[
+								{ label: "Daily at 2 AM", val: "0 2 * * *" },
+								{ label: "Daily at midnight", val: "0 0 * * *" },
+								{ label: "Sundays at midnight", val: "0 0 * * 0" },
+								{ label: "Mon-Fri at 6 AM", val: "0 6 * * 1-5" },
+								{ label: "Every 6 hours", val: "0 */6 * * *" },
+								{ label: "1st of month", val: "0 0 1 * *" },
+							].map((preset) => (
+								<button
+									key={preset.val}
+									type="button"
+									onClick={() => setScheduleCron(preset.val)}
+									className={`px-2 py-1 text-xs rounded border transition-colors ${
+										scheduleCron === preset.val
+											? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300"
+											: "border-secondary-300 dark:border-secondary-600 text-secondary-500 hover:bg-secondary-50 dark:hover:bg-secondary-800"
+									}`}
+								>
+									{preset.label}
+								</button>
+							))}
+						</div>
+						<div>
+							<label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">
+								Timezone
+							</label>
+							<select
+								value={scheduleTimezone}
+								onChange={(e) => setScheduleTimezone(e.target.value)}
+								className="w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm text-secondary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+							>
+								{["UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "America/Phoenix", "Europe/London", "Europe/Berlin", "Europe/Paris", "Asia/Tokyo", "Asia/Shanghai", "Australia/Sydney"].map((tz) => (
+									<option key={tz} value={tz}>{tz}</option>
+								))}
+							</select>
+						</div>
+					</div>
+				)}
+
+				{/* Once mode explanation */}
+				{runSchedule === "once" && (
+					<div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+						<p className="text-xs text-blue-700 dark:text-blue-300">
+							<strong>Run Once</strong> evaluates each directive exactly once. When you update a directive&apos;s version,
+							the agent will re-run it. This is ideal for one-time setup tasks like initial provisioning.
+						</p>
+					</div>
+				)}
 			</div>
 
 			{/* Directives selector */}

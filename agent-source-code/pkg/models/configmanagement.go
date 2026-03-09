@@ -81,14 +81,18 @@ type ConfigDirective struct {
 
 // ConfigRule links one or more directives to one or more host groups.
 type ConfigRule struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description,omitempty"`
-	DirectiveIDs []string `json:"directive_ids"`
-	GroupIDs     []string `json:"group_ids"`  // PatchMon host-group IDs
-	Enabled      bool     `json:"enabled"`
-	Priority     int      `json:"priority"`   // Rule ordering (lower = first, like Rudder's alphanumeric sort)
-	Tags         map[string]string `json:"tags,omitempty"`
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Description      string            `json:"description,omitempty"`
+	DirectiveIDs     []string          `json:"directive_ids"`
+	GroupIDs         []string          `json:"group_ids"`          // PatchMon host-group IDs
+	Enabled          bool              `json:"enabled"`
+	Priority         int               `json:"priority"`           // Rule ordering (lower = first)
+	RunSchedule      string            `json:"run_schedule"`       // "always", "once", "interval", "cron"
+	ScheduleInterval int               `json:"schedule_interval"` // Minutes between runs
+	ScheduleCron     string            `json:"schedule_cron"`     // Cron expression
+	ScheduleTimezone string            `json:"schedule_timezone"` // IANA timezone
+	Tags             map[string]string `json:"tags,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -108,10 +112,19 @@ type ConfigPolicy struct {
 
 // ConfigPolicyItem is a directive within a resolved policy, with its effective mode.
 type ConfigPolicyItem struct {
-	Directive     ConfigDirective `json:"directive"`
-	EffectiveMode string          `json:"effective_mode"` // Computed: override wins, then audit wins (Rudder logic)
-	RuleID        string          `json:"rule_id"`
-	RuleName      string          `json:"rule_name"`
+	Directive     ConfigDirective        `json:"directive"`
+	EffectiveMode string                  `json:"effective_mode"`   // Computed: override wins, then audit wins
+	RuleID        string                  `json:"rule_id"`
+	RuleName      string                  `json:"rule_name"`
+	Schedule      ConfigPolicySchedule    `json:"schedule"`
+}
+
+// ConfigPolicySchedule defines when a directive should be evaluated.
+type ConfigPolicySchedule struct {
+	RunSchedule      string `json:"run_schedule"`       // "always", "once", "interval", "cron"
+	ScheduleInterval int    `json:"schedule_interval"` // Minutes between runs (for "interval")
+	ScheduleCron     string `json:"schedule_cron"`     // Cron expression (for "cron")
+	ScheduleTimezone string `json:"schedule_timezone"` // IANA timezone for cron
 }
 
 // ---------------------------------------------------------------------------
@@ -134,8 +147,9 @@ type ConfigDirectiveResult struct {
 	DirectiveID   string               `json:"directive_id"`
 	DirectiveName string               `json:"directive_name"`
 	TechniqueID   string               `json:"technique_id"`
-	PolicyMode    string               `json:"policy_mode"` // "audit" or "enforce"
-	Status        string               `json:"status"`      // "compliant", "non_compliant", "error", "not_applicable", "repaired"
+	PolicyMode    string               `json:"policy_mode"`            // "audit" or "enforce"
+	Status        string               `json:"status"`                 // "compliant", "non_compliant", "error", "not_applicable", "repaired", "skipped"
+	Message       string               `json:"message,omitempty"`      // Human-readable message (e.g. schedule skip reason)
 	Methods       []ConfigMethodResult `json:"methods"`
 	StartedAt     time.Time            `json:"started_at"`
 	CompletedAt   *time.Time           `json:"completed_at,omitempty"`

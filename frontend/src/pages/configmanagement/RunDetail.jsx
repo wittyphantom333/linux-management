@@ -9,6 +9,7 @@ import {
 	Eye,
 	MinusCircle,
 	Clock,
+	SkipForward,
 } from "lucide-react";
 import { configManagementAPI } from "../../utils/configManagementApi";
 
@@ -31,6 +32,8 @@ function statusIcon(status) {
 			return <AlertTriangle className="h-4 w-4 text-orange-500" />;
 		case "not_applicable":
 			return <MinusCircle className="h-4 w-4 text-secondary-400" />;
+		case "skipped":
+			return <SkipForward className="h-4 w-4 text-secondary-400" />;
 		default:
 			return <Clock className="h-4 w-4 text-secondary-400" />;
 	}
@@ -48,6 +51,8 @@ function statusLabel(status) {
 			return "Error";
 		case "not_applicable":
 			return "N/A";
+		case "skipped":
+			return "Skipped";
 		default:
 			return status || "Unknown";
 	}
@@ -147,10 +152,14 @@ export default function RunDetail() {
 										dr.status === "repaired" ? "text-blue-600" :
 										dr.status === "non_compliant" ? "text-red-600" :
 										dr.status === "error" ? "text-orange-600" :
+										dr.status === "skipped" ? "text-secondary-400 italic" :
 										"text-secondary-400"
 									}`}>
 										{statusLabel(dr.status)}
 									</span>
+									{dr.status === "skipped" && dr.message && (
+										<span className="text-xs text-secondary-400 italic ml-2">{dr.message}</span>
+									)}
 								</div>
 
 								{/* Method results */}

@@ -416,10 +416,23 @@ router.get("/rules", authenticateToken, async (req, res) => {
 // POST /api/v1/configmanagement/rules
 router.post("/rules", authenticateToken, async (req, res) => {
 	try {
-		const { name, description, directive_ids, group_ids, priority, tags } = req.body;
+		const { name, description, directive_ids, group_ids, priority, tags, run_schedule, schedule_interval, schedule_cron, schedule_timezone } = req.body;
 
 		if (!name) {
 			return res.status(400).json({ error: "Name is required" });
+		}
+
+		// Validate schedule
+		const validSchedules = ["always", "once", "interval", "cron"];
+		const sched = run_schedule || "always";
+		if (!validSchedules.includes(sched)) {
+			return res.status(400).json({ error: `Invalid run_schedule: must be one of ${validSchedules.join(", ")}` });
+		}
+		if (sched === "interval" && (!schedule_interval || schedule_interval < 1)) {
+			return res.status(400).json({ error: "schedule_interval (minutes) is required and must be >= 1 for interval schedule" });
+		}
+		if (sched === "cron" && !schedule_cron) {
+			return res.status(400).json({ error: "schedule_cron is required for cron schedule" });
 		}
 
 		const rule = await prisma.cm_rules.create({
@@ -429,6 +442,10 @@ router.post("/rules", authenticateToken, async (req, res) => {
 				description: description || null,
 				enabled: true,
 				priority: priority ?? 50,
+				run_schedule: sched,
+				schedule_interval: sched === "interval" ? schedule_interval : null,
+				schedule_cron: sched === "cron" ? schedule_cron : null,
+				schedule_timezone: schedule_timezone || "UTC",
 				tags: tags || null,
 				created_by: req.user?.id || null,
 				updated_at: new Date(),
@@ -492,7 +509,7 @@ router.get("/rules/:id", authenticateToken, async (req, res) => {
 // PUT /api/v1/configmanagement/rules/:id
 router.put("/rules/:id", authenticateToken, async (req, res) => {
 	try {
-		const { name, description, enabled, priority, directive_ids, group_ids, tags } = req.body;
+		const { name, description, enabled, priority, directive_ids, group_ids, tags, run_schedule, schedule_interval, schedule_cron, schedule_timezone } = req.body;
 
 		const data = { updated_at: new Date() };
 		if (name !== undefined) data.name = name;
@@ -500,6 +517,18 @@ router.put("/rules/:id", authenticateToken, async (req, res) => {
 		if (enabled !== undefined) data.enabled = enabled;
 		if (priority !== undefined) data.priority = priority;
 		if (tags !== undefined) data.tags = tags;
+
+		// Schedule fields
+		if (run_schedule !== undefined) {
+			const validSchedules = ["always", "once", "interval", "cron"];
+			if (!validSchedules.includes(run_schedule)) {
+				return res.status(400).json({ error: `Invalid run_schedule: must be one of ${validSchedules.join(", ")}` });
+			}
+			data.run_schedule = run_schedule;
+		}
+		if (schedule_interval !== undefined) data.schedule_interval = schedule_interval;
+		if (schedule_cron !== undefined) data.schedule_cron = schedule_cron;
+		if (schedule_timezone !== undefined) data.schedule_timezone = schedule_timezone;
 
 		// Use transaction to update rule + linked directives/groups atomically
 		const result = await prisma.$transaction(async (tx) => {
@@ -647,6 +676,12 @@ async function computePolicyForHost(hostId) {
 				effective_mode: effectiveMode,
 				rule_id: rule.id,
 				rule_name: rule.name,
+				schedule: {
+					run_schedule: rule.run_schedule || "always",
+					schedule_interval: rule.schedule_interval || null,
+					schedule_cron: rule.schedule_cron || null,
+					schedule_timezone: rule.schedule_timezone || "UTC",
+				},
 			});
 
 			if (dir.technique && !techniqueMap.has(dir.technique.id)) {

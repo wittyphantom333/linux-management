@@ -24,6 +24,10 @@ import {
 	Stethoscope,
 	Play,
 	Loader2,
+	Clock,
+	Timer,
+	CalendarClock,
+	CircleDot,
 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { configManagementAPI } from "../utils/configManagementApi";
@@ -67,6 +71,39 @@ function modeBadge(mode) {
 			Audit
 		</span>
 	);
+}
+
+function schedBadge(schedule, interval, cron) {
+	switch (schedule) {
+		case "once":
+			return (
+				<span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200">
+					<CircleDot className="h-3 w-3" />
+					Run Once
+				</span>
+			);
+		case "interval":
+			return (
+				<span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-200">
+					<Timer className="h-3 w-3" />
+					Every {interval >= 60 ? `${interval / 60}h` : `${interval}m`}
+				</span>
+			);
+		case "cron":
+			return (
+				<span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200">
+					<CalendarClock className="h-3 w-3" />
+					{cron || "cron"}
+				</span>
+			);
+		default:
+			return (
+				<span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300">
+					<Clock className="h-3 w-3" />
+					Every Check-in
+				</span>
+			);
+	}
 }
 
 function timeAgo(dateStr) {
@@ -980,6 +1017,9 @@ function RulesTab({ rules, search, setSearch, onDelete }) {
 									Groups
 								</th>
 								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
+									Schedule
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
 									Priority
 								</th>
 								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
@@ -1014,6 +1054,9 @@ function RulesTab({ rules, search, setSearch, onDelete }) {
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
 										{r.cm_rule_groups?.length || 0}
+									</td>
+									<td className="px-4 py-3">
+										{schedBadge(r.run_schedule, r.schedule_interval, r.schedule_cron)}
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
 										{r.priority}

@@ -50,7 +50,8 @@ func (pe *PolicyExecutor) registerBuiltinMethods() {
 }
 
 // Evaluate walks through all directives in the policy and evaluates each method.
-func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPolicy) *models.ConfigComplianceReport {
+// schedState may be nil — if so, all directives are treated as "always" schedule.
+func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPolicy, schedState *ScheduleState) *models.ConfigComplianceReport {
 	report := &models.ConfigComplianceReport{
 		PolicyID:    policy.PolicyID,
 		HostID:      policy.HostID,
@@ -77,6 +78,27 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 
 		dirStart := time.Now()
 		effectiveMode := policyItem.EffectiveMode
+
+		// Check schedule — skip directives that aren't due to run yet
+		if schedState != nil && !schedState.ShouldRun(policyItem) {
+			pe.logger.WithFields(logrus.Fields{
+				"directive": dir.Name,
+				"schedule":  policyItem.Schedule.RunSchedule,
+			}).Debug("Directive skipped (not scheduled to run yet)")
+			dirEnd := time.Now()
+			directiveResults = append(directiveResults, models.ConfigDirectiveResult{
+				DirectiveID:   dir.ID,
+				DirectiveName: dir.Name,
+				TechniqueID:   dir.TechniqueID,
+				PolicyMode:    effectiveMode,
+				Status:        "skipped",
+				Message:       fmt.Sprintf("Not due: schedule=%s", policyItem.Schedule.RunSchedule),
+				Methods:       nil,
+				StartedAt:     dirStart,
+				CompletedAt:   &dirEnd,
+			})
+			continue
+		}
 
 		tech, ok := techMap[dir.TechniqueID]
 		if !ok {
@@ -181,6 +203,11 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 			StartedAt:     dirStart,
 			CompletedAt:   &dirEnd,
 		})
+
+		// Record that this directive was evaluated (for schedule tracking)
+		if schedState != nil {
+			schedState.RecordRun(policyItem)
+		}
 
 		// Update report counters
 		switch dirStatus {

@@ -768,15 +768,19 @@ model cm_directives {
 
 /// Links one or more directives to one or more host groups.
 model cm_rules {
-  id          String   @id @default(uuid())
-  name        String
-  description String?  @db.Text
-  enabled     Boolean  @default(true)
-  priority    Int      @default(50)
-  tags        Json?
-  created_by  String?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id                String   @id @default(uuid())
+  name              String
+  description       String?  @db.Text
+  enabled           Boolean  @default(true)
+  priority          Int      @default(50)
+  run_schedule      String   @default("always")  // "always" | "once" | "interval" | "cron"
+  schedule_interval Int?                          // Minutes between runs (for "interval")
+  schedule_cron     String?                       // Cron expression e.g. "0 2 * * *" (for "cron")
+  schedule_timezone String?  @default("UTC")      // IANA timezone for cron evaluation
+  tags              Json?
+  created_by        String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
   cm_rule_directives cm_rule_directives[]
   cm_rule_groups     cm_rule_groups[]
