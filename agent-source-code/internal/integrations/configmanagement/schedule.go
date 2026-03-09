@@ -30,6 +30,7 @@ type ScheduleState struct {
 type ScheduleEntry struct {
 	DirectiveID      string    `json:"directive_id"`
 	DirectiveVersion string    `json:"directive_version"` // For "once" mode: re-run when version changes
+	TechniqueVersion string    `json:"technique_version,omitempty"` // Re-run when pinned technique version changes
 	LastRunAt        time.Time `json:"last_run_at"`
 	RunCount         int       `json:"run_count"`
 }
@@ -52,6 +53,7 @@ func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 	sched := item.Schedule
 	dirID := item.Directive.ID
 	dirVersion := item.Directive.Version
+	techVersion := item.Directive.TechniqueVersion
 
 	switch sched.RunSchedule {
 	case "always", "":
@@ -62,8 +64,11 @@ func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 		if !exists {
 			return true // Never run before
 		}
-		// Re-run if directive version changed
+		// Re-run if directive version or technique version changed
 		if entry.DirectiveVersion != dirVersion {
+			return true
+		}
+		if entry.TechniqueVersion != techVersion {
 			return true
 		}
 		return false // Already run for this version
@@ -110,6 +115,7 @@ func (ss *ScheduleState) RecordRun(item models.ConfigPolicyItem) {
 	}
 
 	entry.DirectiveVersion = item.Directive.Version
+	entry.TechniqueVersion = item.Directive.TechniqueVersion
 	entry.LastRunAt = time.Now().UTC()
 	entry.RunCount++
 
