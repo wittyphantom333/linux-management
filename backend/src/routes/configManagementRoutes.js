@@ -839,8 +839,8 @@ router.post("/agent/report", async (req, res) => {
 		logger.info(`[ConfigMgmt] Report from ${hostname || host.friendly_name}: ` +
 			`${report?.total_directives || 0} directives, score=${report?.score?.toFixed(1) || 0}%`);
 
-		// Store the run
-		if (report) {
+		// Store the run — skip if no directives actually ran (e.g. all skipped by schedule)
+		if (report && (report.total_directives || 0) > 0) {
 			await prisma.cm_policy_runs.create({
 				data: {
 					id: uuidv4(),
