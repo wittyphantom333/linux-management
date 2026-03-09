@@ -945,11 +945,11 @@ router.get("/diagnose", authenticateToken, async (req, res) => {
 		// Step 6: Check recent agent contact
 		const allHosts = await prisma.hosts.findMany({
 			where: { configmanagement_enabled: true },
-			select: { id: true, friendly_name: true, hostname: true, last_seen: true, agent_version: true },
+			select: { id: true, friendly_name: true, hostname: true, last_update: true, agent_version: true },
 		});
 		for (const h of allHosts) {
-			if (h.last_seen) {
-				const lastSeen = new Date(h.last_seen);
+			if (h.last_update) {
+				const lastSeen = new Date(h.last_update);
 				const minutesAgo = (Date.now() - lastSeen.getTime()) / 60000;
 				if (minutesAgo > 90) {
 					issues.push({ severity: "warning", step: "agents", message: `Host "${h.friendly_name || h.hostname}" was last seen ${Math.round(minutesAgo)} minutes ago. Agent may not be running.` });
