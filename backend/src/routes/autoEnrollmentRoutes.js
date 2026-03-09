@@ -817,6 +817,7 @@ router.post(
 					status: "pending",
 					compliance_enabled: complianceEnabled,
 					compliance_on_demand_only: complianceOnDemandOnly,
+					configmanagement_enabled: true, // Config management enabled by default
 					notes: `Auto-enrolled via ${req.auto_enrollment_token.token_name} on ${new Date().toISOString()}`,
 					updated_at: new Date(),
 				},
@@ -939,7 +940,7 @@ router.post(
 							api_id: api_id,
 							api_key: api_key_hash,
 							status: "pending",
-							notes: `Auto-enrolled via ${req.auto_enrollment_token.token_name} on ${new Date().toISOString()}`,
+						configmanagement_enabled: true, // Config management enabled by default
 							updated_at: new Date(),
 						},
 					});

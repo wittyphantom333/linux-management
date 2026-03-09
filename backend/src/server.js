@@ -866,6 +866,20 @@ async function startServer() {
 			throw initError; // Fail startup if settings can't be initialised
 		}
 
+		// Auto-enable Config Management on all existing hosts that still have it disabled
+		// This is a one-time migration: CM should be enabled by default for all hosts
+		try {
+			const updated = await prisma.hosts.updateMany({
+				where: { configmanagement_enabled: false },
+				data: { configmanagement_enabled: true },
+			});
+			if (updated.count > 0) {
+				logger.info(`✅ Config Management auto-enabled on ${updated.count} existing host(s)`);
+			}
+		} catch (cmErr) {
+			logger.warn("⚠️ Failed to auto-enable Config Management on hosts:", cmErr.message);
+		}
+
 		// Initialize OIDC if enabled
 		if (process.env.OIDC_ENABLED === "true") {
 			const oidcInitialized = await initializeOIDC();

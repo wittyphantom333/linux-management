@@ -118,6 +118,9 @@ func (m *Manager) LoadConfig() error {
 			if integrationName == "compliance" {
 				// Default compliance to "on-demand" mode
 				m.config.Integrations[integrationName] = "on-demand"
+			} else if integrationName == "configmanagement" {
+				// Default config management to enabled
+				m.config.Integrations[integrationName] = true
 			} else {
 				m.config.Integrations[integrationName] = false
 			}

@@ -516,6 +516,7 @@ router.post(
 					docker_enabled: docker_enabled ?? false, // Set integration state if provided
 					compliance_enabled: finalComplianceEnabled,
 					compliance_on_demand_only: finalComplianceOnDemandOnly,
+					configmanagement_enabled: true, // Config management enabled by default
 					expected_platform: expected_platform ?? null,
 					updated_at: new Date(),
 					// Create host group memberships if hostGroupIds are provided
