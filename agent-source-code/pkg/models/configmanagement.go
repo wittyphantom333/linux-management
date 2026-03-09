@@ -45,7 +45,7 @@ type ConfigTechniqueMethod struct {
 	ID          string            `json:"id"`
 	Type        string            `json:"type"`                    // Built-in method type: "file_content", "file_key_value", "package_present", "package_absent", "service_running", "service_stopped", "service_restart", "command_audit", "command_exec", "user_present", "user_absent", "directory_present", "file_permissions"
 	Name        string            `json:"name"`                    // Human-readable label
-	Parameters  map[string]string `json:"parameters"`              // Key → value (may reference technique params via ${param_name})
+	Parameters  map[string]string `json:"parameters"`              // Key → value (may reference technique params via ${param_name} or {{param_name}})
 	Condition   string            `json:"condition,omitempty"`     // Run only when this condition expression is true (e.g. "method_1.repaired")
 	ResultAlias string            `json:"result_alias,omitempty"` // Override the result condition name (defaults to method ID)
 }

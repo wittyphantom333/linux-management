@@ -279,6 +279,7 @@ func substituteParams(template string, params map[string]string) string {
 	result := template
 	for k, v := range params {
 		result = strings.ReplaceAll(result, "${"+k+"}", v)
+		result = strings.ReplaceAll(result, "{{"+k+"}}", v)
 	}
 	return result
 }
