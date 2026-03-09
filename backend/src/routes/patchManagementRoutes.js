@@ -37,6 +37,11 @@ const router = express.Router();
 
 // GET /api/v1/patch-management/policies - List all policies
 router.get("/policies", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Policies'] */
+	/* #swagger.summary = 'List all patch policies' */
+	/* #swagger.description = 'Retrieve all patch policies with linked groups, filters, window/job counts, and computed host_count. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['enabled'] = { in: 'query', type: 'string', description: 'Filter by enabled status (true/false)', required: false } */
 	try {
 		const { enabled } = req.query;
 		const where = {};
@@ -86,6 +91,10 @@ router.get("/policies", authenticateToken, async (req, res) => {
 
 // GET /api/v1/patch-management/policies/:id - Get a single policy
 router.get("/policies/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Policies'] */
+	/* #swagger.summary = 'Get a patch policy by ID' */
+	/* #swagger.description = 'Retrieve a single policy with groups, filters, windows, recent jobs, and per-host updatable package counts. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const policy = await prisma.patch_policies.findUnique({
 			where: { id: req.params.id },
@@ -138,6 +147,28 @@ router.get("/policies/:id", authenticateToken, async (req, res) => {
 
 // POST /api/v1/patch-management/policies - Create a policy
 router.post("/policies", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Policies'] */
+	/* #swagger.summary = 'Create a patch policy' */
+	/* #swagger.description = 'Create a new patch policy with optional group and filter links. Returns 409 on duplicate name. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'Security Patches Only',
+			description: 'Apply security patches to production',
+			policy_type: 'security_only',
+			auto_approve: false,
+			approval_timeout_hours: 72,
+			reboot_policy: 'if_needed',
+			pre_snapshot: true,
+			post_snapshot: true,
+			max_concurrent_hosts: 5,
+			stop_on_failure_percent: 30,
+			group_ids: ['uuid-of-group'],
+			filters: [{ filter_type: 'exclude', match_type: 'glob', pattern: 'kernel*' }]
+		}
+	} */
 	try {
 		const {
 			name,
@@ -228,6 +259,22 @@ router.post("/policies", authenticateToken, async (req, res) => {
 
 // PUT /api/v1/patch-management/policies/:id - Update a policy
 router.put("/policies/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Policies'] */
+	/* #swagger.summary = 'Update a patch policy' */
+	/* #swagger.description = 'Update policy fields. If group_ids or filters provided, replaces all links atomically. Returns 409 on duplicate name. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'Updated Policy Name',
+			enabled: true,
+			policy_type: 'all',
+			reboot_policy: 'never',
+			group_ids: ['uuid-of-group'],
+			filters: []
+		}
+	} */
 	try {
 		const { id } = req.params;
 		const {
@@ -324,6 +371,10 @@ router.put("/policies/:id", authenticateToken, async (req, res) => {
 
 // DELETE /api/v1/patch-management/policies/:id - Delete a policy
 router.delete("/policies/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Policies'] */
+	/* #swagger.summary = 'Delete a patch policy' */
+	/* #swagger.description = 'Delete a patch policy by ID. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const { id } = req.params;
 		const existing = await prisma.patch_policies.findUnique({ where: { id } });
@@ -344,6 +395,12 @@ router.delete("/policies/:id", authenticateToken, async (req, res) => {
 
 // GET /api/v1/patch-management/windows - List all maintenance windows
 router.get("/windows", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Windows'] */
+	/* #swagger.summary = 'List maintenance windows' */
+	/* #swagger.description = 'List all maintenance windows with policy name and job count. Ordered by next_run_at. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['policy_id'] = { in: 'query', type: 'string', description: 'Filter by policy ID', required: false } */
+	/* #swagger.parameters['enabled'] = { in: 'query', type: 'string', description: 'Filter by enabled status (true/false)', required: false } */
 	try {
 		const { policy_id, enabled } = req.query;
 		const where = {};
@@ -368,6 +425,10 @@ router.get("/windows", authenticateToken, async (req, res) => {
 
 // GET /api/v1/patch-management/windows/:id - Get a single window
 router.get("/windows/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Windows'] */
+	/* #swagger.summary = 'Get a maintenance window by ID' */
+	/* #swagger.description = 'Retrieve a single window with policy name and last 20 jobs. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const window = await prisma.patch_windows.findUnique({
 			where: { id: req.params.id },
@@ -390,6 +451,23 @@ router.get("/windows/:id", authenticateToken, async (req, res) => {
 
 // POST /api/v1/patch-management/windows - Create a maintenance window
 router.post("/windows", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Windows'] */
+	/* #swagger.summary = 'Create a maintenance window' */
+	/* #swagger.description = 'Create a maintenance window for a policy. Computes next_run_at from cron expression. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'Saturday Night Window',
+			description: 'Weekly patch window',
+			policy_id: 'uuid-of-policy',
+			schedule_type: 'recurring',
+			schedule_cron: '0 2 * * 6',
+			schedule_timezone: 'America/New_York',
+			duration_minutes: 120
+		}
+	} */
 	try {
 		const {
 			name,
@@ -440,6 +518,20 @@ router.post("/windows", authenticateToken, async (req, res) => {
 
 // PUT /api/v1/patch-management/windows/:id - Update a window
 router.put("/windows/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Windows'] */
+	/* #swagger.summary = 'Update a maintenance window' */
+	/* #swagger.description = 'Update window fields. Recomputes next_run_at from cron. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'Updated Window',
+			schedule_cron: '0 3 * * 0',
+			duration_minutes: 180,
+			enabled: true
+		}
+	} */
 	try {
 		const { id } = req.params;
 		const {
@@ -483,6 +575,10 @@ router.put("/windows/:id", authenticateToken, async (req, res) => {
 
 // DELETE /api/v1/patch-management/windows/:id - Delete a window
 router.delete("/windows/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Windows'] */
+	/* #swagger.summary = 'Delete a maintenance window' */
+	/* #swagger.description = 'Delete a maintenance window by ID. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const { id } = req.params;
 		const existing = await prisma.patch_windows.findUnique({ where: { id } });
@@ -503,6 +599,14 @@ router.delete("/windows/:id", authenticateToken, async (req, res) => {
 
 // GET /api/v1/patch-management/jobs - List jobs (with filtering)
 router.get("/jobs", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Jobs'] */
+	/* #swagger.summary = 'List patch jobs' */
+	/* #swagger.description = 'List patch jobs with filtering and pagination. Includes policy/window names and host count. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['policy_id'] = { in: 'query', type: 'string', description: 'Filter by policy ID', required: false } */
+	/* #swagger.parameters['status'] = { in: 'query', type: 'string', description: 'Filter by status (pending/running/completed/failed/cancelled)', required: false } */
+	/* #swagger.parameters['limit'] = { in: 'query', type: 'integer', description: 'Max results (default 50)', required: false } */
+	/* #swagger.parameters['offset'] = { in: 'query', type: 'integer', description: 'Pagination offset', required: false } */
 	try {
 		const { policy_id, status, limit = "50", offset = "0" } = req.query;
 		const where = {};
@@ -533,6 +637,10 @@ router.get("/jobs", authenticateToken, async (req, res) => {
 
 // GET /api/v1/patch-management/jobs/:id - Get a single job with hosts
 router.get("/jobs/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Jobs'] */
+	/* #swagger.summary = 'Get a patch job by ID' */
+	/* #swagger.description = 'Retrieve a single job with policy details, window, and all patch_job_hosts with per-package results. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const job = await prisma.patch_jobs.findUnique({
 			where: { id: req.params.id },
@@ -559,6 +667,10 @@ router.get("/jobs/:id", authenticateToken, async (req, res) => {
 
 // GET /api/v1/patch-management/jobs/:jobId/hosts/:jobHostId/diff - Get snapshot diff for a host
 router.get("/jobs/:jobId/hosts/:jobHostId/diff", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Jobs'] */
+	/* #swagger.summary = 'Get before/after snapshot diff' */
+	/* #swagger.description = 'Get before/after snapshot diff for a specific host in a patch job. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const { jobHostId } = req.params;
 
@@ -588,6 +700,15 @@ router.get("/jobs/:jobId/hosts/:jobHostId/diff", authenticateToken, async (req, 
 
 // POST /api/v1/patch-management/jobs/trigger - Trigger a new patch job
 router.post("/jobs/trigger", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Jobs'] */
+	/* #swagger.summary = 'Trigger a patch job manually' */
+	/* #swagger.description = 'Manually trigger a new patch job for a policy. Creates the job and enqueues hosts. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: { policy_id: 'uuid-of-policy' }
+	} */
 	try {
 		const { policy_id } = req.body;
 		if (!policy_id) return res.status(400).json({ error: "Policy ID is required" });
@@ -610,6 +731,10 @@ router.post("/jobs/trigger", authenticateToken, async (req, res) => {
 
 // POST /api/v1/patch-management/jobs/:id/cancel - Cancel a running/pending job
 router.post("/jobs/:id/cancel", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Jobs'] */
+	/* #swagger.summary = 'Cancel a patch job' */
+	/* #swagger.description = 'Cancel a pending or running job. Marks job as cancelled and skips all pending hosts. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const { id } = req.params;
 		const job = await prisma.patch_jobs.findUnique({ where: { id } });
@@ -651,6 +776,10 @@ router.post("/jobs/:id/cancel", authenticateToken, async (req, res) => {
 
 // GET /api/v1/patch-management/stats - Overview statistics
 router.get("/stats", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Dashboard'] */
+	/* #swagger.summary = 'Get patch management statistics' */
+	/* #swagger.description = 'Overview statistics: policy/window counts, pending/running jobs, 5 most recent jobs, 5 upcoming windows, job status breakdown for last 30 days. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const [
 			totalPolicies,
@@ -725,6 +854,14 @@ router.get("/stats", authenticateToken, async (req, res) => {
 
 // GET /api/v1/patch-management/history - Full job history with pagination
 router.get("/history", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Dashboard'] */
+	/* #swagger.summary = 'Get full job history' */
+	/* #swagger.description = 'Full job history with pagination and per-host details (status, packages updated/failed). Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['limit'] = { in: 'query', type: 'integer', description: 'Max results (default 25)', required: false } */
+	/* #swagger.parameters['offset'] = { in: 'query', type: 'integer', description: 'Pagination offset', required: false } */
+	/* #swagger.parameters['policy_id'] = { in: 'query', type: 'string', description: 'Filter by policy ID', required: false } */
+	/* #swagger.parameters['status'] = { in: 'query', type: 'string', description: 'Filter by status', required: false } */
 	try {
 		const { limit = "25", offset = "0", policy_id, status } = req.query;
 		const where = {};
@@ -799,6 +936,11 @@ async function authenticateAgent(req, res) {
 
 // GET /api/v1/patch-management/agent/pending - Agent fetches its pending patch job
 router.get("/agent/pending", async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Agent'] */
+	/* #swagger.summary = 'Agent: check for pending patch job' */
+	/* #swagger.description = 'Agent checks if it has a pending patch job to execute. Returns has_job:true with job details or has_job:false. Authenticated via X-API-ID/X-API-KEY headers.' */
+	/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
+	/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
 	try {
 		const host = await authenticateAgent(req, res);
 		if (!host) return;
@@ -817,6 +959,11 @@ router.get("/agent/pending", async (req, res) => {
 
 // POST /api/v1/patch-management/agent/report - Agent reports patch results
 router.post("/agent/report", async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Agent'] */
+	/* #swagger.summary = 'Agent: report patch results' */
+	/* #swagger.description = 'Agent submits patch execution results. Authenticated via X-API-ID/X-API-KEY headers.' */
+	/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
+	/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
 	try {
 		const host = await authenticateAgent(req, res);
 		if (!host) return;
@@ -831,7 +978,17 @@ router.post("/agent/report", async (req, res) => {
 
 // POST/PUT /api/v1/patch-management/agent/status - Agent updates its host-job status
 router.post("/agent/status", handleAgentStatus);
+/* #swagger.tags = ['Patch Management - Agent'] */
+/* #swagger.summary = 'Agent: update job host status (POST)' */
+/* #swagger.description = 'Agent updates its job-host status. If first host starts, marks parent job as running. Authenticated via X-API-ID/X-API-KEY headers.' */
+/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
+/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
 router.put("/agent/status", handleAgentStatus);
+/* #swagger.tags = ['Patch Management - Agent'] */
+/* #swagger.summary = 'Agent: update job host status (PUT)' */
+/* #swagger.description = 'Agent updates its job-host status (alias). Authenticated via X-API-ID/X-API-KEY headers.' */
+/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
+/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
 
 async function handleAgentStatus(req, res) {
 	try {

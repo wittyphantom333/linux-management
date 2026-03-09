@@ -28,6 +28,13 @@ const router = express.Router();
 
 // GET /api/v1/configmanagement/techniques - List all techniques (deduplicated by name — latest version only)
 router.get("/techniques", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Techniques'] */
+	/* #swagger.summary = 'List all techniques' */
+	/* #swagger.description = 'Retrieve all techniques. By default, deduplicates by name (latest version only). Use all_versions=true to return every version. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['category'] = { in: 'query', type: 'string', description: 'Filter by category', required: false } */
+	/* #swagger.parameters['enabled'] = { in: 'query', type: 'string', description: 'Filter by enabled status (true/false)', required: false } */
+	/* #swagger.parameters['all_versions'] = { in: 'query', type: 'string', description: 'When true, return all versions instead of deduplicating', required: false } */
 	try {
 		const { category, enabled, all_versions } = req.query;
 		const where = {};
@@ -74,6 +81,23 @@ router.get("/techniques", authenticateToken, async (req, res) => {
 
 // POST /api/v1/configmanagement/techniques - Create a technique
 router.post("/techniques", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Techniques'] */
+	/* #swagger.summary = 'Create a technique' */
+	/* #swagger.description = 'Create a new configuration technique with methods. Returns 409 if name+version already exists. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'User Present Check',
+			description: 'Ensures a user account exists',
+			version: '1.0',
+			category: 'Users',
+			parameters: [],
+			methods: [{ type: 'user_present', name: 'Ensure user exists', parameters: { name: 'deploy' } }],
+			conditions: null
+		}
+	} */
 	try {
 		const { name, description, version, category, parameters, methods, conditions } = req.body;
 
@@ -120,6 +144,10 @@ router.post("/techniques", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/techniques/:id - Get technique details
 router.get("/techniques/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Techniques'] */
+	/* #swagger.summary = 'Get a technique by ID' */
+	/* #swagger.description = 'Retrieve a single technique with its enabled directives. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const technique = await prisma.cm_techniques.findUnique({
 			where: { id: req.params.id },
@@ -145,6 +173,23 @@ router.get("/techniques/:id", authenticateToken, async (req, res) => {
 // PUT /api/v1/configmanagement/techniques/:id - Update a technique
 // If the version field changes, a NEW technique row is created (old version preserved for pinned directives).
 router.put("/techniques/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Techniques'] */
+	/* #swagger.summary = 'Update a technique' */
+	/* #swagger.description = 'Update a technique. If the version field changes, a NEW row is created (old version preserved for pinned directives). Returns new_version:true and previous_id when versioned. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'User Present Check',
+			description: 'Updated description',
+			version: '1.1',
+			category: 'Users',
+			parameters: [],
+			methods: [{ type: 'user_present', name: 'Ensure user exists', parameters: { name: 'deploy' } }],
+			enabled: true
+		}
+	} */
 	try {
 		const { name, description, version, category, parameters, methods, conditions, enabled } = req.body;
 
@@ -216,6 +261,10 @@ router.put("/techniques/:id", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/techniques/:id/versions - List all versions of a technique
 router.get("/techniques/:id/versions", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Techniques'] */
+	/* #swagger.summary = 'List all versions of a technique' */
+	/* #swagger.description = 'List all versions of a technique (matched by name). Returns version history with directive counts. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const technique = await prisma.cm_techniques.findUnique({ where: { id: req.params.id } });
 		if (!technique) {
@@ -247,6 +296,10 @@ router.get("/techniques/:id/versions", authenticateToken, async (req, res) => {
 
 // DELETE /api/v1/configmanagement/techniques/:id - Delete a technique
 router.delete("/techniques/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Techniques'] */
+	/* #swagger.summary = 'Delete a technique' */
+	/* #swagger.description = 'Delete a technique by ID. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		await prisma.cm_techniques.delete({ where: { id: req.params.id } });
 		logger.info(`[ConfigMgmt] Technique deleted: ${req.params.id}`);
@@ -263,6 +316,13 @@ router.delete("/techniques/:id", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/directives
 router.get("/directives", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Directives'] */
+	/* #swagger.summary = 'List all directives' */
+	/* #swagger.description = 'Retrieve directives with optional filtering. Includes linked technique info. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['technique_id'] = { in: 'query', type: 'string', description: 'Filter by technique ID', required: false } */
+	/* #swagger.parameters['policy_mode'] = { in: 'query', type: 'string', description: 'Filter by policy mode (audit/enforce)', required: false } */
+	/* #swagger.parameters['enabled'] = { in: 'query', type: 'string', description: 'Filter by enabled status (true/false)', required: false } */
 	try {
 		const { technique_id, policy_mode, enabled } = req.query;
 		const where = {};
@@ -287,6 +347,23 @@ router.get("/directives", authenticateToken, async (req, res) => {
 
 // POST /api/v1/configmanagement/directives
 router.post("/directives", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Directives'] */
+	/* #swagger.summary = 'Create a directive' */
+	/* #swagger.description = 'Create a directive from a technique. Auto-pins to the technique current version. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'Ensure deploy user',
+			description: 'Creates the deploy user on all servers',
+			technique_id: 'uuid-of-technique',
+			priority: 50,
+			policy_mode: 'audit',
+			parameters: { name: 'deploy' },
+			tags: { env: 'production' }
+		}
+	} */
 	try {
 		const { name, description, technique_id, version, priority, policy_mode, parameters, tags } = req.body;
 
@@ -331,6 +408,10 @@ router.post("/directives", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/directives/:id
 router.get("/directives/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Directives'] */
+	/* #swagger.summary = 'Get a directive by ID' */
+	/* #swagger.description = 'Retrieve a single directive with its technique and linked rules. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const directive = await prisma.cm_directives.findUnique({
 			where: { id: req.params.id },
@@ -355,6 +436,22 @@ router.get("/directives/:id", authenticateToken, async (req, res) => {
 
 // PUT /api/v1/configmanagement/directives/:id
 router.put("/directives/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Directives'] */
+	/* #swagger.summary = 'Update a directive' */
+	/* #swagger.description = 'Update directive fields. Can switch technique or pin a specific technique version. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'Updated directive name',
+			priority: 30,
+			policy_mode: 'enforce',
+			parameters: { name: 'deploy' },
+			enabled: true,
+			tags: { env: 'staging' }
+		}
+	} */
 	try {
 		const { name, description, priority, policy_mode, parameters, enabled, tags, technique_id, technique_version } = req.body;
 
@@ -398,6 +495,10 @@ router.put("/directives/:id", authenticateToken, async (req, res) => {
 
 // DELETE /api/v1/configmanagement/directives/:id
 router.delete("/directives/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Directives'] */
+	/* #swagger.summary = 'Delete a directive' */
+	/* #swagger.description = 'Delete a directive by ID. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		await prisma.cm_directives.delete({ where: { id: req.params.id } });
 		logger.info(`[ConfigMgmt] Directive deleted: ${req.params.id}`);
@@ -414,6 +515,10 @@ router.delete("/directives/:id", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/rules
 router.get("/rules", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Rules'] */
+	/* #swagger.summary = 'List all rules' */
+	/* #swagger.description = 'Retrieve all rules with linked directives and groups. Ordered by priority then name. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const rules = await prisma.cm_rules.findMany({
 			orderBy: [{ priority: "asc" }, { name: "asc" }],
@@ -438,6 +543,26 @@ router.get("/rules", authenticateToken, async (req, res) => {
 
 // POST /api/v1/configmanagement/rules
 router.post("/rules", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Rules'] */
+	/* #swagger.summary = 'Create a rule' */
+	/* #swagger.description = 'Create a rule linking directives to host groups. Supports schedule types: always, once, interval, cron. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'Production Servers Rule',
+			description: 'Apply user management to production',
+			directive_ids: ['uuid-of-directive'],
+			group_ids: ['uuid-of-group'],
+			priority: 50,
+			tags: { env: 'prod' },
+			run_schedule: 'always',
+			schedule_interval: null,
+			schedule_cron: null,
+			schedule_timezone: 'UTC'
+		}
+	} */
 	try {
 		const { name, description, directive_ids, group_ids, priority, tags, run_schedule, schedule_interval, schedule_cron, schedule_timezone } = req.body;
 
@@ -503,6 +628,10 @@ router.post("/rules", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/rules/:id
 router.get("/rules/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Rules'] */
+	/* #swagger.summary = 'Get a rule by ID' */
+	/* #swagger.description = 'Retrieve a single rule with full directive+technique details and groups. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const rule = await prisma.cm_rules.findUnique({
 			where: { id: req.params.id },
@@ -531,6 +660,22 @@ router.get("/rules/:id", authenticateToken, async (req, res) => {
 
 // PUT /api/v1/configmanagement/rules/:id
 router.put("/rules/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Rules'] */
+	/* #swagger.summary = 'Update a rule' */
+	/* #swagger.description = 'Update rule fields. Replaces directive and group links atomically when provided. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			name: 'Updated Rule Name',
+			enabled: true,
+			priority: 30,
+			directive_ids: ['uuid-of-directive'],
+			group_ids: ['uuid-of-group'],
+			run_schedule: 'always'
+		}
+	} */
 	try {
 		const { name, description, enabled, priority, directive_ids, group_ids, tags, run_schedule, schedule_interval, schedule_cron, schedule_timezone } = req.body;
 
@@ -605,6 +750,10 @@ router.put("/rules/:id", authenticateToken, async (req, res) => {
 
 // DELETE /api/v1/configmanagement/rules/:id
 router.delete("/rules/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Rules'] */
+	/* #swagger.summary = 'Delete a rule' */
+	/* #swagger.description = 'Delete a rule by ID. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		await prisma.cm_rules.delete({ where: { id: req.params.id } });
 		logger.info(`[ConfigMgmt] Rule deleted: ${req.params.id}`);
@@ -753,6 +902,10 @@ async function computePolicyForHost(hostId) {
 
 // GET /api/v1/configmanagement/policy/:hostId - Get computed policy for a host (UI)
 router.get("/policy/:hostId", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Policy'] */
+	/* #swagger.summary = 'Get computed policy for a host' */
+	/* #swagger.description = 'Compute and return the full resolved policy for a host. Resolves rules → directives → techniques based on host group memberships. Returns null if no applicable rules. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const policy = await computePolicyForHost(req.params.hostId);
 		if (!policy) {
@@ -771,6 +924,12 @@ router.get("/policy/:hostId", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/agent/policy - Agent fetches its computed policy
 router.get("/agent/policy", async (req, res) => {
+	/* #swagger.tags = ['Config Management - Agent'] */
+	/* #swagger.summary = 'Agent: fetch computed policy' */
+	/* #swagger.description = 'Agent fetches its computed config management policy. Supports hash-based caching: pass the SHA-256 hash of the last received policy as ?hash= to skip re-download if unchanged. Checks configmanagement_enabled flag. Authenticated via X-API-ID/X-API-KEY headers.' */
+	/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
+	/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
+	/* #swagger.parameters['hash'] = { in: 'query', type: 'string', description: 'SHA-256 hash of last received policy (for cache check)', required: false } */
 	try {
 		const apiId = req.headers["x-api-id"];
 		const apiKey = req.headers["x-api-key"];
@@ -817,6 +976,34 @@ router.get("/agent/policy", async (req, res) => {
 
 // POST /api/v1/configmanagement/agent/report - Agent submits compliance report
 router.post("/agent/report", async (req, res) => {
+	/* #swagger.tags = ['Config Management - Agent'] */
+	/* #swagger.summary = 'Agent: submit compliance report' */
+	/* #swagger.description = 'Agent submits a compliance report after evaluating its policy. Stores a cm_policy_runs row. Authenticated via X-API-ID/X-API-KEY headers.' */
+	/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
+	/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: {
+			report: {
+				policy_id: 'uuid',
+				global_mode: 'audit',
+				evaluated_at: '2024-01-01T00:00:00Z',
+				total_directives: 1,
+				compliant: 1,
+				non_compliant: 0,
+				errors: 0,
+				repaired: 0,
+				not_applicable: 0,
+				score: 100,
+				directive_results: []
+			},
+			current_hash: 'sha256-hash',
+			hostname: 'server1',
+			machine_id: 'machine-uuid',
+			agent_version: '1.5.4'
+		}
+	} */
 	try {
 		const apiId = req.headers["x-api-id"];
 		const apiKey = req.headers["x-api-key"];
@@ -877,6 +1064,13 @@ router.post("/agent/report", async (req, res) => {
 
 // GET /api/v1/configmanagement/runs - List recent policy runs
 router.get("/runs", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Compliance'] */
+	/* #swagger.summary = 'List recent compliance runs' */
+	/* #swagger.description = 'List recent policy compliance runs with pagination. Includes host info. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['host_id'] = { in: 'query', type: 'string', description: 'Filter by host ID', required: false } */
+	/* #swagger.parameters['limit'] = { in: 'query', type: 'integer', description: 'Max results (default 50, max 200)', required: false } */
+	/* #swagger.parameters['offset'] = { in: 'query', type: 'integer', description: 'Pagination offset', required: false } */
 	try {
 		const { host_id, limit = 50, offset = 0 } = req.query;
 		const where = {};
@@ -904,6 +1098,10 @@ router.get("/runs", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/runs/:id - Get a specific run with full details
 router.get("/runs/:id", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Compliance'] */
+	/* #swagger.summary = 'Get a compliance run by ID' */
+	/* #swagger.description = 'Retrieve a specific compliance run with full details including host info. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const run = await prisma.cm_policy_runs.findUnique({
 			where: { id: req.params.id },
@@ -925,6 +1123,10 @@ router.get("/runs/:id", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/dashboard - Overview stats
 router.get("/dashboard", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Dashboard'] */
+	/* #swagger.summary = 'Get dashboard statistics' */
+	/* #swagger.description = 'Overview stats: technique/directive/rule/host counts, recent runs, average score over last 24h. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const [
 			allEnabledTechniques,
@@ -979,6 +1181,10 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
 
 // GET /api/v1/configmanagement/diagnose - Full pipeline diagnostic
 router.get("/diagnose", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Dashboard'] */
+	/* #swagger.summary = 'Run pipeline diagnostics' */
+	/* #swagger.description = 'Full pipeline diagnostic: checks techniques, directives, rules, enabled hosts, policy applicability, agent contact recency, and agent version. Returns issues and details. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const prisma = getPrismaClient();
 		const issues = [];
@@ -1123,6 +1329,10 @@ router.get("/diagnose", authenticateToken, async (req, res) => {
 
 // POST /api/v1/configmanagement/test-run/:hostId - Evaluate policy server-side and store a test run
 router.post("/test-run/:hostId", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Config Management - Dashboard'] */
+	/* #swagger.summary = 'Create a server-side test run' */
+	/* #swagger.description = 'Compute policy for a host and generate a cm_policy_runs entry with all directives marked not_evaluated/not_applicable. Useful for testing the pipeline without an agent. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
 		const prisma = getPrismaClient();
 		const { hostId } = req.params;

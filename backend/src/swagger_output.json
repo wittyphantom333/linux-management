@@ -96,9 +96,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
-          },
           "201": {
             "description": "Created"
           },
@@ -223,9 +220,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
-          },
           "201": {
             "description": "Created"
           },
@@ -468,9 +462,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
-          },
           "201": {
             "description": "Created"
           },
@@ -1068,11 +1059,234 @@
         }
       }
     },
+    "/auth/discord/config": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/auth/discord/login": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/auth/discord/callback": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-forwarded-proto",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/auth/discord/link": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/auth/discord/unlink": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/auth/discord/settings": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "discord_oauth_enabled": {
+                  "example": "any"
+                },
+                "discord_client_id": {
+                  "example": "any"
+                },
+                "discord_client_secret": {
+                  "example": "any"
+                },
+                "discord_redirect_uri": {
+                  "example": "any"
+                },
+                "discord_button_text": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/hosts/agent/download": {
       "get": {
         "description": "",
         "produces": [
-          "text/plain"
+          "application/octet-stream"
         ],
         "parameters": [
           {
@@ -1091,12 +1305,12 @@
             "type": "string"
           },
           {
-            "name": "force",
+            "name": "arch",
             "in": "query",
             "type": "string"
           },
           {
-            "name": "arch",
+            "name": "os",
             "in": "query",
             "type": "string"
           }
@@ -1132,7 +1346,7 @@
             "type": "string"
           },
           {
-            "name": "type",
+            "name": "os",
             "in": "query",
             "type": "string"
           },
@@ -1201,6 +1415,9 @@
                   "example": "any"
                 },
                 "compliance_enabled": {
+                  "example": "any"
+                },
+                "expected_platform": {
                   "example": "any"
                 }
               }
@@ -1473,6 +1690,9 @@
                   "example": "any"
                 },
                 "scanner_info": {
+                  "example": "any"
+                },
+                "install_events": {
                   "example": "any"
                 },
                 "req": {
@@ -2182,6 +2402,11 @@
             "name": "arch",
             "in": "query",
             "type": "string"
+          },
+          {
+            "name": "os",
+            "in": "query",
+            "type": "string"
           }
         ],
         "responses": {
@@ -2282,49 +2507,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/hosts/agent/upload": {
-      "post": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "x-request-id",
-            "in": "header",
-            "type": "string"
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "scriptContent": {
-                  "example": "any"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
           },
           "401": {
             "description": "Unauthorized"
@@ -2640,6 +2822,43 @@
         }
       }
     },
+    "/hosts/{hostId}/integrations/compliance/request-status": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/hosts/{hostId}/integrations/{integrationName}/toggle": {
       "post": {
         "description": "",
@@ -2752,6 +2971,61 @@
           },
           "503": {
             "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/hosts/{hostId}/integrations/compliance/scanners": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "openscap_enabled": {
+                  "example": "any"
+                },
+                "docker_bench_enabled": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
@@ -6283,6 +6557,42 @@
         }
       }
     },
+    "/agent/version/download-stream": {
+      "get": {
+        "description": "",
+        "produces": [
+          "text/event-stream"
+        ],
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/agent/version/download": {
       "post": {
         "description": "",
@@ -6957,6 +7267,9 @@
                   "example": "any"
                 },
                 "color_theme": {
+                  "example": "any"
+                },
+                "hosts_column_config": {
                   "example": "any"
                 }
               }
@@ -7730,6 +8043,115 @@
         }
       }
     },
+    "/compliance/scans/history": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "profile_type",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "host_id",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/compliance/scans/stalled": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/compliance/scans/cleanup": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/compliance/scans/{hostId}": {
       "get": {
         "description": "",
@@ -7888,6 +8310,16 @@
             "name": "severity",
             "in": "query",
             "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "string"
           }
         ],
         "responses": {
@@ -8007,6 +8439,169 @@
                 }
               }
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/compliance/cancel/{hostId}": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/compliance/install-job/{hostId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/compliance/install-scanner/{hostId}/cancel": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/compliance/install-scanner/{hostId}": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
           }
         ],
         "responses": {
@@ -8162,7 +8757,7 @@
         }
       }
     },
-    "/social-media-stats/": {
+    "/compliance/rules": {
       "get": {
         "description": "",
         "parameters": [
@@ -8170,11 +8765,2770 @@
             "name": "x-request-id",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "profile_type",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "host_id",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "type": "string"
           }
         ],
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/compliance/rules/{ruleId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/configmanagement/techniques": {
+      "get": {
+        "tags": [
+          "Config Management - Techniques"
+        ],
+        "summary": "List all techniques",
+        "description": "Retrieve all techniques. By default, deduplicates by name (latest version only). Use all_versions=true to return every version. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by category",
+            "required": false
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by enabled status (true/false)",
+            "required": false
+          },
+          {
+            "name": "all_versions",
+            "in": "query",
+            "type": "string",
+            "description": "When true, return all versions instead of deduplicating",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Config Management - Techniques"
+        ],
+        "summary": "Create a technique",
+        "description": "Create a new configuration technique with methods. Returns 409 if name+version already exists. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "User Present Check"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Ensures a user account exists"
+                },
+                "version": {
+                  "type": "string",
+                  "example": "1.0"
+                },
+                "category": {
+                  "type": "string",
+                  "example": "Users"
+                },
+                "parameters": {
+                  "type": "array",
+                  "example": [],
+                  "items": {}
+                },
+                "methods": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "example": "user_present"
+                      },
+                      "name": {
+                        "type": "string",
+                        "example": "Ensure user exists"
+                      },
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "example": "deploy"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "conditions": {}
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/techniques/{id}": {
+      "get": {
+        "tags": [
+          "Config Management - Techniques"
+        ],
+        "summary": "Get a technique by ID",
+        "description": "Retrieve a single technique with its enabled directives. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Config Management - Techniques"
+        ],
+        "summary": "Update a technique",
+        "description": "Update a technique. If the version field changes, a NEW row is created (old version preserved for pinned directives). Returns new_version:true and previous_id when versioned. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "User Present Check"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Updated description"
+                },
+                "version": {
+                  "type": "string",
+                  "example": "1.1"
+                },
+                "category": {
+                  "type": "string",
+                  "example": "Users"
+                },
+                "parameters": {
+                  "type": "array",
+                  "example": [],
+                  "items": {}
+                },
+                "methods": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "example": "user_present"
+                      },
+                      "name": {
+                        "type": "string",
+                        "example": "Ensure user exists"
+                      },
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "example": "deploy"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Config Management - Techniques"
+        ],
+        "summary": "Delete a technique",
+        "description": "Delete a technique by ID. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/techniques/{id}/versions": {
+      "get": {
+        "tags": [
+          "Config Management - Techniques"
+        ],
+        "summary": "List all versions of a technique",
+        "description": "List all versions of a technique (matched by name). Returns version history with directive counts. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/directives": {
+      "get": {
+        "tags": [
+          "Config Management - Directives"
+        ],
+        "summary": "List all directives",
+        "description": "Retrieve directives with optional filtering. Includes linked technique info. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "technique_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by technique ID",
+            "required": false
+          },
+          {
+            "name": "policy_mode",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by policy mode (audit/enforce)",
+            "required": false
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by enabled status (true/false)",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Config Management - Directives"
+        ],
+        "summary": "Create a directive",
+        "description": "Create a directive from a technique. Auto-pins to the technique current version. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Ensure deploy user"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Creates the deploy user on all servers"
+                },
+                "technique_id": {
+                  "type": "string",
+                  "example": "uuid-of-technique"
+                },
+                "priority": {
+                  "type": "number",
+                  "example": 50
+                },
+                "policy_mode": {
+                  "type": "string",
+                  "example": "audit"
+                },
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "example": "deploy"
+                    }
+                  }
+                },
+                "tags": {
+                  "type": "object",
+                  "properties": {
+                    "env": {
+                      "type": "string",
+                      "example": "production"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/directives/{id}": {
+      "get": {
+        "tags": [
+          "Config Management - Directives"
+        ],
+        "summary": "Get a directive by ID",
+        "description": "Retrieve a single directive with its technique and linked rules. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Config Management - Directives"
+        ],
+        "summary": "Update a directive",
+        "description": "Update directive fields. Can switch technique or pin a specific technique version. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Updated directive name"
+                },
+                "priority": {
+                  "type": "number",
+                  "example": 30
+                },
+                "policy_mode": {
+                  "type": "string",
+                  "example": "enforce"
+                },
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "example": "deploy"
+                    }
+                  }
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "tags": {
+                  "type": "object",
+                  "properties": {
+                    "env": {
+                      "type": "string",
+                      "example": "staging"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Config Management - Directives"
+        ],
+        "summary": "Delete a directive",
+        "description": "Delete a directive by ID. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/rules": {
+      "get": {
+        "tags": [
+          "Config Management - Rules"
+        ],
+        "summary": "List all rules",
+        "description": "Retrieve all rules with linked directives and groups. Ordered by priority then name. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Config Management - Rules"
+        ],
+        "summary": "Create a rule",
+        "description": "Create a rule linking directives to host groups. Supports schedule types: always, once, interval, cron. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Production Servers Rule"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Apply user management to production"
+                },
+                "directive_ids": {
+                  "type": "array",
+                  "example": [
+                    "uuid-of-directive"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "group_ids": {
+                  "type": "array",
+                  "example": [
+                    "uuid-of-group"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "priority": {
+                  "type": "number",
+                  "example": 50
+                },
+                "tags": {
+                  "type": "object",
+                  "properties": {
+                    "env": {
+                      "type": "string",
+                      "example": "prod"
+                    }
+                  }
+                },
+                "run_schedule": {
+                  "type": "string",
+                  "example": "always"
+                },
+                "schedule_interval": {},
+                "schedule_cron": {},
+                "schedule_timezone": {
+                  "type": "string",
+                  "example": "UTC"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/rules/{id}": {
+      "get": {
+        "tags": [
+          "Config Management - Rules"
+        ],
+        "summary": "Get a rule by ID",
+        "description": "Retrieve a single rule with full directive+technique details and groups. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Config Management - Rules"
+        ],
+        "summary": "Update a rule",
+        "description": "Update rule fields. Replaces directive and group links atomically when provided. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Updated Rule Name"
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "priority": {
+                  "type": "number",
+                  "example": 30
+                },
+                "directive_ids": {
+                  "type": "array",
+                  "example": [
+                    "uuid-of-directive"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "group_ids": {
+                  "type": "array",
+                  "example": [
+                    "uuid-of-group"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "run_schedule": {
+                  "type": "string",
+                  "example": "always"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Config Management - Rules"
+        ],
+        "summary": "Delete a rule",
+        "description": "Delete a rule by ID. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/policy/{hostId}": {
+      "get": {
+        "tags": [
+          "Config Management - Policy"
+        ],
+        "summary": "Get computed policy for a host",
+        "description": "Compute and return the full resolved policy for a host. Resolves rules → directives → techniques based on host group memberships. Returns null if no applicable rules. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "hostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/agent/policy": {
+      "get": {
+        "tags": [
+          "Config Management - Agent"
+        ],
+        "summary": "Agent: fetch computed policy",
+        "description": "Agent fetches its computed config management policy. Supports hash-based caching: pass the SHA-256 hash of the last received policy as ?hash= to skip re-download if unchanged. Checks configmanagement_enabled flag. Authenticated via X-API-ID/X-API-KEY headers.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "X-API-ID",
+            "in": "header",
+            "type": "string",
+            "description": "Host API ID",
+            "required": true
+          },
+          {
+            "name": "X-API-KEY",
+            "in": "header",
+            "type": "string",
+            "description": "Host API Key",
+            "required": true
+          },
+          {
+            "name": "hash",
+            "in": "query",
+            "type": "string",
+            "description": "SHA-256 hash of last received policy (for cache check)",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/configmanagement/agent/report": {
+      "post": {
+        "tags": [
+          "Config Management - Agent"
+        ],
+        "summary": "Agent: submit compliance report",
+        "description": "Agent submits a compliance report after evaluating its policy. Stores a cm_policy_runs row. Authenticated via X-API-ID/X-API-KEY headers.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "X-API-ID",
+            "in": "header",
+            "type": "string",
+            "description": "Host API ID",
+            "required": true
+          },
+          {
+            "name": "X-API-KEY",
+            "in": "header",
+            "type": "string",
+            "description": "Host API Key",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "report": {
+                  "type": "object",
+                  "properties": {
+                    "policy_id": {
+                      "type": "string",
+                      "example": "uuid"
+                    },
+                    "global_mode": {
+                      "type": "string",
+                      "example": "audit"
+                    },
+                    "evaluated_at": {
+                      "type": "string",
+                      "example": "2024-01-01T00:00:00Z"
+                    },
+                    "total_directives": {
+                      "type": "number",
+                      "example": 1
+                    },
+                    "compliant": {
+                      "type": "number",
+                      "example": 1
+                    },
+                    "non_compliant": {
+                      "type": "number",
+                      "example": 0
+                    },
+                    "errors": {
+                      "type": "number",
+                      "example": 0
+                    },
+                    "repaired": {
+                      "type": "number",
+                      "example": 0
+                    },
+                    "not_applicable": {
+                      "type": "number",
+                      "example": 0
+                    },
+                    "score": {
+                      "type": "number",
+                      "example": 100
+                    },
+                    "directive_results": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  }
+                },
+                "current_hash": {
+                  "type": "string",
+                  "example": "sha256-hash"
+                },
+                "hostname": {
+                  "type": "string",
+                  "example": "server1"
+                },
+                "machine_id": {
+                  "type": "string",
+                  "example": "machine-uuid"
+                },
+                "agent_version": {
+                  "type": "string",
+                  "example": "1.5.4"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/configmanagement/runs": {
+      "get": {
+        "tags": [
+          "Config Management - Compliance"
+        ],
+        "summary": "List recent compliance runs",
+        "description": "List recent policy compliance runs with pagination. Includes host info. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "host_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by host ID",
+            "required": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "integer",
+            "description": "Max results (default 50, max 200)",
+            "required": false
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "integer",
+            "description": "Pagination offset",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/runs/{id}": {
+      "get": {
+        "tags": [
+          "Config Management - Compliance"
+        ],
+        "summary": "Get a compliance run by ID",
+        "description": "Retrieve a specific compliance run with full details including host info. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/dashboard": {
+      "get": {
+        "tags": [
+          "Config Management - Dashboard"
+        ],
+        "summary": "Get dashboard statistics",
+        "description": "Overview stats: technique/directive/rule/host counts, recent runs, average score over last 24h. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/diagnose": {
+      "get": {
+        "tags": [
+          "Config Management - Dashboard"
+        ],
+        "summary": "Run pipeline diagnostics",
+        "description": "Full pipeline diagnostic: checks techniques, directives, rules, enabled hosts, policy applicability, agent contact recency, and agent version. Returns issues and details. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/configmanagement/test-run/{hostId}": {
+      "post": {
+        "tags": [
+          "Config Management - Dashboard"
+        ],
+        "summary": "Create a server-side test run",
+        "description": "Compute policy for a host and generate a cm_policy_runs entry with all directives marked not_evaluated/not_applicable. Useful for testing the pipeline without an agent. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "hostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/policies": {
+      "get": {
+        "tags": [
+          "Patch Management - Policies"
+        ],
+        "summary": "List all patch policies",
+        "description": "Retrieve all patch policies with linked groups, filters, window/job counts, and computed host_count. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by enabled status (true/false)",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Patch Management - Policies"
+        ],
+        "summary": "Create a patch policy",
+        "description": "Create a new patch policy with optional group and filter links. Returns 409 on duplicate name. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Security Patches Only"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Apply security patches to production"
+                },
+                "policy_type": {
+                  "type": "string",
+                  "example": "security_only"
+                },
+                "auto_approve": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "approval_timeout_hours": {
+                  "type": "number",
+                  "example": 72
+                },
+                "reboot_policy": {
+                  "type": "string",
+                  "example": "if_needed"
+                },
+                "pre_snapshot": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "post_snapshot": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "max_concurrent_hosts": {
+                  "type": "number",
+                  "example": 5
+                },
+                "stop_on_failure_percent": {
+                  "type": "number",
+                  "example": 30
+                },
+                "group_ids": {
+                  "type": "array",
+                  "example": [
+                    "uuid-of-group"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "filters": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "filter_type": {
+                        "type": "string",
+                        "example": "exclude"
+                      },
+                      "match_type": {
+                        "type": "string",
+                        "example": "glob"
+                      },
+                      "pattern": {
+                        "type": "string",
+                        "example": "kernel*"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/policies/{id}": {
+      "get": {
+        "tags": [
+          "Patch Management - Policies"
+        ],
+        "summary": "Get a patch policy by ID",
+        "description": "Retrieve a single policy with groups, filters, windows, recent jobs, and per-host updatable package counts. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Patch Management - Policies"
+        ],
+        "summary": "Update a patch policy",
+        "description": "Update policy fields. If group_ids or filters provided, replaces all links atomically. Returns 409 on duplicate name. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Updated Policy Name"
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "policy_type": {
+                  "type": "string",
+                  "example": "all"
+                },
+                "reboot_policy": {
+                  "type": "string",
+                  "example": "never"
+                },
+                "group_ids": {
+                  "type": "array",
+                  "example": [
+                    "uuid-of-group"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "filters": {
+                  "type": "array",
+                  "example": [],
+                  "items": {}
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Patch Management - Policies"
+        ],
+        "summary": "Delete a patch policy",
+        "description": "Delete a patch policy by ID. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/windows": {
+      "get": {
+        "tags": [
+          "Patch Management - Windows"
+        ],
+        "summary": "List maintenance windows",
+        "description": "List all maintenance windows with policy name and job count. Ordered by next_run_at. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "policy_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by policy ID",
+            "required": false
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by enabled status (true/false)",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Patch Management - Windows"
+        ],
+        "summary": "Create a maintenance window",
+        "description": "Create a maintenance window for a policy. Computes next_run_at from cron expression. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Saturday Night Window"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Weekly patch window"
+                },
+                "policy_id": {
+                  "type": "string",
+                  "example": "uuid-of-policy"
+                },
+                "schedule_type": {
+                  "type": "string",
+                  "example": "recurring"
+                },
+                "schedule_cron": {
+                  "type": "string",
+                  "example": "0 2 * * 6"
+                },
+                "schedule_timezone": {
+                  "type": "string",
+                  "example": "America/New_York"
+                },
+                "duration_minutes": {
+                  "type": "number",
+                  "example": 120
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/windows/{id}": {
+      "get": {
+        "tags": [
+          "Patch Management - Windows"
+        ],
+        "summary": "Get a maintenance window by ID",
+        "description": "Retrieve a single window with policy name and last 20 jobs. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Patch Management - Windows"
+        ],
+        "summary": "Update a maintenance window",
+        "description": "Update window fields. Recomputes next_run_at from cron. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Updated Window"
+                },
+                "schedule_cron": {
+                  "type": "string",
+                  "example": "0 3 * * 0"
+                },
+                "duration_minutes": {
+                  "type": "number",
+                  "example": 180
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Patch Management - Windows"
+        ],
+        "summary": "Delete a maintenance window",
+        "description": "Delete a maintenance window by ID. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/jobs": {
+      "get": {
+        "tags": [
+          "Patch Management - Jobs"
+        ],
+        "summary": "List patch jobs",
+        "description": "List patch jobs with filtering and pagination. Includes policy/window names and host count. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "policy_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by policy ID",
+            "required": false
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by status (pending/running/completed/failed/cancelled)",
+            "required": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "integer",
+            "description": "Max results (default 50)",
+            "required": false
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "integer",
+            "description": "Pagination offset",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/jobs/{id}": {
+      "get": {
+        "tags": [
+          "Patch Management - Jobs"
+        ],
+        "summary": "Get a patch job by ID",
+        "description": "Retrieve a single job with policy details, window, and all patch_job_hosts with per-package results. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/jobs/{jobId}/hosts/{jobHostId}/diff": {
+      "get": {
+        "tags": [
+          "Patch Management - Jobs"
+        ],
+        "summary": "Get before/after snapshot diff",
+        "description": "Get before/after snapshot diff for a specific host in a patch job. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "jobHostId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/jobs/trigger": {
+      "post": {
+        "tags": [
+          "Patch Management - Jobs"
+        ],
+        "summary": "Trigger a patch job manually",
+        "description": "Manually trigger a new patch job for a policy. Creates the job and enqueues hosts. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "policy_id": {
+                  "type": "string",
+                  "example": "uuid-of-policy"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/jobs/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Patch Management - Jobs"
+        ],
+        "summary": "Cancel a patch job",
+        "description": "Cancel a pending or running job. Marks job as cancelled and skips all pending hosts. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/stats": {
+      "get": {
+        "tags": [
+          "Patch Management - Dashboard"
+        ],
+        "summary": "Get patch management statistics",
+        "description": "Overview statistics: policy/window counts, pending/running jobs, 5 most recent jobs, 5 upcoming windows, job status breakdown for last 30 days. Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/history": {
+      "get": {
+        "tags": [
+          "Patch Management - Dashboard"
+        ],
+        "summary": "Get full job history",
+        "description": "Full job history with pagination and per-host details (status, packages updated/failed). Requires JWT auth.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "integer",
+            "description": "Max results (default 25)",
+            "required": false
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "integer",
+            "description": "Pagination offset",
+            "required": false
+          },
+          {
+            "name": "policy_id",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by policy ID",
+            "required": false
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "type": "string",
+            "description": "Filter by status",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/patch-management/agent/pending": {
+      "get": {
+        "tags": [
+          "Patch Management - Agent"
+        ],
+        "summary": "Agent: check for pending patch job",
+        "description": "Agent checks if it has a pending patch job to execute. Returns has_job:true with job details or has_job:false. Authenticated via X-API-ID/X-API-KEY headers.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "X-API-ID",
+            "in": "header",
+            "type": "string",
+            "description": "Host API ID",
+            "required": true
+          },
+          {
+            "name": "X-API-KEY",
+            "in": "header",
+            "type": "string",
+            "description": "Host API Key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/patch-management/agent/report": {
+      "post": {
+        "tags": [
+          "Patch Management - Agent"
+        ],
+        "summary": "Agent: report patch results",
+        "description": "Agent submits patch execution results. Authenticated via X-API-ID/X-API-KEY headers.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "X-API-ID",
+            "in": "header",
+            "type": "string",
+            "description": "Host API ID",
+            "required": true
+          },
+          {
+            "name": "X-API-KEY",
+            "in": "header",
+            "type": "string",
+            "description": "Host API Key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/patch-management/agent/status": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "job_host_id": {
+                  "example": "any"
+                },
+                "status": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "job_host_id": {
+                  "example": "any"
+                },
+                "status": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
           },
           "500": {
             "description": "Internal Server Error"
