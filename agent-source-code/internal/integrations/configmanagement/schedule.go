@@ -29,8 +29,10 @@ type ScheduleState struct {
 // ScheduleEntry records when a directive was last run and with what version.
 type ScheduleEntry struct {
 	DirectiveID      string    `json:"directive_id"`
-	DirectiveVersion string    `json:"directive_version"` // For "once" mode: re-run when version changes
+	RuleID           string    `json:"rule_id,omitempty"`           // Track per rule+directive pair
+	DirectiveVersion string    `json:"directive_version"`           // For "once" mode: re-run when version changes
 	TechniqueVersion string    `json:"technique_version,omitempty"` // Re-run when pinned technique version changes
+	LastStatus       string    `json:"last_status,omitempty"`       // Last run outcome ("compliant", "error", etc.)
 	LastRunAt        time.Time `json:"last_run_at"`
 	RunCount         int       `json:"run_count"`
 }
@@ -45,13 +47,32 @@ func NewScheduleState(logger *logrus.Logger) *ScheduleState {
 	return ss
 }
 
+// entryKey builds the schedule state key for a policy item.
+// We key on ruleID:directiveID so the same directive in different rules
+// (with different schedules) is tracked independently.
+func entryKey(item models.ConfigPolicyItem) string {
+	if item.RuleID != "" {
+		return item.RuleID + ":" + item.Directive.ID
+	}
+	return item.Directive.ID // Fallback for legacy state
+}
+
+// isSuccessStatus returns true for statuses that count as a successful completion.
+func isSuccessStatus(status string) bool {
+	switch status {
+	case "compliant", "success", "repaired", "audit_compliant":
+		return true
+	}
+	return false
+}
+
 // ShouldRun determines whether a directive should be evaluated now based on its schedule.
 func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
 	sched := item.Schedule
-	dirID := item.Directive.ID
+	key := entryKey(item)
 	dirVersion := item.Directive.Version
 	techVersion := item.Directive.TechniqueVersion
 
@@ -60,7 +81,7 @@ func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 		return true
 
 	case "once":
-		entry, exists := ss.entries[dirID]
+		entry, exists := ss.entries[key]
 		if !exists {
 			return true // Never run before
 		}
@@ -71,14 +92,22 @@ func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 		if entry.TechniqueVersion != techVersion {
 			return true
 		}
-		return false // Already run for this version
+		// Re-run if the last attempt was not successful
+		if !isSuccessStatus(entry.LastStatus) {
+			ss.logger.WithFields(logrus.Fields{
+				"directive": item.Directive.Name,
+				"last_status": entry.LastStatus,
+			}).Debug("Once-scheduled directive re-running after non-success")
+			return true
+		}
+		return false // Successfully completed for this version
 
 	case "interval":
 		interval := sched.ScheduleInterval
 		if interval <= 0 {
 			return true // Misconfigured, run anyway
 		}
-		entry, exists := ss.entries[dirID]
+		entry, exists := ss.entries[key]
 		if !exists {
 			return true // Never run before
 		}
@@ -89,7 +118,7 @@ func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 		if sched.ScheduleCron == "" {
 			return true // Misconfigured, run anyway
 		}
-		entry, exists := ss.entries[dirID]
+		entry, exists := ss.entries[key]
 		if !exists {
 			return true // Never run before
 		}
@@ -101,21 +130,24 @@ func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 	}
 }
 
-// RecordRun records that a directive was just evaluated.
-func (ss *ScheduleState) RecordRun(item models.ConfigPolicyItem) {
+// RecordRun records that a directive was just evaluated, including its outcome status.
+func (ss *ScheduleState) RecordRun(item models.ConfigPolicyItem, status string) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
-	entry, exists := ss.entries[item.Directive.ID]
+	key := entryKey(item)
+	entry, exists := ss.entries[key]
 	if !exists {
 		entry = &ScheduleEntry{
 			DirectiveID: item.Directive.ID,
+			RuleID:      item.RuleID,
 		}
-		ss.entries[item.Directive.ID] = entry
+		ss.entries[key] = entry
 	}
 
 	entry.DirectiveVersion = item.Directive.Version
 	entry.TechniqueVersion = item.Directive.TechniqueVersion
+	entry.LastStatus = status
 	entry.LastRunAt = time.Now().UTC()
 	entry.RunCount++
 

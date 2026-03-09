@@ -206,7 +206,7 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 
 		// Record that this directive was evaluated (for schedule tracking)
 		if schedState != nil {
-			schedState.RecordRun(policyItem)
+			schedState.RecordRun(policyItem, dirStatus)
 		}
 
 		// Update report counters
