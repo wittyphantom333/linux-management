@@ -14,7 +14,7 @@ router.get(
 		try {
 			const axios = require("axios");
 			const response = await axios.get(
-				"https://api.github.com/repos/PatchMon/PatchMon/releases",
+				"https://api.github.com/repos/wittyphantom333/linux-management/releases",
 				{
 					timeout: 10000,
 					headers: {

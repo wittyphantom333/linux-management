@@ -3136,7 +3136,7 @@ update_installation() {
         
         # Initialize git repository
         git init
-        git remote add origin https://github.com/PatchMon/PatchMon.git
+        git remote add origin https://github.com/wittyphantom333/linux-management.git
         
         # Fetch all branches
         git fetch origin

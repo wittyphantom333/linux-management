@@ -220,7 +220,7 @@ model settings {
   update_interval              Int       @default(60)
   auto_update                  Boolean   @default(false)
   default_compliance_mode      String   @default("on-demand") // "disabled", "on-demand", "enabled"
-  github_repo_url              String    @default("https://github.com/PatchMon/PatchMon.git")
+  github_repo_url              String    @default("https://github.com/wittyphantom333/linux-management.git")
   ssh_key_path                 String?
   repository_type              String    @default("public")
   last_update_check            DateTime?

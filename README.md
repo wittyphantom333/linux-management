@@ -7,8 +7,8 @@
 [![Website](https://img.shields.io/badge/Website-patchmon.net-blue?style=for-the-badge)](https://patchmon.net)
 [![Cloud](https://img.shields.io/badge/Cloud-patchmon.net%2Fcloud-purple?style=for-the-badge)](https://patchmon.net)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-blue?style=for-the-badge&logo=discord)](https://patchmon.net/discord)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/PatchMon/PatchMon)
-[![Roadmap](https://img.shields.io/badge/Roadmap-View%20Progress-green?style=for-the-badge&logo=github)](https://github.com/orgs/PatchMon/projects/2)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/wittyphantom333/linux-management)
+[![Roadmap](https://img.shields.io/badge/Roadmap-View%20Progress-green?style=for-the-badge&logo=github)](https://github.com/orgs/wittyphantom333/projects/2)
 [![Documentation](https://img.shields.io/badge/Docs-docs.patchmon.net-blue?style=for-the-badge)](https://docs.patchmon.net/)
 
 ---
@@ -29,7 +29,7 @@ PatchMon is an enterprise-grade platform that gives operations teams a single pa
 
 Whether you manage ten servers or ten thousand, PatchMon provides the tooling, automation and auditability that modern infrastructure teams demand.
 
-![Dashboard Screenshot](https://raw.githubusercontent.com/PatchMon/PatchMon/main/dashboard.png)
+![Dashboard Screenshot](https://raw.githubusercontent.com/wittyphantom333/linux-management/main/dashboard.png)
 
 ---
 
@@ -90,8 +90,8 @@ The quickest way to get running. See the full guide on our documentation site:
 
 ```bash
 # Download compose file and example env
-curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/PatchMon/PatchMon/refs/heads/main/docker/docker-compose.yml
-curl -fsSL -o env.example https://raw.githubusercontent.com/PatchMon/PatchMon/refs/heads/main/docker/env.example
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/wittyphantom333/linux-management/refs/heads/main/docker/docker-compose.yml
+curl -fsSL -o env.example https://raw.githubusercontent.com/wittyphantom333/linux-management/refs/heads/main/docker/env.example
 
 # Create .env with generated secrets
 cp env.example .env
@@ -138,12 +138,12 @@ apt update -y && apt upgrade -y && apt install curl -y
 ```
 
 ```bash
-curl -fsSL -o setup.sh https://raw.githubusercontent.com/PatchMon/PatchMon/refs/heads/main/setup.sh && chmod +x setup.sh && bash setup.sh
+curl -fsSL -o setup.sh https://raw.githubusercontent.com/wittyphantom333/linux-management/refs/heads/main/setup.sh && chmod +x setup.sh && bash setup.sh
 ```
 
 **Update an existing install:**
 ```bash
-curl -fsSL -o setup.sh https://raw.githubusercontent.com/PatchMon/PatchMon/refs/heads/main/setup.sh && chmod +x setup.sh && bash setup.sh --update
+curl -fsSL -o setup.sh https://raw.githubusercontent.com/wittyphantom333/linux-management/refs/heads/main/setup.sh && chmod +x setup.sh && bash setup.sh --update
 ```
 
 ##### Minimum Specs
@@ -202,7 +202,7 @@ Full documentation is available at **[docs.patchmon.net](https://docs.patchmon.n
 
 Track upcoming features and progress on the roadmap board:
 
-👉 **[PatchMon Roadmap](https://github.com/orgs/PatchMon/projects/2)**
+👉 **[PatchMon Roadmap](https://github.com/orgs/wittyphantom333/projects/2)**
 
 ## License
 
@@ -218,8 +218,8 @@ We welcome contributions from the community! Here's how you can get involved:
 
 1. **Fork & Clone**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/PatchMon.git
-   cd PatchMon
+   git clone https://github.com/YOUR_USERNAME/linux-management.git
+   cd linux-management
    ```
 
 2. **Start the dev environment**
@@ -297,7 +297,7 @@ This project has taken hundreds of hours of coding, testing and refining. If Pat
 [![Website](https://img.shields.io/badge/Website-patchmon.net-blue?style=for-the-badge)](https://patchmon.net)
 [![Cloud](https://img.shields.io/badge/Cloud-patchmon.net%2Fcloud-purple?style=for-the-badge)](https://patchmon.net)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-blue?style=for-the-badge&logo=discord)](https://patchmon.net/discord)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/PatchMon/PatchMon)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/wittyphantom333/linux-management)
 [![Documentation](https://img.shields.io/badge/Docs-docs.patchmon.net-blue?style=for-the-badge)](https://docs.patchmon.net/)
 
 </div>

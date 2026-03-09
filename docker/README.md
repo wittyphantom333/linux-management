@@ -11,8 +11,8 @@ PatchMon is a containerised application that monitors system patches and updates
 
 ## Images
 
-- **Backend**: [ghcr.io/patchmon/patchmon-backend](https://github.com/patchmon/patchmon.net/pkgs/container/patchmon-backend)
-- **Frontend**: [ghcr.io/patchmon/patchmon-frontend](https://github.com/patchmon/patchmon.net/pkgs/container/patchmon-frontend)
+- **Backend**: [ghcr.io/patchmon/patchmon-backend](https://github.com/wittyphantom333/linux-management/pkgs/container/patchmon-backend)
+- **Frontend**: [ghcr.io/patchmon/patchmon-frontend](https://github.com/wittyphantom333/linux-management/pkgs/container/patchmon-frontend)
 
 ### Tags
 
@@ -31,8 +31,8 @@ These tags are available for both backend and frontend images as they are versio
 1. Download the Docker Compose file and environment example:
    ```bash
    mkdir patchmon && cd patchmon
-   curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/PatchMon/PatchMon/refs/heads/main/docker/docker-compose.yml
-   curl -fsSL -o env.example https://raw.githubusercontent.com/PatchMon/PatchMon/refs/heads/main/docker/env.example
+   curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/wittyphantom333/linux-management/refs/heads/main/docker/docker-compose.yml
+   curl -fsSL -o env.example https://raw.githubusercontent.com/wittyphantom333/linux-management/refs/heads/main/docker/env.example
    ```
 
 2. Create your `.env` file from the example:
@@ -98,7 +98,7 @@ When you do this, updating to a new version requires manually updating the image
    ```
 
 > [!TIP]
-> Check the [releases page](https://github.com/PatchMon/PatchMon/releases) for version-specific changes and migration notes.
+> Check the [releases page](https://github.com/wittyphantom333/linux-management/releases) for version-specific changes and migration notes.
 
 ## Configuration
 
@@ -244,8 +244,8 @@ For development with live reload and source code mounting:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/PatchMon/PatchMon.git
-   cd PatchMon
+   git clone https://github.com/wittyphantom333/linux-management.git
+   cd linux-management
    ```
 
 2. Start development environment:
@@ -320,8 +320,8 @@ The development setup exposes additional ports for debugging:
 
 1. **Initial Setup**: Clone repository and start development environment
    ```bash
-   git clone https://github.com/PatchMon/PatchMon.git
-   cd PatchMon
+   git clone https://github.com/wittyphantom333/linux-management.git
+   cd linux-management
    docker compose -f docker/docker-compose.dev.yml up -d --build
    ```
 

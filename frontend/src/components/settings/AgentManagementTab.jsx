@@ -672,7 +672,7 @@ const AgentManagementTab = () => {
 								)}
 							</div>
 							<a
-								href="https://github.com/PatchMon/PatchMon-agent/releases"
+								href="https://github.com/wittyphantom333/linux-management/releases"
 								target="_blank"
 								rel="noopener noreferrer"
 								className="flex items-center justify-center px-4 py-3 text-secondary-700 dark:text-secondary-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 font-medium border border-secondary-300 dark:border-secondary-600 rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-700"

@@ -293,7 +293,7 @@ const Login = () => {
 				// Fetch repository info (includes star count) - still from GitHub for stars
 				try {
 					const repoResponse = await fetch(
-						"https://api.github.com/repos/PatchMon/PatchMon",
+						"https://api.github.com/repos/wittyphantom333/linux-management",
 						{
 							headers: {
 								Accept: "application/vnd.github.v3+json",
@@ -318,7 +318,7 @@ const Login = () => {
 				if (shouldFetchFresh) {
 					try {
 						const releaseResponse = await fetch(
-							"https://api.github.com/repos/PatchMon/PatchMon/releases/latest",
+							"https://api.github.com/repos/wittyphantom333/linux-management/releases/latest",
 							{
 								headers: {
 									Accept: "application/vnd.github.v3+json",
@@ -632,7 +632,7 @@ const Login = () => {
 										)}
 
 										<a
-											href="https://github.com/PatchMon/PatchMon/releases/latest"
+											href="https://github.com/wittyphantom333/linux-management/releases/latest"
 											target="_blank"
 											rel="noopener noreferrer"
 											className="inline-flex items-center gap-2 text-sm text-blue-300 hover:text-blue-200 transition-colors font-medium"
@@ -674,7 +674,7 @@ const Login = () => {
 								<div className="flex flex-wrap items-center gap-2">
 									{/* GitHub */}
 									<a
-										href="https://github.com/PatchMon/PatchMon"
+										href="https://github.com/wittyphantom333/linux-management"
 										target="_blank"
 										rel="noopener noreferrer"
 										className="flex items-center justify-center gap-1.5 px-3 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg transition-colors border border-white/10"
@@ -745,7 +745,7 @@ const Login = () => {
 
 									{/* Roadmap */}
 									<a
-										href="https://github.com/orgs/PatchMon/projects/2/views/1"
+										href="https://github.com/orgs/wittyphantom333/projects/2/views/1"
 										target="_blank"
 										rel="noopener noreferrer"
 										className="flex items-center justify-center w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg transition-colors border border-white/10"

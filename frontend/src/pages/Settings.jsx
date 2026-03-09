@@ -174,7 +174,7 @@ const Settings = () => {
 				autoUpdate: settings.auto_update || false,
 				githubRepoUrl:
 					settings.github_repo_url ||
-					"https://github.com/PatchMon/PatchMon.git",
+					"https://github.com/wittyphantom333/linux-management.git",
 				repositoryType: settings.repository_type || "public",
 				sshKeyPath: settings.ssh_key_path || "",
 				useCustomSshKey: !!settings.ssh_key_path,
@@ -207,7 +207,7 @@ const Settings = () => {
 					updateInterval: s.update_interval ?? 60,
 					autoUpdate: s.auto_update ?? false,
 					githubRepoUrl:
-						s.github_repo_url || "https://github.com/PatchMon/PatchMon.git",
+						s.github_repo_url || "https://github.com/wittyphantom333/linux-management.git",
 					repositoryType: s.repository_type || "public",
 					sshKeyPath: s.ssh_key_path || "",
 					useCustomSshKey: !!s.ssh_key_path,

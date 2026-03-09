@@ -229,12 +229,12 @@ const VersionUpdateTab = () => {
 								</span>
 								<div className="flex items-center gap-2">
 									<a
-										href="https://github.com/PatchMon/PatchMon"
+										href="https://github.com/wittyphantom333/linux-management"
 										target="_blank"
 										rel="noopener noreferrer"
 										className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-mono"
 									>
-										PatchMon/PatchMon{" "}
+										wittyphantom333/linux-management{" "}
 										<ExternalLink className="h-3 w-3 inline ml-1" />
 									</a>
 								</div>

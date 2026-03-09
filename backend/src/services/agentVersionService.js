@@ -28,7 +28,7 @@ const crypto = require("node:crypto");
 class AgentVersionService {
 	constructor() {
 		this.githubApiUrl =
-			"https://api.github.com/repos/PatchMon/PatchMon/releases";
+			"https://api.github.com/repos/wittyphantom333/linux-management/releases";
 		this.dnsDomain = "agent.vcheck.patchmon.net";
 		this.agentsDir = path.resolve(__dirname, "../../../agents");
 		this.supportedArchitectures = [
@@ -837,7 +837,7 @@ class AgentVersionService {
 					`⚠️ Release object doesn't have assets, fetching individual release...`,
 				);
 				const individualReleaseResponse = await axios.get(
-					`https://api.github.com/repos/PatchMon/PatchMon/releases/tags/${release.tag_name}`,
+					`https://api.github.com/repos/wittyphantom333/linux-management/releases/tags/${release.tag_name}`,
 					{
 						timeout: 10000,
 						headers: {
@@ -981,7 +981,7 @@ class AgentVersionService {
 						published_at: null,
 						prerelease: false,
 						draft: false,
-						html_url: `https://github.com/PatchMon/PatchMon/releases/tag/v${this.latestVersion}`,
+						html_url: `https://github.com/wittyphantom333/linux-management/releases/tag/v${this.latestVersion}`,
 					},
 				];
 			}

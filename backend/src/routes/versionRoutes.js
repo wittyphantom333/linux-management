@@ -52,7 +52,7 @@ router.get("/latest", async (_req, res) => {
 			res.json({
 				version: settings.latest_version,
 				tagName: `v${settings.latest_version}`,
-				htmlUrl: `https://github.com/PatchMon/PatchMon/releases/tag/v${settings.latest_version}`,
+				htmlUrl: `https://github.com/wittyphantom333/linux-management/releases/tag/v${settings.latest_version}`,
 			});
 		} else {
 			res.status(500).json({ error: "Failed to get latest version" });
@@ -68,7 +68,7 @@ async function getLatestRelease() {
 			tagName: `v${version}`,
 			version: version,
 			publishedAt: null, // DNS doesn't provide publish date
-			htmlUrl: `https://github.com/PatchMon/PatchMon/releases/tag/v${version}`,
+			htmlUrl: `https://github.com/wittyphantom333/linux-management/releases/tag/v${version}`,
 		};
 	} catch (error) {
 		logger.error("Error fetching latest release from DNS:", error.message);
@@ -261,7 +261,7 @@ router.get(
 						version: settings.latest_version,
 						tagName: `v${settings.latest_version}`,
 						publishedAt: null,
-						htmlUrl: `https://github.com/PatchMon/PatchMon/releases/tag/v${settings.latest_version}`,
+						htmlUrl: `https://github.com/wittyphantom333/linux-management/releases/tag/v${settings.latest_version}`,
 					};
 				}
 			}

@@ -1296,7 +1296,7 @@ const Layout = ({ children }) => {
 							{!sidebarCollapsed ? (
 								<div className="flex items-center justify-center gap-2">
 									<a
-										href="https://github.com/orgs/PatchMon/projects/2/views/1"
+										href="https://github.com/orgs/wittyphantom333/projects/2/views/1"
 										target="_blank"
 										rel="noopener noreferrer"
 										className="flex items-center justify-center w-10 h-10 bg-secondary-50 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 rounded-lg transition-colors"
@@ -1333,7 +1333,7 @@ const Layout = ({ children }) => {
 							) : (
 								<div className="flex flex-col items-center gap-1">
 									<a
-										href="https://github.com/orgs/PatchMon/projects/2/views/1"
+										href="https://github.com/orgs/wittyphantom333/projects/2/views/1"
 										target="_blank"
 										rel="noopener noreferrer"
 										className="flex items-center justify-center w-10 h-10 bg-secondary-50 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 rounded-lg transition-colors"
@@ -1618,7 +1618,7 @@ const Layout = ({ children }) => {
 												<div className="p-2 space-y-1">
 													{/* GitHub */}
 													<a
-														href="https://github.com/PatchMon/PatchMon"
+														href="https://github.com/wittyphantom333/linux-management"
 														target="_blank"
 														rel="noopener noreferrer"
 														className="flex items-center gap-3 px-3 py-3 bg-gray-50 dark:bg-gray-800 text-secondary-600 dark:text-secondary-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors min-h-[44px]"
@@ -1711,7 +1711,7 @@ const Layout = ({ children }) => {
 								<div className="hidden md:flex items-center gap-1">
 									{/* 1) GitHub */}
 									<a
-										href="https://github.com/PatchMon/PatchMon"
+										href="https://github.com/wittyphantom333/linux-management"
 										target="_blank"
 										rel="noopener noreferrer"
 										className="flex items-center justify-center gap-1.5 w-auto px-2.5 h-10 bg-gray-50 dark:bg-transparent text-secondary-600 dark:text-secondary-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors shadow-sm group relative"
