@@ -279,6 +279,13 @@ const Layout = ({ children }) => {
 				beta: true,
 			});
 
+			integrationsItems.push({
+				name: "Patch Mgmt",
+				href: "/patch-management",
+				icon: Shield,
+				beta: true,
+			});
+
 			if (integrationsItems.length > 0) {
 				nav.push({
 					section: "INTEGRATIONS",
@@ -348,6 +355,8 @@ const Layout = ({ children }) => {
 			return "Compliance";
 		if (path === "/config-management" || path.startsWith("/config-management/"))
 			return "Config Management";
+		if (path === "/patch-management" || path.startsWith("/patch-management/"))
+			return "Patch Management";
 		if (path === "/users") return "Users";
 		if (path === "/permissions") return "Permissions";
 		if (path === "/settings") return "Settings";

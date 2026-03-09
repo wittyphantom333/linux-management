@@ -15,6 +15,7 @@ import (
 	"patchmon-agent/internal/integrations/compliance"
 	"patchmon-agent/internal/integrations/configmanagement"
 	"patchmon-agent/internal/integrations/docker"
+	"patchmon-agent/internal/integrations/patchmanagement"
 	"patchmon-agent/internal/network"
 	"patchmon-agent/internal/packages"
 	"patchmon-agent/internal/pkgversion"
@@ -359,6 +360,16 @@ func sendIntegrationData() {
 		// Compliance is disabled
 		logger.Debug("Compliance integration is disabled in config")
 	}
+	// Register patch management integration
+	if cfgManager.IsIntegrationEnabled("patchmanagement") {
+		pmIntegration := patchmanagement.New(logger)
+		pmIntegration.SetClient(client.New(cfgManager, logger))
+		integrationMgr.Register(pmIntegration)
+		logger.Debug("Patch management integration registered")
+	} else {
+		logger.Debug("Patch management integration is disabled in config")
+	}
+
 	// Future: integrationMgr.Register(proxmox.New(logger))
 	// Future: integrationMgr.Register(kubernetes.New(logger))
 
@@ -396,6 +407,16 @@ func sendIntegrationData() {
 	// Send Config Management data if available
 	if cmData, exists := integrationData["configmanagement"]; exists && cmData.Error == "" {
 		sendConfigMgmtData(httpClient, cmData, hostname, machineID)
+	}
+
+	// Patch management data is already sent by the integration itself (report + status)
+	// during Collect(), so we just log that it ran.
+	if pmData, exists := integrationData["patchmanagement"]; exists {
+		if pmData.Error != "" {
+			logger.WithField("error", pmData.Error).Warn("Patch management integration had an error")
+		} else {
+			logger.Debug("Patch management integration completed")
+		}
 	}
 
 	// Future: Send other integration data here

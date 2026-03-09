@@ -47,6 +47,18 @@ const ConfigMgmtRuleDetail = lazy(
 const ConfigMgmtRunDetail = lazy(
 	() => import("./pages/configmanagement/RunDetail"),
 );
+const PatchManagementPage = lazy(
+	() => import("./pages/PatchManagement"),
+);
+const PatchMgmtPolicyDetail = lazy(
+	() => import("./pages/patchmanagement/PolicyDetail"),
+);
+const PatchMgmtWindowDetail = lazy(
+	() => import("./pages/patchmanagement/WindowDetail"),
+);
+const PatchMgmtJobDetail = lazy(
+	() => import("./pages/patchmanagement/JobDetail"),
+);
 const Reporting = lazy(() => import("./pages/Reporting"));
 const DockerContainerDetail = lazy(
 	() => import("./pages/docker/ContainerDetail"),
@@ -276,6 +288,46 @@ function AppRoutes() {
 						<ProtectedRoute requirePermission="can_view_hosts">
 							<Layout>
 								<ConfigMgmtRunDetail />
+							</Layout>
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path="/patch-management"
+					element={
+						<ProtectedRoute requirePermission="can_view_hosts">
+							<Layout>
+								<PatchManagementPage />
+							</Layout>
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path="/patch-management/policies/:id"
+					element={
+						<ProtectedRoute requirePermission="can_view_hosts">
+							<Layout>
+								<PatchMgmtPolicyDetail />
+							</Layout>
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path="/patch-management/windows/:id"
+					element={
+						<ProtectedRoute requirePermission="can_view_hosts">
+							<Layout>
+								<PatchMgmtWindowDetail />
+							</Layout>
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path="/patch-management/jobs/:id"
+					element={
+						<ProtectedRoute requirePermission="can_view_hosts">
+							<Layout>
+								<PatchMgmtJobDetail />
 							</Layout>
 						</ProtectedRoute>
 					}

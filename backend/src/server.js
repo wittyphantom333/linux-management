@@ -103,6 +103,7 @@ const oidcRoutes = require("./routes/oidcRoutes");
 const discordRoutes = require("./routes/discordRoutes");
 const complianceRoutes = require("./routes/complianceRoutes");
 const configManagementRoutes = require("./routes/configManagementRoutes");
+const patchManagementRoutes = require("./routes/patchManagementRoutes");
 const { initializeOIDC } = require("./auth/oidc");
 const aiRoutes = require("./routes/aiRoutes");
 const alertRoutes = require("./routes/alertRoutes");
@@ -424,6 +425,7 @@ app.use(
 app.use(`/api/${apiVersion}/buy-me-a-coffee`, buyMeACoffeeRoutes);
 app.use(`/api/${apiVersion}/compliance`, complianceRoutes);
 app.use(`/api/${apiVersion}/configmanagement`, configManagementRoutes);
+app.use(`/api/${apiVersion}/patch-management`, patchManagementRoutes);
 app.use(`/api/${apiVersion}/ai`, aiRoutes);
 app.use(`/api/${apiVersion}/alerts`, alertRoutes);
 

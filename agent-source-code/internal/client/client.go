@@ -387,3 +387,97 @@ func (c *Client) SendComplianceData(ctx context.Context, payload *models.Complia
 
 	return result, nil
 }
+
+// FetchPendingPatchJob checks with the server for any pending patch job for this agent.
+func (c *Client) FetchPendingPatchJob(ctx context.Context) (*models.PatchPendingResponse, error) {
+	url := fmt.Sprintf("%s/api/%s/patch-management/agent/pending", c.config.PatchmonServer, c.config.APIVersion)
+
+	c.logger.Debug("Checking for pending patch jobs")
+
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("X-API-ID", c.credentials.APIID).
+		SetHeader("X-API-KEY", c.credentials.APIKey).
+		SetResult(&models.PatchPendingResponse{}).
+		Get(url)
+
+	if err != nil {
+		return nil, fmt.Errorf("fetch pending patch job failed: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("fetch pending patch job failed with status %d: %s", resp.StatusCode(), truncateResponse(resp.String(), 200))
+	}
+
+	result, ok := resp.Result().(*models.PatchPendingResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid response format")
+	}
+
+	return result, nil
+}
+
+// SendPatchReport sends the patch execution results to the server.
+func (c *Client) SendPatchReport(ctx context.Context, report *models.PatchReport) (*models.PatchReportResponse, error) {
+	url := fmt.Sprintf("%s/api/%s/patch-management/agent/report", c.config.PatchmonServer, c.config.APIVersion)
+
+	c.logger.WithFields(logrus.Fields{
+		"url":    url,
+		"job_id": report.JobID,
+		"status": report.Status,
+	}).Debug("Sending patch report to server")
+
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("X-API-ID", c.credentials.APIID).
+		SetHeader("X-API-KEY", c.credentials.APIKey).
+		SetBody(report).
+		SetResult(&models.PatchReportResponse{}).
+		Post(url)
+
+	if err != nil {
+		return nil, fmt.Errorf("patch report request failed: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("patch report request failed with status %d: %s", resp.StatusCode(), truncateResponse(resp.String(), 200))
+	}
+
+	result, ok := resp.Result().(*models.PatchReportResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid response format")
+	}
+
+	return result, nil
+}
+
+// SendPatchStatus sends a status update for a patch job.
+func (c *Client) SendPatchStatus(ctx context.Context, update *models.PatchStatusUpdate) (*models.PatchStatusResponse, error) {
+	url := fmt.Sprintf("%s/api/%s/patch-management/agent/status", c.config.PatchmonServer, c.config.APIVersion)
+
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("X-API-ID", c.credentials.APIID).
+		SetHeader("X-API-KEY", c.credentials.APIKey).
+		SetBody(update).
+		SetResult(&models.PatchStatusResponse{}).
+		Put(url)
+
+	if err != nil {
+		return nil, fmt.Errorf("patch status update failed: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("patch status update failed with status %d: %s", resp.StatusCode(), truncateResponse(resp.String(), 200))
+	}
+
+	result, ok := resp.Result().(*models.PatchStatusResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid response format")
+	}
+
+	return result, nil
+}

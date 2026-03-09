@@ -39,6 +39,7 @@ model host_groups {
   updated_at             DateTime
   host_group_memberships host_group_memberships[]
   auto_enrollment_tokens auto_enrollment_tokens[]
+  patch_policy_groups    patch_policy_groups[]
 }
 
 model host_group_memberships {
@@ -144,6 +145,7 @@ model hosts {
   docker_networks          docker_networks[]
   compliance_scans         compliance_scans[]
   cm_policy_runs           cm_policy_runs[]
+  patch_job_hosts          patch_job_hosts[]
 
   @@index([machine_id])
   @@index([friendly_name])
@@ -835,4 +837,157 @@ model cm_policy_runs {
   @@index([evaluated_at])
   @@index([host_id, evaluated_at])
   @@index([score])
+}
+
+// ============================================================================
+// PATCH MANAGEMENT
+// ============================================================================
+
+/// A patch policy defines what gets patched and how.
+model patch_policies {
+  id                      String   @id @default(uuid())
+  name                    String   @unique
+  description             String?  @db.Text
+  policy_type             String   @default("all")       // "all" | "security_only" | "selected"
+  auto_approve            Boolean  @default(false)
+  approval_timeout_hours  Int?     @default(72)
+  reboot_policy           String   @default("if_needed") // "never" | "if_needed" | "always"
+  pre_snapshot            Boolean  @default(true)
+  post_snapshot           Boolean  @default(true)
+  max_concurrent_hosts    Int      @default(5)
+  stop_on_failure_percent Int      @default(30)
+  blackout_start          String?                        // HH:MM — daily blackout window start
+  blackout_end            String?                        // HH:MM — daily blackout window end
+  enabled                 Boolean  @default(true)
+  created_by              String?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  patch_policy_groups  patch_policy_groups[]
+  patch_policy_filters patch_policy_filters[]
+  patch_windows        patch_windows[]
+  patch_jobs           patch_jobs[]
+
+  @@index([enabled])
+}
+
+/// Join table: policy ↔ host group (many-to-many).
+model patch_policy_groups {
+  id            String @id @default(uuid())
+  policy_id     String
+  host_group_id String
+
+  policy      patch_policies @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+  host_groups host_groups    @relation(fields: [host_group_id], references: [id], onDelete: Cascade)
+
+  @@unique([policy_id, host_group_id])
+  @@index([policy_id])
+  @@index([host_group_id])
+}
+
+/// Package include/exclude filters for a policy.
+model patch_policy_filters {
+  id          String   @id @default(uuid())
+  policy_id   String
+  filter_type String   @default("exclude") // "include" | "exclude"
+  match_type  String   @default("glob")    // "exact" | "glob" | "regex"
+  pattern     String
+  created_at  DateTime @default(now())
+
+  policy patch_policies @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+
+  @@index([policy_id])
+}
+
+/// Scheduled maintenance windows linked to a policy.
+model patch_windows {
+  id                String    @id @default(uuid())
+  name              String
+  description       String?   @db.Text
+  policy_id         String
+  schedule_type     String    @default("recurring") // "once" | "recurring"
+  schedule_cron     String?                          // 5-field cron expression
+  schedule_timezone String?   @default("UTC")
+  duration_minutes  Int       @default(120)
+  next_run_at       DateTime?
+  last_run_at       DateTime?
+  enabled           Boolean   @default(true)
+  created_by        String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  policy     patch_policies @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+  patch_jobs patch_jobs[]
+
+  @@index([policy_id])
+  @@index([enabled])
+  @@index([next_run_at])
+}
+
+/// An actual patch execution instance.
+model patch_jobs {
+  id                String    @id @default(uuid())
+  policy_id         String
+  window_id         String?
+  status            String    @default("pending") // "pending" | "running" | "completed" | "completed_with_errors" | "failed" | "cancelled"
+  triggered_by      String    @default("manual")  // "schedule" | "manual"
+  triggered_by_user String?
+  started_at        DateTime?
+  completed_at      DateTime?
+  total_hosts       Int       @default(0)
+  completed_hosts   Int       @default(0)
+  failed_hosts      Int       @default(0)
+  skipped_hosts     Int       @default(0)
+  created_at        DateTime  @default(now())
+
+  policy         patch_policies  @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+  window         patch_windows?  @relation(fields: [window_id], references: [id], onDelete: SetNull)
+  patch_job_hosts patch_job_hosts[]
+
+  @@index([policy_id])
+  @@index([status])
+  @@index([created_at])
+}
+
+/// Per-host status within a patch job.
+model patch_job_hosts {
+  id               String    @id @default(uuid())
+  job_id           String
+  host_id          String
+  status           String    @default("pending") // "pending" | "downloading" | "installing" | "rebooting" | "completed" | "failed" | "skipped"
+  started_at       DateTime?
+  completed_at     DateTime?
+  packages_updated Int       @default(0)
+  packages_failed  Int       @default(0)
+  pre_snapshot     Json?     // Package state before patching
+  post_snapshot    Json?     // Package state after patching
+  error_message    String?   @db.Text
+  reboot_required  Boolean   @default(false)
+  reboot_completed Boolean   @default(false)
+
+  job              patch_jobs          @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  host             hosts               @relation(fields: [host_id], references: [id], onDelete: Cascade)
+  patch_job_packages patch_job_packages[]
+
+  @@unique([job_id, host_id])
+  @@index([job_id])
+  @@index([host_id])
+  @@index([status])
+}
+
+/// Per-package result within a job-host.
+model patch_job_packages {
+  id                String  @id @default(uuid())
+  job_host_id       String
+  package_name      String
+  previous_version  String?
+  target_version    String?
+  installed_version String?
+  status            String  @default("pending") // "pending" | "updated" | "failed" | "skipped" | "held"
+  error_message     String?
+
+  job_host patch_job_hosts @relation(fields: [job_host_id], references: [id], onDelete: Cascade)
+
+  @@index([job_host_id])
+  @@index([status])
 }
