@@ -27,6 +27,7 @@ type PatchJob struct {
 
 // PatchJobPackage is a single package the server expects to be updated.
 type PatchJobPackage struct {
+	ID             string `json:"id"`
 	PackageName    string `json:"package_name"`
 	TargetVersion  string `json:"target_version"`
 	CurrentVersion string `json:"current_version"`
@@ -57,6 +58,7 @@ type PatchSnapshotEntry struct {
 
 // PatchPackageResult is the outcome for a single package.
 type PatchPackageResult struct {
+	ID               string `json:"id,omitempty"`
 	PackageName      string `json:"package_name"`
 	PreviousVersion  string `json:"previous_version"`
 	TargetVersion    string `json:"target_version"`

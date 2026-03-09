@@ -805,10 +805,10 @@ router.get("/agent/pending", async (req, res) => {
 
 		const pending = await getPendingJobForHost(host.id);
 		if (!pending) {
-			return res.json({ success: true, has_work: false });
+			return res.json({ has_job: false });
 		}
 
-		return res.json({ success: true, has_work: true, assignment: pending });
+		return res.json({ has_job: true, job: pending });
 	} catch (error) {
 		logger.error(`[PatchMgmt] Agent pending check failed: ${error.message}`);
 		return res.status(500).json({ error: "Failed to check for pending work" });
@@ -829,8 +829,11 @@ router.post("/agent/report", async (req, res) => {
 	}
 });
 
-// POST /api/v1/patch-management/agent/status - Agent updates its host-job status
-router.post("/agent/status", async (req, res) => {
+// POST/PUT /api/v1/patch-management/agent/status - Agent updates its host-job status
+router.post("/agent/status", handleAgentStatus);
+router.put("/agent/status", handleAgentStatus);
+
+async function handleAgentStatus(req, res) {
 	try {
 		const host = await authenticateAgent(req, res);
 		if (!host) return;
@@ -874,6 +877,6 @@ router.post("/agent/status", async (req, res) => {
 		logger.error(`[PatchMgmt] Agent status update failed: ${error.message}`);
 		return res.status(500).json({ error: "Failed to update status" });
 	}
-});
+}
 
 module.exports = router;

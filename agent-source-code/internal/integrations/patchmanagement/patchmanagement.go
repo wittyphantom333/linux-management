@@ -205,6 +205,7 @@ func (i *Integration) updateSpecificPackages(ctx context.Context, pm string, pac
 	for _, pkg := range packages {
 		if ctx.Err() != nil {
 			results = append(results, models.PatchPackageResult{
+				ID:              pkg.ID,
 				PackageName:     pkg.PackageName,
 				PreviousVersion: pkg.CurrentVersion,
 				TargetVersion:   pkg.TargetVersion,
@@ -224,6 +225,7 @@ func (i *Integration) updateSpecificPackages(ctx context.Context, pm string, pac
 // updateSinglePackage updates one package and returns the result.
 func (i *Integration) updateSinglePackage(pm string, pkg models.PatchJobPackage) models.PatchPackageResult {
 	result := models.PatchPackageResult{
+		ID:              pkg.ID,
 		PackageName:     pkg.PackageName,
 		PreviousVersion: pkg.CurrentVersion,
 		TargetVersion:   pkg.TargetVersion,

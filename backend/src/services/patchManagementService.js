@@ -397,12 +397,12 @@ async function getPendingJobForHost(hostId) {
 		policy_name: jobHost.job.policy.name,
 		policy_type: jobHost.job.policy.policy_type,
 		reboot_policy: jobHost.job.policy.reboot_policy,
-		pre_snapshot_enabled: jobHost.job.policy.pre_snapshot,
-		post_snapshot_enabled: jobHost.job.policy.post_snapshot,
+		pre_snapshot: jobHost.job.policy.pre_snapshot,
+		post_snapshot: jobHost.job.policy.post_snapshot,
 		packages: jobHost.patch_job_packages.map((p) => ({
 			id: p.id,
 			package_name: p.package_name,
-			previous_version: p.previous_version,
+			current_version: p.previous_version,
 			target_version: p.target_version,
 		})),
 	};
@@ -412,7 +412,10 @@ async function getPendingJobForHost(hostId) {
  * Process an agent's patch result report.
  */
 async function processAgentPatchReport(hostId, report) {
-	const { job_host_id, status, packages, post_snapshot, reboot_required, reboot_completed, error_message } = report;
+	const { job_host_id, status, results, packages, post_snapshot, reboot_required, reboot_completed, reboot_done, error_message } = report;
+
+	// Agent sends "results", server originally used "packages" — accept both
+	const pkgResults = results || packages || [];
 
 	const jobHost = await prisma.patch_job_hosts.findUnique({
 		where: { id: job_host_id },
@@ -423,16 +426,32 @@ async function processAgentPatchReport(hostId, report) {
 	if (jobHost.host_id !== hostId) throw new Error("Host ID mismatch");
 
 	// Update per-package results
-	if (packages && packages.length > 0) {
-		for (const pkg of packages) {
-			await prisma.patch_job_packages.update({
-				where: { id: pkg.id },
-				data: {
-					installed_version: pkg.installed_version || null,
-					status: pkg.status,
-					error_message: pkg.error_message || null,
-				},
-			});
+	if (pkgResults.length > 0) {
+		for (const pkg of pkgResults) {
+			// Agent may send package_name without id; try to match by name if no id
+			const pkgId = pkg.id || null;
+			if (pkgId) {
+				await prisma.patch_job_packages.update({
+					where: { id: pkgId },
+					data: {
+						installed_version: pkg.installed_version || null,
+						status: pkg.status,
+						error_message: pkg.error_message || null,
+					},
+				});
+			} else if (pkg.package_name) {
+				await prisma.patch_job_packages.updateMany({
+					where: {
+						job_host_id,
+						package_name: pkg.package_name,
+					},
+					data: {
+						installed_version: pkg.installed_version || null,
+						status: pkg.status,
+						error_message: pkg.error_message || null,
+					},
+				});
+			}
 		}
 	}
 
@@ -453,7 +472,7 @@ async function processAgentPatchReport(hostId, report) {
 			packages_failed: failedCount,
 			post_snapshot: post_snapshot || undefined,
 			reboot_required: reboot_required || false,
-			reboot_completed: reboot_completed || false,
+			reboot_completed: reboot_completed || reboot_done || false,
 			error_message: error_message || null,
 		},
 	});

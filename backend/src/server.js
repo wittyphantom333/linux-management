@@ -958,6 +958,61 @@ async function startServer() {
 			// Silent failure - don't block server startup if metrics fail
 		}
 
+		// Start patch management window scheduler (check every 60 seconds)
+		try {
+			const { refreshWindowSchedules, createPatchJob } = require("./services/patchManagementService");
+			const startPatchWindowScheduler = () => {
+				setInterval(async () => {
+					try {
+						const { getPrismaClient } = require("./config/prisma");
+						const pdb = getPrismaClient();
+
+						// Refresh next_run_at for recurring windows
+						await refreshWindowSchedules();
+
+						// Find windows that are due to run
+						const dueWindows = await pdb.patch_windows.findMany({
+							where: {
+								enabled: true,
+								next_run_at: { lte: new Date() },
+							},
+						});
+
+						for (const window of dueWindows) {
+							try {
+								await createPatchJob(window.policy_id, `window:${window.id}`);
+								logger.info(`[PatchMgmt] Auto-triggered job for policy ${window.policy_id} via window "${window.name}"`);
+							} catch (err) {
+								logger.error(`[PatchMgmt] Failed to trigger job for policy ${window.policy_id} in window "${window.name}": ${err.message}`);
+							}
+
+							// Advance next_run_at so we don't re-trigger
+							const { computeNextRun } = require("./services/patchManagementService");
+							const nextRun = window.schedule_type === "recurring"
+								? computeNextRun(window.schedule_cron, window.schedule_timezone)
+								: null;
+
+							await pdb.patch_windows.update({
+								where: { id: window.id },
+								data: {
+									next_run_at: nextRun,
+									last_run_at: new Date(),
+									enabled: nextRun ? true : (window.schedule_type === "once" ? false : true),
+									updated_at: new Date(),
+								},
+							});
+						}
+					} catch (err) {
+						logger.error(`[PatchMgmt] Window scheduler error: ${err.message}`);
+					}
+				}, 60 * 1000); // Check every 60 seconds
+			};
+			startPatchWindowScheduler();
+			console.log("✅ Patch management window scheduler started (60s interval)");
+		} catch (err) {
+			logger.error(`[PatchMgmt] Failed to start window scheduler: ${err.message}`);
+		}
+
 		server.listen(PORT, () => {
 			if (process.env.ENABLE_LOGGING === "true") {
 				logger.info(`Server running on port ${PORT}`);
