@@ -120,19 +120,20 @@ router.get("/techniques/:id", authenticateToken, async (req, res) => {
 });
 
 // PUT /api/v1/configmanagement/techniques/:id - Update a technique
+// If the version field changes, a NEW technique row is created (old version preserved for pinned directives).
 router.put("/techniques/:id", authenticateToken, async (req, res) => {
 	try {
 		const { name, description, version, category, parameters, methods, conditions, enabled } = req.body;
 
-		const data = { updated_at: new Date() };
-		if (name !== undefined) data.name = name;
-		if (description !== undefined) data.description = description;
-		if (version !== undefined) data.version = version;
-		if (category !== undefined) data.category = category;
-		if (parameters !== undefined) data.parameters = parameters;
+		const existing = await prisma.cm_techniques.findUnique({ where: { id: req.params.id } });
+		if (!existing) {
+			return res.status(404).json({ error: "Technique not found" });
+		}
+
+		// Normalize methods once
+		let normalizedMethods;
 		if (methods !== undefined) {
-			// Normalize methods: remap "args" → "parameters" and "description" → "name"
-			data.methods = methods.map((m, idx) => ({
+			normalizedMethods = methods.map((m, idx) => ({
 				id: m.id || `method_${idx + 1}`,
 				type: m.type,
 				name: m.name || m.description || "",
@@ -141,6 +142,36 @@ router.put("/techniques/:id", authenticateToken, async (req, res) => {
 				result_alias: m.result_alias || "",
 			}));
 		}
+
+		// If version is changing, create a NEW row to preserve old version for pinned directives
+		if (version !== undefined && version !== existing.version) {
+			const newTechnique = await prisma.cm_techniques.create({
+				data: {
+					id: uuidv4(),
+					name: name ?? existing.name,
+					description: description !== undefined ? description : existing.description,
+					version,
+					category: category !== undefined ? category : existing.category,
+					parameters: parameters !== undefined ? parameters : existing.parameters,
+					methods: normalizedMethods || existing.methods,
+					conditions: conditions !== undefined ? conditions : existing.conditions,
+					enabled: enabled !== undefined ? enabled : existing.enabled,
+					created_by: req.user?.id || existing.created_by,
+					updated_at: new Date(),
+				},
+			});
+
+			logger.info(`[ConfigMgmt] Technique new version created: ${newTechnique.name} v${version} (prev v${existing.version})`);
+			return res.json({ success: true, technique: newTechnique, new_version: true, previous_id: existing.id });
+		}
+
+		// Same version — update in place
+		const data = { updated_at: new Date() };
+		if (name !== undefined) data.name = name;
+		if (description !== undefined) data.description = description;
+		if (category !== undefined) data.category = category;
+		if (parameters !== undefined) data.parameters = parameters;
+		if (normalizedMethods) data.methods = normalizedMethods;
 		if (conditions !== undefined) data.conditions = conditions;
 		if (enabled !== undefined) data.enabled = enabled;
 
@@ -149,11 +180,45 @@ router.put("/techniques/:id", authenticateToken, async (req, res) => {
 			data,
 		});
 
-		logger.info(`[ConfigMgmt] Technique updated: ${technique.name}`);
+		logger.info(`[ConfigMgmt] Technique updated: ${technique.name} v${technique.version}`);
 		return res.json({ success: true, technique });
 	} catch (error) {
+		if (error.code === "P2002") {
+			return res.status(409).json({ error: "A technique with that name and version already exists" });
+		}
 		logger.error(`[ConfigMgmt] Failed to update technique: ${error.message}`);
 		return res.status(500).json({ error: "Failed to update technique" });
+	}
+});
+
+// GET /api/v1/configmanagement/techniques/:id/versions - List all versions of a technique
+router.get("/techniques/:id/versions", authenticateToken, async (req, res) => {
+	try {
+		const technique = await prisma.cm_techniques.findUnique({ where: { id: req.params.id } });
+		if (!technique) {
+			return res.status(404).json({ error: "Technique not found" });
+		}
+
+		// Find all versions with the same name
+		const versions = await prisma.cm_techniques.findMany({
+			where: { name: technique.name },
+			orderBy: { version: "desc" },
+			select: {
+				id: true,
+				name: true,
+				version: true,
+				category: true,
+				enabled: true,
+				created_at: true,
+				updated_at: true,
+				_count: { select: { cm_directives: true } },
+			},
+		});
+
+		return res.json({ success: true, technique_name: technique.name, versions });
+	} catch (error) {
+		logger.error(`[ConfigMgmt] Failed to list technique versions: ${error.message}`);
+		return res.status(500).json({ error: "Failed to list technique versions" });
 	}
 });
 
@@ -218,6 +283,7 @@ router.post("/directives", authenticateToken, async (req, res) => {
 				name,
 				description: description || null,
 				technique_id,
+				technique_version: technique.version,  // Pin to current technique version
 				version: version || "1.0",
 				priority: priority ?? 50,
 				policy_mode: policy_mode || "audit",
@@ -267,7 +333,7 @@ router.get("/directives/:id", authenticateToken, async (req, res) => {
 // PUT /api/v1/configmanagement/directives/:id
 router.put("/directives/:id", authenticateToken, async (req, res) => {
 	try {
-		const { name, description, priority, policy_mode, parameters, enabled, tags } = req.body;
+		const { name, description, priority, policy_mode, parameters, enabled, tags, technique_id, technique_version } = req.body;
 
 		const data = { updated_at: new Date() };
 		if (name !== undefined) data.name = name;
@@ -277,6 +343,21 @@ router.put("/directives/:id", authenticateToken, async (req, res) => {
 		if (parameters !== undefined) data.parameters = parameters;
 		if (enabled !== undefined) data.enabled = enabled;
 		if (tags !== undefined) data.tags = tags;
+
+		// Allow switching the technique (to a different version)
+		if (technique_id !== undefined) {
+			const technique = await prisma.cm_techniques.findUnique({ where: { id: technique_id } });
+			if (!technique) {
+				return res.status(404).json({ error: "Technique not found" });
+			}
+			data.technique_id = technique_id;
+			data.technique_version = technique.version;
+		}
+
+		// Allow explicit version pin update
+		if (technique_version !== undefined && !technique_id) {
+			data.technique_version = technique_version;
+		}
 
 		const directive = await prisma.cm_directives.update({
 			where: { id: req.params.id },
@@ -555,6 +636,7 @@ async function computePolicyForHost(hostId) {
 					name: dir.name,
 					description: dir.description,
 					technique_id: dir.technique_id,
+					technique_version: dir.technique_version || dir.technique?.version || "1.0",
 					version: dir.version,
 					priority: dir.priority,
 					policy_mode: dir.policy_mode,
@@ -597,11 +679,15 @@ async function computePolicyForHost(hostId) {
 		return null;
 	}
 
+	// Derive global_mode from directive modes instead of hardcoding
+	const modes = [...new Set(policyItems.map((item) => item.effective_mode))];
+	const globalMode = modes.length === 1 ? modes[0] : (modes.includes("enforce") ? "enforce" : "audit");
+
 	return {
 		policy_id: uuidv4(),
 		host_id: hostId,
 		generated_at: new Date().toISOString(),
-		global_mode: "audit", // Default global mode
+		global_mode: globalMode,
 		directives: policyItems,
 		techniques: Array.from(techniqueMap.values()),
 	};

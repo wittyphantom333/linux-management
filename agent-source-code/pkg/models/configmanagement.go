@@ -62,16 +62,17 @@ type ConfigTechniqueCondition struct {
 
 // ConfigDirective is a parameterised instance of a technique.
 type ConfigDirective struct {
-	ID           string            `json:"id"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description,omitempty"`
-	TechniqueID  string            `json:"technique_id"`
-	Version      string            `json:"version"`
-	Priority     int               `json:"priority"`                // Lower = higher priority (like Rudder)
-	PolicyMode   string            `json:"policy_mode"`             // "audit" or "enforce"
-	Parameters   map[string]string `json:"parameters"`              // Technique param values
-	Enabled      bool              `json:"enabled"`
-	Tags         map[string]string `json:"tags,omitempty"`
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Description      string            `json:"description,omitempty"`
+	TechniqueID      string            `json:"technique_id"`
+	TechniqueVersion string            `json:"technique_version,omitempty"` // Pinned technique version
+	Version          string            `json:"version"`
+	Priority         int               `json:"priority"`                // Lower = higher priority (like Rudder)
+	PolicyMode       string            `json:"policy_mode"`             // "audit" or "enforce"
+	Parameters       map[string]string `json:"parameters"`              // Technique param values
+	Enabled          bool              `json:"enabled"`
+	Tags             map[string]string `json:"tags,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

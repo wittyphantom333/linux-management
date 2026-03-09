@@ -887,6 +887,16 @@ function DirectivesTab({ directives, search, setSearch, onDelete }) {
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
 										{d.technique?.name || "—"}
+										{d.technique_version && (
+											<span className={`ml-1 text-xs ${
+												d.technique && d.technique_version !== d.technique.version
+													? "text-amber-500 font-medium"
+													: "text-secondary-400"
+											}`}>
+												v{d.technique_version}
+												{d.technique && d.technique_version !== d.technique.version && " ⚠"}
+											</span>
+										)}
 									</td>
 									<td className="px-4 py-3">{modeBadge(d.policy_mode)}</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">

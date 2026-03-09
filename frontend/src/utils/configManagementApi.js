@@ -13,6 +13,8 @@ export const configManagementAPI = {
 	listTechniques: (params = {}) =>
 		api.get("/configmanagement/techniques", { params }),
 	getTechnique: (id) => api.get(`/configmanagement/techniques/${id}`),
+	getTechniqueVersions: (id) =>
+		api.get(`/configmanagement/techniques/${id}/versions`),
 	createTechnique: (data) => api.post("/configmanagement/techniques", data),
 	updateTechnique: (id, data) =>
 		api.put(`/configmanagement/techniques/${id}`, data),

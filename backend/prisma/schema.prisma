@@ -742,19 +742,20 @@ model cm_techniques {
 
 /// A parameterised instance of a technique with concrete values.
 model cm_directives {
-  id           String   @id @default(uuid())
-  name         String
-  description  String?  @db.Text
-  technique_id String
-  version      String   @default("1.0")
-  priority     Int      @default(50)      // Lower = higher priority
-  policy_mode  String   @default("audit") // "audit" or "enforce"
-  parameters   Json?                      // Key-value map of technique param values
-  enabled      Boolean  @default(true)
-  tags         Json?                      // Key-value tags
-  created_by   String?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  id                String   @id @default(uuid())
+  name              String
+  description       String?  @db.Text
+  technique_id      String
+  technique_version String?  @default("1.0")  // Pinned technique version — directives don't auto-upgrade
+  version           String   @default("1.0")
+  priority          Int      @default(50)      // Lower = higher priority
+  policy_mode       String   @default("audit") // "audit" or "enforce"
+  parameters        Json?                      // Key-value map of technique param values
+  enabled           Boolean  @default(true)
+  tags              Json?                      // Key-value tags
+  created_by        String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
   technique    cm_techniques @relation(fields: [technique_id], references: [id], onDelete: Cascade)
 
