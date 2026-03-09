@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"patchmon-agent/pkg/models"
 )
 
 // ============================================================================
@@ -275,7 +277,7 @@ func restartService(name string) error {
 }
 
 // substituteParams replaces ${param_name} placeholders with values from the map.
-func substituteParams(template string, params map[string]string) string {
+func substituteParams(template string, params models.ParamMap) string {
 	result := template
 	for k, v := range params {
 		result = strings.ReplaceAll(result, "${"+k+"}", v)

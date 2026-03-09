@@ -630,9 +630,9 @@ export default function TechniqueDetail() {
 															) : arg.type === "checkbox" ? (
 																<input
 																	type="checkbox"
-																	checked={m.parameters?.[arg.key] || false}
+																	checked={m.parameters?.[arg.key] === "true" || m.parameters?.[arg.key] === true}
 																	onChange={(e) =>
-																		updateMethodArg(idx, arg.key, e.target.checked)
+																		updateMethodArg(idx, arg.key, e.target.checked ? "true" : "false")
 																	}
 																	className="rounded border-secondary-300"
 																/>

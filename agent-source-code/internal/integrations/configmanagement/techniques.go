@@ -392,7 +392,7 @@ func (pe *PolicyExecutor) methodServiceRestart(ctx context.Context, params map[s
 }
 
 // methodCommandAudit runs a command and checks its exit code (audit only, never modifies).
-// Parameters: "command" (required), "compliant_code" (default "0")
+// Parameters: "command" (required), "expected_code" (default "0", also accepts legacy "compliant_code")
 func (pe *PolicyExecutor) methodCommandAudit(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	command := params["command"]
 	if command == "" {
@@ -400,7 +400,11 @@ func (pe *PolicyExecutor) methodCommandAudit(ctx context.Context, params map[str
 	}
 
 	compliantCode := 0
-	if codeStr, ok := params["compliant_code"]; ok && codeStr != "" {
+	codeStr := params["expected_code"]
+	if codeStr == "" {
+		codeStr = params["compliant_code"] // legacy fallback
+	}
+	if codeStr != "" {
 		if v, err := strconv.Atoi(codeStr); err == nil {
 			compliantCode = v
 		}
@@ -486,11 +490,14 @@ func (pe *PolicyExecutor) methodCommandExec(ctx context.Context, params map[stri
 }
 
 // methodUserPresent ensures a user account exists.
-// Parameters: "username" (required), "uid" (optional), "shell" (optional), "home" (optional)
+// Parameters: "name" (required, also accepts legacy "username"), "uid" (optional), "shell" (optional), "home" (optional)
 func (pe *PolicyExecutor) methodUserPresent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
-	username := params["username"]
+	username := params["name"]
 	if username == "" {
-		return nil, fmt.Errorf("user_present requires 'username' parameter")
+		username = params["username"] // legacy fallback
+	}
+	if username == "" {
+		return nil, fmt.Errorf("user_present requires 'name' parameter")
 	}
 
 	u, err := user.Lookup(username)
@@ -529,11 +536,14 @@ func (pe *PolicyExecutor) methodUserPresent(ctx context.Context, params map[stri
 }
 
 // methodUserAbsent ensures a user account does NOT exist.
-// Parameters: "username" (required)
+// Parameters: "name" (required, also accepts legacy "username")
 func (pe *PolicyExecutor) methodUserAbsent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
-	username := params["username"]
+	username := params["name"]
 	if username == "" {
-		return nil, fmt.Errorf("user_absent requires 'username' parameter")
+		username = params["username"] // legacy fallback
+	}
+	if username == "" {
+		return nil, fmt.Errorf("user_absent requires 'name' parameter")
 	}
 
 	_, err := user.Lookup(username)

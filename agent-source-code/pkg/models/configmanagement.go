@@ -7,7 +7,48 @@
 //   - Compliance: audit (report only) or enforce (auto-remediate) with drift detection
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+// ParamMap is a string→string map that tolerates non-string JSON values.
+// During JSON unmarshalling, booleans, numbers, and null values are coerced
+// to their string representation so that parameters stored via Prisma's Json
+// column type (which may contain mixed types) always deserialise successfully.
+type ParamMap map[string]string
+
+func (p *ParamMap) UnmarshalJSON(data []byte) error {
+	// Try the fast path: all values are already strings.
+	var strict map[string]string
+	if err := json.Unmarshal(data, &strict); err == nil {
+		*p = strict
+		return nil
+	}
+
+	// Slow path: coerce each value.
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	m := make(map[string]string, len(raw))
+	for k, v := range raw {
+		var s string
+		if err := json.Unmarshal(v, &s); err == nil {
+			m[k] = s
+			continue
+		}
+		// Trim surrounding whitespace; use the raw JSON representation.
+		m[k] = fmt.Sprintf("%s", string(v))
+	}
+	*p = m
+	return nil
+}
+
+func (p ParamMap) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string(p))
+}
 
 // ---------------------------------------------------------------------------
 // Techniques
@@ -42,12 +83,12 @@ type ConfigTechniqueParam struct {
 // Methods are evaluated in order; each produces a result condition that
 // subsequent methods can reference (inspired by Rudder's method chaining).
 type ConfigTechniqueMethod struct {
-	ID          string            `json:"id"`
-	Type        string            `json:"type"`                    // Built-in method type: "file_content", "file_key_value", "package_present", "package_absent", "service_running", "service_stopped", "service_restart", "command_audit", "command_exec", "user_present", "user_absent", "directory_present", "file_permissions"
-	Name        string            `json:"name"`                    // Human-readable label
-	Parameters  map[string]string `json:"parameters"`              // Key → value (may reference technique params via ${param_name} or {{param_name}})
-	Condition   string            `json:"condition,omitempty"`     // Run only when this condition expression is true (e.g. "method_1.repaired")
-	ResultAlias string            `json:"result_alias,omitempty"` // Override the result condition name (defaults to method ID)
+	ID          string   `json:"id"`
+	Type        string   `json:"type"`                    // Built-in method type: "file_content", "file_key_value", "package_present", "package_absent", "service_running", "service_stopped", "service_restart", "command_audit", "command_exec", "user_present", "user_absent", "directory_present", "file_permissions"
+	Name        string   `json:"name"`                    // Human-readable label
+	Parameters  ParamMap `json:"parameters"`              // Key → value (may reference technique params via ${param_name} or {{param_name}})
+	Condition   string   `json:"condition,omitempty"`     // Run only when this condition expression is true (e.g. "method_1.repaired")
+	ResultAlias string   `json:"result_alias,omitempty"` // Override the result condition name (defaults to method ID)
 }
 
 // ConfigTechniqueCondition restricts the whole technique to certain environments.
@@ -66,13 +107,13 @@ type ConfigDirective struct {
 	Name             string            `json:"name"`
 	Description      string            `json:"description,omitempty"`
 	TechniqueID      string            `json:"technique_id"`
-	TechniqueVersion string            `json:"technique_version,omitempty"` // Pinned technique version
-	Version          string            `json:"version"`
-	Priority         int               `json:"priority"`                // Lower = higher priority (like Rudder)
-	PolicyMode       string            `json:"policy_mode"`             // "audit" or "enforce"
-	Parameters       map[string]string `json:"parameters"`              // Technique param values
-	Enabled          bool              `json:"enabled"`
-	Tags             map[string]string `json:"tags,omitempty"`
+	TechniqueVersion string   `json:"technique_version,omitempty"` // Pinned technique version
+	Version          string   `json:"version"`
+	Priority         int      `json:"priority"`                // Lower = higher priority (like Rudder)
+	PolicyMode       string   `json:"policy_mode"`             // "audit" or "enforce"
+	Parameters       ParamMap `json:"parameters"`              // Technique param values
+	Enabled          bool     `json:"enabled"`
+	Tags             ParamMap `json:"tags,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -91,8 +132,8 @@ type ConfigRule struct {
 	RunSchedule      string            `json:"run_schedule"`       // "always", "once", "interval", "cron"
 	ScheduleInterval int               `json:"schedule_interval"` // Minutes between runs
 	ScheduleCron     string            `json:"schedule_cron"`     // Cron expression
-	ScheduleTimezone string            `json:"schedule_timezone"` // IANA timezone
-	Tags             map[string]string `json:"tags,omitempty"`
+	ScheduleTimezone string   `json:"schedule_timezone"` // IANA timezone
+	Tags             ParamMap `json:"tags,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

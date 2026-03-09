@@ -62,8 +62,19 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 	// Build technique lookup map
 	techMap := make(map[string]*models.ConfigTechnique, len(policy.Techniques))
 	for i := range policy.Techniques {
-		techMap[policy.Techniques[i].ID] = &policy.Techniques[i]
+		t := &policy.Techniques[i]
+		techMap[t.ID] = t
+		pe.logger.WithFields(logrus.Fields{
+			"technique_id":   t.ID,
+			"technique_name": t.Name,
+			"method_count":   len(t.Methods),
+		}).Debug("Loaded technique into map")
 	}
+
+	pe.logger.WithFields(logrus.Fields{
+		"directive_count":  len(policy.Directives),
+		"technique_count":  len(policy.Techniques),
+	}).Info("Starting policy evaluation")
 
 	directiveResults := make([]models.ConfigDirectiveResult, 0, len(policy.Directives))
 
@@ -73,8 +84,17 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 	for _, policyItem := range policy.Directives {
 		dir := policyItem.Directive
 		if !dir.Enabled {
+			pe.logger.WithField("directive", dir.Name).Debug("Directive disabled, skipping")
 			continue
 		}
+
+		pe.logger.WithFields(logrus.Fields{
+			"directive":       dir.Name,
+			"technique_id":    dir.TechniqueID,
+			"effective_mode":  policyItem.EffectiveMode,
+			"schedule":        policyItem.Schedule.RunSchedule,
+			"dir_params":      dir.Parameters,
+		}).Info("Evaluating directive")
 
 		dirStart := time.Now()
 		effectiveMode := policyItem.EffectiveMode
@@ -144,6 +164,14 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 
 			// Resolve parameters (substitute ${param_name} references)
 			resolvedParams := pe.resolveParameters(method.Parameters, dir.Parameters)
+
+			pe.logger.WithFields(logrus.Fields{
+				"directive":      dir.Name,
+				"method":         method.Name,
+				"method_type":    method.Type,
+				"method_params":  method.Parameters,
+				"resolved_params": resolvedParams,
+			}).Debug("Resolved method parameters")
 
 			// Execute the method
 			handler, exists := pe.methods[method.Type]
@@ -242,7 +270,7 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 // them even when the technique method doesn't explicitly template every parameter.
 // Method parameters then overlay on top — any ${…} or {{…}} references in their
 // values are resolved against the directive parameter map.
-func (pe *PolicyExecutor) resolveParameters(methodParams, directiveParams map[string]string) map[string]string {
+func (pe *PolicyExecutor) resolveParameters(methodParams, directiveParams models.ParamMap) map[string]string {
 	resolved := make(map[string]string, len(methodParams)+len(directiveParams))
 
 	// Start with directive params as defaults — ensures values always reach handlers
