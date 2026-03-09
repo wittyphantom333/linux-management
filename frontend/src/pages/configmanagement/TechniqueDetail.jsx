@@ -10,6 +10,8 @@ import {
 	FileCode2,
 	ChevronDown,
 	ChevronUp,
+	History,
+	AlertTriangle,
 } from "lucide-react";
 import { useToast } from "../../contexts/ToastContext";
 import { configManagementAPI } from "../../utils/configManagementApi";
@@ -65,6 +67,13 @@ export default function TechniqueDetail() {
 		enabled: !isNew,
 	});
 
+	// Load all versions of this technique (for version switcher)
+	const { data: versions } = useQuery({
+		queryKey: ["configmgmt", "technique-versions", id],
+		queryFn: () => configManagementAPI.getTechniqueVersions(id).then((r) => r.data.versions),
+		enabled: !isNew,
+	});
+
 	useEffect(() => {
 		if (technique) {
 			setName(technique.name || "");
@@ -89,9 +98,10 @@ export default function TechniqueDetail() {
 				: configManagementAPI.updateTechnique(id, data),
 		onSuccess: (res) => {
 			queryClient.invalidateQueries(["configmgmt"]);
-			toast.success(isNew ? "Technique created" : "Technique updated");
-			if (isNew && res.data?.technique?.id) {
-				navigate(`/config-management/techniques/${res.data.technique.id}`, { replace: true });
+			toast.success(isNew ? "Technique created" : (res.data?.new_version ? "New version created" : "Technique updated"));
+			const newId = res.data?.technique?.id;
+			if (newId && (isNew || res.data?.new_version)) {
+				navigate(`/config-management/techniques/${newId}`, { replace: true });
 			}
 		},
 		onError: (err) =>
@@ -289,7 +299,7 @@ export default function TechniqueDetail() {
 							className="w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm text-secondary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
 						/>
 					</div>
-					<div>
+						<div>
 						<label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">
 							Version
 						</label>
@@ -299,6 +309,12 @@ export default function TechniqueDetail() {
 							onChange={(e) => setVersion(e.target.value)}
 							className="w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm text-secondary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
 						/>
+						{!isNew && technique && version !== technique.version && (
+							<p className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 mt-1">
+								<AlertTriangle className="h-3 w-3" />
+								Changing version will create a new technique entry. Existing directives stay pinned to v{technique.version}.
+							</p>
+						)}
 					</div>
 					<div>
 						<label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1">
@@ -328,6 +344,64 @@ export default function TechniqueDetail() {
 					</div>
 				</div>
 			</div>
+
+			{/* Version History (only when editing and there are multiple versions) */}
+			{!isNew && versions && versions.length > 1 && (
+				<div className="card p-5 space-y-3">
+					<div className="flex items-center gap-2">
+						<History className="h-5 w-5 text-secondary-500" />
+						<h2 className="text-lg font-medium text-secondary-900 dark:text-white">
+							Version History
+						</h2>
+						<span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300">
+							{versions.length} versions
+						</span>
+					</div>
+					<div className="divide-y divide-secondary-200 dark:divide-secondary-700">
+						{versions.map((v) => (
+							<div
+								key={v.id}
+								className={`flex items-center justify-between py-2 px-2 rounded ${
+									v.id === id
+										? "bg-primary-50 dark:bg-primary-900/20"
+										: "hover:bg-secondary-50 dark:hover:bg-secondary-800/50"
+								}`}
+							>
+								<div className="flex items-center gap-3">
+									<span className={`text-sm font-medium ${
+										v.id === id
+											? "text-primary-600 dark:text-primary-400"
+											: "text-secondary-900 dark:text-white"
+									}`}>
+										v{v.version}
+									</span>
+									{v.id === id && (
+										<span className="text-xs px-1.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-200">
+											current
+										</span>
+									)}
+									{v._count?.cm_directives > 0 && (
+										<span className="text-xs text-secondary-500">
+											{v._count.cm_directives} directive{v._count.cm_directives !== 1 ? "s" : ""}
+										</span>
+									)}
+								</div>
+								{v.id !== id ? (
+									<button
+										type="button"
+										onClick={() => navigate(`/config-management/techniques/${v.id}`)}
+										className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+									>
+										Switch to this version
+									</button>
+								) : (
+									<span className="text-xs text-secondary-400">editing</span>
+								)}
+							</div>
+						))}
+					</div>
+				</div>
+			)}
 
 			{/* Parameters */}
 			<div className="card p-5 space-y-4">

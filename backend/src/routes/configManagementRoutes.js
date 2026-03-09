@@ -26,21 +26,44 @@ const router = express.Router();
 // TECHNIQUES
 // ============================================================================
 
-// GET /api/v1/configmanagement/techniques - List all techniques
+// GET /api/v1/configmanagement/techniques - List all techniques (deduplicated by name — latest version only)
 router.get("/techniques", authenticateToken, async (req, res) => {
 	try {
-		const { category, enabled } = req.query;
+		const { category, enabled, all_versions } = req.query;
 		const where = {};
 		if (category) where.category = category;
 		if (enabled !== undefined) where.enabled = enabled === "true";
 
-		const techniques = await prisma.cm_techniques.findMany({
+		const allTechniques = await prisma.cm_techniques.findMany({
 			where,
-			orderBy: [{ category: "asc" }, { name: "asc" }],
+			orderBy: [{ category: "asc" }, { name: "asc" }, { version: "desc" }],
 			include: {
 				_count: { select: { cm_directives: true } },
 			},
 		});
+
+		// When all_versions=true, return everything (used by directive version pickers)
+		if (all_versions === "true") {
+			return res.json({ success: true, techniques: allTechniques });
+		}
+
+		// Deduplicate: keep only the latest version per technique name
+		const seen = new Map();
+		const versionCounts = new Map();
+		const totalDirectiveCounts = new Map();
+		for (const t of allTechniques) {
+			versionCounts.set(t.name, (versionCounts.get(t.name) || 0) + 1);
+			totalDirectiveCounts.set(t.name, (totalDirectiveCounts.get(t.name) || 0) + (t._count?.cm_directives || 0));
+			if (!seen.has(t.name)) {
+				seen.set(t.name, t);
+			}
+		}
+
+		const techniques = Array.from(seen.values()).map((t) => ({
+			...t,
+			version_count: versionCounts.get(t.name) || 1,
+			total_directives: totalDirectiveCounts.get(t.name) || 0,
+		}));
 
 		return res.json({ success: true, techniques });
 	} catch (error) {
@@ -904,13 +927,13 @@ router.get("/runs/:id", authenticateToken, async (req, res) => {
 router.get("/dashboard", authenticateToken, async (req, res) => {
 	try {
 		const [
-			techniqueCount,
+			allEnabledTechniques,
 			directiveCount,
 			ruleCount,
 			enabledHosts,
 			recentRuns,
 		] = await Promise.all([
-			prisma.cm_techniques.count({ where: { enabled: true } }),
+			prisma.cm_techniques.findMany({ where: { enabled: true }, select: { name: true }, distinct: ["name"] }),
 			prisma.cm_directives.count({ where: { enabled: true } }),
 			prisma.cm_rules.count({ where: { enabled: true } }),
 			prisma.hosts.count({ where: { configmanagement_enabled: true } }),
@@ -922,6 +945,7 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
 				},
 			}),
 		]);
+		const techniqueCount = allEnabledTechniques.length;
 
 		// Compute average score from last 24h runs
 		const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);

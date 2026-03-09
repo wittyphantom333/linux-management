@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -30,13 +30,23 @@ export default function DirectiveDetail() {
 	const [parameters, setParameters] = useState({});
 	const [enabled, setEnabled] = useState(true);
 
-	// Load techniques list for selector
-	const { data: techniques } = useQuery({
-		queryKey: ["configmgmt", "techniques"],
+	// Load all technique versions so we can find any technique_id for selectedTechnique
+	const { data: allTechniques } = useQuery({
+		queryKey: ["configmgmt", "techniques", "all"],
 		queryFn: () =>
-			configManagementAPI.listTechniques().then((r) => r.data.techniques),
+			configManagementAPI.listTechniques({ all_versions: true }).then((r) => r.data.techniques),
 		staleTime: 60_000,
 	});
+
+	// Deduplicated list for the technique picker dropdown (latest version per name)
+	const techniqueOptions = useMemo(() => {
+		if (!allTechniques) return [];
+		const seen = new Map();
+		for (const t of allTechniques) {
+			if (!seen.has(t.name)) seen.set(t.name, t);
+		}
+		return Array.from(seen.values());
+	}, [allTechniques]);
 
 	// Load existing directive
 	const { data: directive, isLoading } = useQuery({
@@ -60,7 +70,7 @@ export default function DirectiveDetail() {
 	}, [directive]);
 
 	// Selected technique details (for showing its parameters)
-	const selectedTechnique = techniques?.find((t) => t.id === techniqueId);
+	const selectedTechnique = allTechniques?.find((t) => t.id === techniqueId);
 
 	// Load available versions when a technique is selected
 	const { data: techniqueVersions } = useQuery({
@@ -195,14 +205,14 @@ export default function DirectiveDetail() {
 								setTechniqueId(newId);
 								setParameters({});
 								// Auto-pin to the selected technique's version
-								const tech = techniques?.find((t) => t.id === newId);
+								const tech = allTechniques?.find((t) => t.id === newId);
 								if (tech) setTechniqueVersion(tech.version);
 							}}
 							disabled={!isNew}
 							className="w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm text-secondary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-60"
 						>
 							<option value="">Select a technique…</option>
-							{(techniques || []).map((t) => (
+							{(techniqueOptions || []).map((t) => (
 								<option key={t.id} value={t.id}>
 									{t.name} v{t.version}
 									{t.category ? ` (${t.category})` : ""}
@@ -226,7 +236,7 @@ export default function DirectiveDetail() {
 									if (versionRow && versionRow.id !== techniqueId) {
 										setTechniqueId(versionRow.id);
 										// Re-load parameters from the new version's technique
-										const tech = techniques?.find((t) => t.id === versionRow.id);
+										const tech = allTechniques?.find((t) => t.id === versionRow.id);
 										if (tech) {
 											// Keep any matching param values, clear the rest
 											const newParams = {};

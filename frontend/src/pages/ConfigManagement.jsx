@@ -505,7 +505,7 @@ function OverviewTab({ dashboard, techniques, directives, rules, runs }) {
 										)}
 									</div>
 									<span className="text-xs text-secondary-400">
-										v{t.version} · {t._count?.cm_directives || 0} directives
+										v{t.version} · {t.total_directives ?? t._count?.cm_directives ?? 0} directives
 									</span>
 								</Link>
 							))}
@@ -823,7 +823,12 @@ function TechniquesTab({ techniques, search, setSearch, onDelete }) {
 										{t.category || "—"}
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{t.version}
+										<span>{t.version}</span>
+										{t.version_count > 1 && (
+											<span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-secondary-500">
+												+{t.version_count - 1} older
+											</span>
+										)}
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
 										{Array.isArray(t.methods)
@@ -831,7 +836,7 @@ function TechniquesTab({ techniques, search, setSearch, onDelete }) {
 											: "—"}
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{t._count?.cm_directives || 0}
+										{t.total_directives ?? t._count?.cm_directives ?? 0}
 									</td>
 									<td className="px-4 py-3 text-right">
 										<div className="flex items-center justify-end gap-2">
