@@ -76,6 +76,13 @@ func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 	dirVersion := item.Directive.Version
 	techVersion := item.Directive.TechniqueVersion
 
+	logFields := logrus.Fields{
+		"directive": item.Directive.Name,
+		"rule":      item.RuleName,
+		"schedule":  sched.RunSchedule,
+		"key":       key,
+	}
+
 	switch sched.RunSchedule {
 	case "always", "":
 		return true
@@ -83,23 +90,24 @@ func (ss *ScheduleState) ShouldRun(item models.ConfigPolicyItem) bool {
 	case "once":
 		entry, exists := ss.entries[key]
 		if !exists {
+			ss.logger.WithFields(logFields).Info("Once-scheduled directive will run (first time)")
 			return true // Never run before
 		}
 		// Re-run if directive version or technique version changed
 		if entry.DirectiveVersion != dirVersion {
+			ss.logger.WithFields(logFields).WithField("old_version", entry.DirectiveVersion).WithField("new_version", dirVersion).Info("Once-scheduled directive will re-run (directive version changed)")
 			return true
 		}
 		if entry.TechniqueVersion != techVersion {
+			ss.logger.WithFields(logFields).WithField("old_tech_version", entry.TechniqueVersion).WithField("new_tech_version", techVersion).Info("Once-scheduled directive will re-run (technique version changed)")
 			return true
 		}
 		// Re-run if the last attempt was not successful
 		if !isSuccessStatus(entry.LastStatus) {
-			ss.logger.WithFields(logrus.Fields{
-				"directive": item.Directive.Name,
-				"last_status": entry.LastStatus,
-			}).Debug("Once-scheduled directive re-running after non-success")
+			ss.logger.WithFields(logFields).WithField("last_status", entry.LastStatus).Info("Once-scheduled directive will re-run (previous run was not successful)")
 			return true
 		}
+		ss.logger.WithFields(logFields).WithField("last_status", entry.LastStatus).Debug("Once-scheduled directive skipped (already completed successfully)")
 		return false // Successfully completed for this version
 
 	case "interval":
@@ -253,6 +261,8 @@ func cronFieldMatches(field string, value int) bool {
 }
 
 // load reads persisted schedule state from disk.
+// Migrates old-format entries (keyed by directiveID only) to prevent stale
+// state from blocking runs after agent upgrades.
 func (ss *ScheduleState) load() {
 	path := filepath.Join(policyCacheDir, scheduleStateFile)
 	data, err := os.ReadFile(path)
@@ -266,8 +276,36 @@ func (ss *ScheduleState) load() {
 		return
 	}
 
-	ss.entries = entries
-	ss.logger.WithField("directives_tracked", len(entries)).Debug("Loaded schedule state from disk")
+	// Migrate: remove old-format entries keyed by bare directiveID (no colon).
+	// These were created by agents < 1.5.3 and keyed only on directiveID,
+	// which caused "once" rules to be incorrectly skipped when the same
+	// directive appeared in multiple rules.  Dropping them forces a clean
+	// re-evaluation under the new ruleID:directiveID key scheme.
+	migrated := make(map[string]*ScheduleEntry, len(entries))
+	removed := 0
+	for key, entry := range entries {
+		if !strings.Contains(key, ":") {
+			ss.logger.WithFields(logrus.Fields{
+				"key":          key,
+				"directive_id": entry.DirectiveID,
+				"last_status":  entry.LastStatus,
+			}).Info("Removing legacy schedule state entry (pre-1.5.3 format)")
+			removed++
+			continue
+		}
+		migrated[key] = entry
+	}
+	ss.entries = migrated
+
+	if removed > 0 {
+		ss.logger.WithFields(logrus.Fields{
+			"removed":  removed,
+			"retained": len(migrated),
+		}).Info("Migrated schedule state: removed old-format entries")
+		ss.save() // Persist the cleaned-up state
+	} else {
+		ss.logger.WithField("directives_tracked", len(migrated)).Debug("Loaded schedule state from disk")
+	}
 }
 
 // save writes schedule state to disk.

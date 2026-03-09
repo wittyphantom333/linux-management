@@ -2,4 +2,4 @@
 package pkgversion
 
 // Version represents the current version of the patchmon-agent
-const Version = "1.5.3"
+const Version = "1.5.4"
