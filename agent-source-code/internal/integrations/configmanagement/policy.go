@@ -238,11 +238,23 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 }
 
 // resolveParameters substitutes ${param_name} references in method parameters.
+// Directive parameters are always included as a base so that handlers can access
+// them even when the technique method doesn't explicitly template every parameter.
+// Method parameters then overlay on top — any ${…} or {{…}} references in their
+// values are resolved against the directive parameter map.
 func (pe *PolicyExecutor) resolveParameters(methodParams, directiveParams map[string]string) map[string]string {
-	resolved := make(map[string]string, len(methodParams))
+	resolved := make(map[string]string, len(methodParams)+len(directiveParams))
+
+	// Start with directive params as defaults — ensures values always reach handlers
+	for k, v := range directiveParams {
+		resolved[k] = v
+	}
+
+	// Overlay with method params (applying variable substitution)
 	for k, v := range methodParams {
 		resolved[k] = substituteParams(v, directiveParams)
 	}
+
 	return resolved
 }
 
