@@ -89,11 +89,10 @@ export default function DirectiveDetail() {
 
 	// Determine if there's a newer version available
 	const latestVersion = techniqueVersions?.[0];
-	const currentTechniqueVersion = selectedTechnique?.version;
 	const hasNewerVersion =
+		latestVersion &&
 		techniqueVersion &&
-		currentTechniqueVersion &&
-		techniqueVersion !== currentTechniqueVersion;
+		latestVersion.version !== techniqueVersion;
 
 	// Build parameter inputs from technique definition
 	const techniqueParams = selectedTechnique?.parameters || [];
@@ -280,8 +279,9 @@ export default function DirectiveDetail() {
 									<span className="text-xs text-amber-700 dark:text-amber-300">
 										This directive is pinned to{" "}
 										<strong>v{techniqueVersion}</strong> but the technique is
-										now at <strong>v{currentTechniqueVersion}</strong>. New
-										versions are not automatically applied.
+										now at <strong>v{latestVersion?.version}</strong>. New
+										versions are not automatically applied — methods may differ
+										between versions.
 									</span>
 									<button
 										type="button"

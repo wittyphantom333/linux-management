@@ -153,6 +153,13 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 		methodResults := make([]models.ConfigMethodResult, 0, len(tech.Methods))
 		dirStatus := "compliant"
 
+		pe.logger.WithFields(logrus.Fields{
+			"directive":       dir.Name,
+			"technique":       tech.Name,
+			"technique_id":    dir.TechniqueID,
+			"method_count":    len(tech.Methods),
+		}).Info("Evaluating technique methods")
+
 		for _, method := range tech.Methods {
 			// Check method condition
 			if method.Condition != "" && !pe.evaluateCondition(method.Condition, conditionResults) {
@@ -226,6 +233,13 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 		if effectiveMode == "audit" && dirStatus != "error" && dirStatus != "audit_error" {
 			dirStatus = "audited"
 		}
+
+		pe.logger.WithFields(logrus.Fields{
+			"directive":         dir.Name,
+			"technique_methods": len(tech.Methods),
+			"result_count":      len(methodResults),
+			"status":            dirStatus,
+		}).Info("Directive evaluation complete")
 
 		dirEnd := time.Now()
 		directiveResults = append(directiveResults, models.ConfigDirectiveResult{

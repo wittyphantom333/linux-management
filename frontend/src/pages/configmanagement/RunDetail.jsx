@@ -3,6 +3,7 @@ import {
 	Activity,
 	AlertTriangle,
 	ArrowLeft,
+	Bug,
 	CheckCircle2,
 	ChevronDown,
 	ChevronRight,
@@ -86,6 +87,7 @@ function statusLabel(status) {
 export default function RunDetail() {
 	const { id } = useParams();
 	const [expandedDirectives, setExpandedDirectives] = useState(null);
+	const [showRawJSON, setShowRawJSON] = useState(false);
 
 	const {
 		data: run,
@@ -190,6 +192,33 @@ export default function RunDetail() {
 				<h2 className="text-lg font-medium text-secondary-900 dark:text-white">
 					Directive Results
 				</h2>
+
+				{/* Raw JSON debug toggle */}
+				<button
+					type="button"
+					onClick={() => setShowRawJSON(!showRawJSON)}
+					className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-secondary-100 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300 hover:bg-secondary-200 dark:hover:bg-secondary-700 transition-colors"
+				>
+					<Bug className="h-3 w-3" />
+					{showRawJSON ? "Hide" : "Show"} Raw Data
+				</button>
+
+				{showRawJSON && (
+					<div className="card p-4 overflow-auto max-h-96 border border-secondary-200 dark:border-secondary-700">
+						<p className="text-xs text-secondary-400 mb-2">
+							Raw directive_results JSON — {directiveResults.length}{" "}
+							directive(s),{" "}
+							{directiveResults.reduce(
+								(sum, dr) => sum + (dr.methods?.length || 0),
+								0,
+							)}{" "}
+							total method result(s)
+						</p>
+						<pre className="text-xs text-secondary-600 dark:text-secondary-300 font-mono whitespace-pre-wrap break-all">
+							{JSON.stringify(directiveResults, null, 2)}
+						</pre>
+					</div>
+				)}
 
 				{directiveResults.length === 0 ? (
 					<div className="card p-8 text-center">
