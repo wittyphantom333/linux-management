@@ -11,7 +11,7 @@ const doc = {
 		description:
 			"PatchMon API documentation. For scoped credentials API documentation, see: https://docs.patchmon.net/books/patchmon-application-documentation/page/integration-api-documentation",
 	},
-	host: "localhost:3000",
+	host: process.env.SWAGGER_HOST || "localhost:3000",
 	basePath: "/api/v1",
 	schemes: ["http", "https"],
 	securityDefinitions: {
