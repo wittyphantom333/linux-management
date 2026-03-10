@@ -58,7 +58,7 @@ async function resolveHostsForPolicy(policyId) {
  * Returns only the host_packages that should be updated.
  */
 function filterPackagesForPolicy(hostPackages, policy, filters) {
-	let candidates = hostPackages.filter((hp) => hp.needs_update);
+	let candidates = hostPackages.filter((hp) => hp.needs_update && hp.packages);
 
 	// Policy type filter
 	if (policy.policy_type === "security_only") {
@@ -135,7 +135,9 @@ async function createPatchJob(
 
 	const hosts = await resolveHostsForPolicy(policyId);
 	if (hosts.length === 0)
-		throw new Error("No active hosts targeted by this policy");
+		throw new Error(
+			`No active hosts targeted by policy "${policy.name}". Check that the policy has host groups assigned and the hosts are active.`,
+		);
 
 	const jobId = uuidv4();
 	let totalHostsWithPackages = 0;
@@ -155,13 +157,15 @@ async function createPatchJob(
 		const jobHostId = uuidv4();
 
 		// Pre-snapshot: capture current package state
-		const preSnapshot = host.host_packages.map((hp) => ({
-			package_name: hp.packages.name,
-			current_version: hp.current_version,
-			available_version: hp.available_version,
-			needs_update: hp.needs_update,
-			is_security_update: hp.is_security_update,
-		}));
+		const preSnapshot = host.host_packages
+			.filter((hp) => hp.packages)
+			.map((hp) => ({
+				package_name: hp.packages.name,
+				current_version: hp.current_version,
+				available_version: hp.available_version,
+				needs_update: hp.needs_update,
+				is_security_update: hp.is_security_update,
+			}));
 
 		jobHostsData.push({
 			id: jobHostId,
@@ -181,8 +185,14 @@ async function createPatchJob(
 	}
 
 	if (totalHostsWithPackages === 0) {
+		const totalHosts = hosts.length;
+		const totalUpdatable = hosts.reduce(
+			(sum, h) => sum + h.host_packages.filter((hp) => hp.needs_update).length,
+			0,
+		);
 		throw new Error(
-			"No hosts have packages matching the policy filters that need updating",
+			`No hosts have packages matching policy "${policy.name}" filters that need updating. ` +
+				`(${totalHosts} host(s) targeted, ${totalUpdatable} package(s) need updates but none match the policy type/filters)`,
 		);
 	}
 
