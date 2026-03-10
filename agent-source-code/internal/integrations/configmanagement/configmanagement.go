@@ -96,7 +96,25 @@ func (cm *Integration) Collect(ctx context.Context) (*models.IntegrationData, er
 			cm.logger.WithFields(logrus.Fields{
 				"policy_id":  policyResp.Policy.PolicyID,
 				"directives": len(policyResp.Policy.Directives),
+				"techniques": len(policyResp.Policy.Techniques),
 			}).Info("Received updated policy from server")
+
+			// Diagnostic: log technique method counts to verify the server
+			// includes all methods in the policy payload.
+			for _, tech := range policyResp.Policy.Techniques {
+				methodNames := make([]string, 0, len(tech.Methods))
+				for _, m := range tech.Methods {
+					methodNames = append(methodNames, fmt.Sprintf("%s(%s)", m.Name, m.Type))
+				}
+				cm.logger.WithFields(logrus.Fields{
+					"technique":    tech.Name,
+					"technique_id": tech.ID,
+					"version":      tech.Version,
+					"method_count": len(tech.Methods),
+					"methods":      methodNames,
+				}).Info("Policy technique details")
+			}
+
 			if err := cm.SetPolicy(policyResp.Policy); err != nil {
 				cm.logger.WithError(err).Warn("Failed to save updated policy to disk")
 			}

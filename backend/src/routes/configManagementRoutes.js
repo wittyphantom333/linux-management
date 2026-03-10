@@ -236,6 +236,9 @@ router.put("/techniques/:id", authenticateToken, async (req, res) => {
 				condition: m.condition || "",
 				result_alias: m.result_alias || "",
 			}));
+			logger.info(
+				`[ConfigMgmt] Technique save: received ${normalizedMethods.length} method(s) [${normalizedMethods.map((m) => `${m.name}(${m.type})`).join(", ")}]`,
+			);
 		}
 
 		// If version is changing, create a NEW row to preserve old version for pinned directives
@@ -1041,13 +1044,26 @@ async function computePolicyForHost(hostId) {
 				? "enforce"
 				: "audit";
 
+	const techniquesArray = Array.from(techniqueMap.values());
+
+	// Diagnostic: log method counts per technique so we can verify the
+	// server is including all methods in the policy sent to agents.
+	for (const tech of techniquesArray) {
+		const methodNames = (tech.methods || []).map(
+			(m) => `${m.name || m.id}(${m.type})`,
+		);
+		logger.info(
+			`[ConfigMgmt] Policy technique "${tech.name}" v${tech.version}: ${tech.methods?.length || 0} method(s) [${methodNames.join(", ")}]`,
+		);
+	}
+
 	return {
 		policy_id: uuidv4(),
 		host_id: hostId,
 		generated_at: new Date().toISOString(),
 		global_mode: globalMode,
 		directives: policyItems,
-		techniques: Array.from(techniqueMap.values()),
+		techniques: techniquesArray,
 	};
 }
 
@@ -1066,7 +1082,20 @@ router.get("/policy/:hostId", authenticateToken, async (req, res) => {
 				message: "No applicable policy for this host",
 			});
 		}
-		return res.json({ success: true, policy });
+
+		// Include a human-readable summary of technique method counts
+		const policySummary = (policy.techniques || []).map((t) => ({
+			technique: t.name,
+			version: t.version,
+			method_count: t.methods?.length || 0,
+			methods: (t.methods || []).map((m) => ({
+				id: m.id,
+				name: m.name,
+				type: m.type,
+			})),
+		}));
+
+		return res.json({ success: true, policy, policy_summary: policySummary });
 	} catch (error) {
 		logger.error(`[ConfigMgmt] Failed to compute policy: ${error.message}`);
 		return res.status(500).json({ error: "Failed to compute policy" });
@@ -1199,6 +1228,19 @@ router.post("/agent/report", async (req, res) => {
 			`[ConfigMgmt] Report from ${hostname || host.friendly_name}: ` +
 				`${report?.total_directives || 0} directives, score=${report?.score?.toFixed(1) || 0}%`,
 		);
+
+		// Diagnostic: log per-directive method counts from the agent report
+		if (report?.directive_results && Array.isArray(report.directive_results)) {
+			for (const dr of report.directive_results) {
+				const methodCount = dr.methods?.length || 0;
+				const methodSummary = (dr.methods || [])
+					.map((m) => `${m.method_name || m.method_id}:${m.status}`)
+					.join(", ");
+				logger.info(
+					`[ConfigMgmt]   → Directive "${dr.directive_name}": ${methodCount} method result(s) [${methodSummary}] status=${dr.status}`,
+				);
+			}
+		}
 
 		// Store the run — skip if no directives actually ran (e.g. all skipped by schedule)
 		if (report && (report.total_directives || 0) > 0) {

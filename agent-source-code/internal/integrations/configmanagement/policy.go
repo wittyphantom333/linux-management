@@ -160,7 +160,15 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 			"method_count":    len(tech.Methods),
 		}).Info("Evaluating technique methods")
 
-		for _, method := range tech.Methods {
+		for i, method := range tech.Methods {
+			pe.logger.WithFields(logrus.Fields{
+				"directive":   dir.Name,
+				"method":      method.Name,
+				"method_id":   method.ID,
+				"method_type": method.Type,
+				"method_idx":  fmt.Sprintf("%d/%d", i+1, len(tech.Methods)),
+			}).Info("Executing method")
+
 			// Check method condition
 			if method.Condition != "" && !pe.evaluateCondition(method.Condition, conditionResults) {
 				pe.logger.WithFields(logrus.Fields{
@@ -222,6 +230,13 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 			result.MethodID = method.ID
 			result.MethodName = method.Name
 			result.MethodType = method.Type
+
+			pe.logger.WithFields(logrus.Fields{
+				"directive":  dir.Name,
+				"method":     method.Name,
+				"method_idx": fmt.Sprintf("%d/%d", i+1, len(tech.Methods)),
+				"status":     result.Status,
+			}).Info("Method execution completed")
 
 			methodResults = append(methodResults, *result)
 
