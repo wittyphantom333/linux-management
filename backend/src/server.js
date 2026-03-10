@@ -349,17 +349,17 @@ app.get("/health", (_req, res) => {
 const apiVersion = process.env.API_VERSION || "v1";
 
 // Swagger - Protected with authentication
-// Dynamically set Swagger host from request so it works in any environment (not localhost)
-app.use(`/api/${apiVersion}/api-docs`, (req, _res, next) => {
-	swaggerDocument.host = req.get("host");
-	swaggerDocument.schemes = [req.protocol];
-	next();
-});
+// Dynamically set Swagger host/scheme from request so it works in any environment
 app.use(
 	`/api/${apiVersion}/api-docs`,
 	authenticateToken,
 	swaggerUi.serve,
-	swaggerUi.setup(swaggerDocument),
+	(req, res, next) => {
+		swaggerDocument.host = req.get("host");
+		swaggerDocument.schemes = [req.protocol];
+		const handler = swaggerUi.setup(swaggerDocument);
+		handler(req, res, next);
+	},
 );
 
 // Per-route rate limits with monitoring
