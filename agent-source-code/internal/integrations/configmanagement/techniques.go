@@ -449,13 +449,6 @@ func (pe *PolicyExecutor) methodCommandExec(ctx context.Context, params map[stri
 		return nil, fmt.Errorf("command_exec requires 'command' parameter")
 	}
 
-	if mode == "audit" {
-		return &models.ConfigMethodResult{
-			Status:  "audit_compliant",
-			Message: fmt.Sprintf("Command would be executed: %s (audit mode)", truncate(command, 100)),
-		}, nil
-	}
-
 	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	output, err := cmd.CombinedOutput()
 	exitCode := 0
@@ -472,6 +465,19 @@ func (pe *PolicyExecutor) methodCommandExec(ctx context.Context, params map[stri
 		if v, err := strconv.Atoi(codeStr); err == nil {
 			expectedCode = v
 		}
+	}
+
+	// In audit mode, run the command and capture output but report as informational
+	if mode == "audit" {
+		status := "audit_compliant"
+		if exitCode != expectedCode {
+			status = "audit_non_compliant"
+		}
+		return &models.ConfigMethodResult{
+			Status:  status,
+			Message: fmt.Sprintf("Command exited with code %d (audit mode)", exitCode),
+			Actual:  truncate(string(output), 4000),
+		}, nil
 	}
 
 	if exitCode != expectedCode {
