@@ -88,6 +88,11 @@ const METHOD_TYPES = [
 		label: "Directory Present",
 		description: "Ensure a directory exists",
 	},
+	{
+		value: "ssh_key_present",
+		label: "SSH Key Present",
+		description: "Ensure an SSH public key is in a user's authorized_keys",
+	},
 ];
 
 const CATEGORIES = [
@@ -313,6 +318,17 @@ export default function TechniqueDetail() {
 					{ key: "mode", label: "Mode", placeholder: "0755" },
 					{ key: "owner", label: "Owner", placeholder: "root" },
 					{ key: "group", label: "Group", placeholder: "root" },
+				];
+			case "ssh_key_present":
+				return [
+					{ key: "user", label: "Username", required: true },
+					{
+						key: "key",
+						label: "SSH Public Key",
+						required: true,
+						placeholder: "ssh-rsa AAAA... user@host",
+					},
+					{ key: "label", label: "Label", placeholder: "deploy-key" },
 				];
 			default:
 				return [];

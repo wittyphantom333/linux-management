@@ -49,6 +49,7 @@ func (pe *PolicyExecutor) registerBuiltinMethods() {
 	pe.methods["user_present"] = pe.methodUserPresent
 	pe.methods["user_absent"] = pe.methodUserAbsent
 	pe.methods["directory_present"] = pe.methodDirectoryPresent
+	pe.methods["ssh_key_present"] = pe.methodSSHKeyPresent
 }
 
 // Evaluate walks through all directives in the policy and evaluates each method.

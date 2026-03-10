@@ -643,3 +643,127 @@ func (pe *PolicyExecutor) methodDirectoryPresent(ctx context.Context, params map
 	}
 	return &models.ConfigMethodResult{Status: "repaired", Message: fmt.Sprintf("Directory %s created", path)}, nil
 }
+
+// methodSSHKeyPresent ensures an SSH public key is in a user's authorized_keys.
+// Parameters: "user" (required), "key" (required — full public key line),
+//
+//	"label" (optional — friendly label for log messages)
+//
+// Works for both root and normal users. In enforce mode it will create the
+// ~/.ssh directory (0700) and authorized_keys file (0600) if they don't exist,
+// with ownership set to the target user.
+func (pe *PolicyExecutor) methodSSHKeyPresent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+	username := params["user"]
+	if username == "" {
+		return nil, fmt.Errorf("ssh_key_present requires 'user' parameter")
+	}
+	key := strings.TrimSpace(params["key"])
+	if key == "" {
+		return nil, fmt.Errorf("ssh_key_present requires 'key' parameter")
+	}
+	label := params["label"]
+	if label == "" {
+		// Use first 40 chars of key as label fallback
+		label = truncate(key, 40)
+	}
+
+	// Look up the target user
+	u, err := user.Lookup(username)
+	if err != nil {
+		return &models.ConfigMethodResult{
+			Status:  "error",
+			Message: fmt.Sprintf("User %s not found: %v", username, err),
+		}, nil
+	}
+
+	uid, _ := strconv.Atoi(u.Uid)
+	gid, _ := strconv.Atoi(u.Gid)
+	sshDir := filepath.Join(u.HomeDir, ".ssh")
+	authKeysPath := filepath.Join(sshDir, "authorized_keys")
+
+	// --- Check if key already present ---
+	keyPresent := false
+	existingContent := ""
+	if data, err := os.ReadFile(authKeysPath); err == nil {
+		existingContent = string(data)
+		// Compare by the key body (type + base64) to avoid comment/whitespace mismatches.
+		// A key line typically looks like: ssh-rsa AAAA...== comment
+		keyFields := strings.Fields(key)
+		var keyBody string
+		if len(keyFields) >= 2 {
+			keyBody = keyFields[0] + " " + keyFields[1]
+		} else {
+			keyBody = key
+		}
+		for _, line := range strings.Split(existingContent, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			if strings.Contains(trimmed, keyBody) {
+				keyPresent = true
+				break
+			}
+		}
+	}
+
+	if keyPresent {
+		return &models.ConfigMethodResult{
+			Status:  statusCompliant(mode),
+			Message: fmt.Sprintf("SSH key already present for %s (%s)", username, label),
+		}, nil
+	}
+
+	// Key is missing
+	if mode == "audit" {
+		return &models.ConfigMethodResult{
+			Status:  "audit_non_compliant",
+			Message: fmt.Sprintf("SSH key not found in %s for %s (%s)", authKeysPath, username, label),
+		}, nil
+	}
+
+	// --- Enforce: ensure .ssh directory exists with correct ownership ---
+	if _, err := os.Stat(sshDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(sshDir, 0700); err != nil {
+			return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to create %s: %v", sshDir, err)}, nil
+		}
+		if err := os.Chown(sshDir, uid, gid); err != nil {
+			return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to chown %s: %v", sshDir, err)}, nil
+		}
+	}
+
+	// Ensure correct perms on .ssh dir
+	if err := os.Chmod(sshDir, 0700); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to chmod %s: %v", sshDir, err)}, nil
+	}
+
+	// --- Append key to authorized_keys ---
+	// Ensure trailing newline before appending
+	appendContent := key + "\n"
+	if existingContent != "" && !strings.HasSuffix(existingContent, "\n") {
+		appendContent = "\n" + appendContent
+	}
+
+	f, err := os.OpenFile(authKeysPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to open %s: %v", authKeysPath, err)}, nil
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(appendContent); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to write key to %s: %v", authKeysPath, err)}, nil
+	}
+
+	// Set correct ownership and permissions on authorized_keys
+	if err := os.Chown(authKeysPath, uid, gid); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to chown %s: %v", authKeysPath, err)}, nil
+	}
+	if err := os.Chmod(authKeysPath, 0600); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to chmod %s: %v", authKeysPath, err)}, nil
+	}
+
+	return &models.ConfigMethodResult{
+		Status:  "repaired",
+		Message: fmt.Sprintf("SSH key added to %s for %s (%s)", authKeysPath, username, label),
+	}, nil
+}
