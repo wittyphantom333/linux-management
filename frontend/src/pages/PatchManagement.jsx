@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+	AlertTriangle,
 	BarChart3,
 	Calendar,
+	CheckCircle,
 	ChevronRight,
 	Clock,
 	Filter,
@@ -12,14 +14,32 @@ import {
 	Pencil,
 	Play,
 	Plus,
+	RefreshCw,
 	Search,
 	Server,
 	Shield,
 	Trash2,
+	TrendingUp,
 	XCircle,
+	Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+	Area,
+	AreaChart,
+	Bar,
+	BarChart,
+	CartesianGrid,
+	Cell,
+	Legend,
+	Pie,
+	PieChart,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from "recharts";
 import { useToast } from "../contexts/ToastContext";
 import { patchManagementAPI } from "../utils/patchManagementApi";
 
@@ -272,7 +292,6 @@ export default function PatchManagementPage() {
 					stats={stats}
 					statsLoading={statsLoading}
 					policies={policies}
-					navigate={navigate}
 					triggerJob={triggerJob}
 				/>
 			)}
@@ -310,9 +329,33 @@ export default function PatchManagementPage() {
 }
 
 // ============================================================================
-// OVERVIEW TAB
+// OVERVIEW TAB — Analytics Dashboard
 // ============================================================================
-function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
+
+const CHART_COLORS = {
+	completed: "#22c55e",
+	failed: "#ef4444",
+	partial: "#f59e0b",
+	cancelled: "#94a3b8",
+	pending: "#eab308",
+	running: "#3b82f6",
+	skipped: "#6b7280",
+	updated: "#22c55e",
+	manual: "#3b82f6",
+	schedule: "#8b5cf6",
+};
+
+const PIE_COLORS = [
+	"#22c55e",
+	"#ef4444",
+	"#f59e0b",
+	"#3b82f6",
+	"#8b5cf6",
+	"#6b7280",
+	"#ec4899",
+];
+
+function OverviewTab({ stats, statsLoading, policies, triggerJob }) {
 	if (statsLoading) {
 		return (
 			<div className="flex items-center justify-center py-20">
@@ -321,63 +364,486 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 		);
 	}
 
+	const j30 = stats?.jobs?.last_30_days || {};
+	const completed30 = (j30.completed || 0) + (j30.completed_with_errors || 0);
+	const failed30 = j30.failed || 0;
+	const total30 = completed30 + failed30 + (j30.cancelled || 0);
+	const successRate =
+		total30 > 0 ? Math.round((completed30 / total30) * 100) : null;
+	const pkgs = stats?.packages_30d || {};
+
 	return (
 		<div className="space-y-6">
-			{/* Stat cards */}
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				<StatCard
-					title="Active Policies"
+			{/* ── KPI Cards Row ────────────────────────────────────────── */}
+			<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+				<KpiCard
+					label="Active Policies"
 					value={stats?.policies?.active ?? 0}
-					total={stats?.policies?.total}
+					sub={`of ${stats?.policies?.total ?? 0}`}
 					icon={Shield}
 					color="primary"
 				/>
-				<StatCard
-					title="Active Windows"
-					value={stats?.windows?.active ?? 0}
-					total={stats?.windows?.total}
-					icon={Calendar}
+				<KpiCard
+					label="Patch-Enabled Hosts"
+					value={stats?.hosts?.patch_enabled ?? 0}
+					sub={`of ${stats?.hosts?.total ?? 0}`}
+					icon={Server}
 					color="blue"
 				/>
-				<StatCard
-					title="Running Jobs"
+				<KpiCard
+					label="Running Jobs"
 					value={stats?.jobs?.running ?? 0}
+					sub={
+						stats?.jobs?.pending > 0
+							? `${stats.jobs.pending} pending`
+							: "none pending"
+					}
 					icon={Play}
 					color="green"
-					subtitle={
-						stats?.jobs?.pending > 0 ? `${stats.jobs.pending} pending` : null
+				/>
+				<KpiCard
+					label="Success Rate (30d)"
+					value={successRate !== null ? `${successRate}%` : "—"}
+					sub={`${completed30} of ${total30} jobs`}
+					icon={TrendingUp}
+					color={
+						successRate !== null && successRate >= 90
+							? "green"
+							: successRate !== null && successRate >= 70
+								? "amber"
+								: "red"
 					}
 				/>
-				<StatCard
-					title="Success Rate (30d)"
-					value={(() => {
-						const j = stats?.jobs?.last_30_days || {};
-						const completed =
-							(j.completed || 0) + (j.completed_with_errors || 0);
-						const total = completed + (j.failed || 0);
-						return total > 0
-							? `${Math.round((completed / total) * 100)}%`
-							: "—";
-					})()}
-					icon={BarChart3}
-					color="amber"
+				<KpiCard
+					label="Packages Updated (30d)"
+					value={pkgs.updated ?? 0}
+					sub={pkgs.failed > 0 ? `${pkgs.failed} failed` : "0 failed"}
+					icon={Package}
+					color="purple"
+				/>
+				<KpiCard
+					label="Needs Reboot"
+					value={stats?.hosts?.needs_reboot ?? 0}
+					sub="hosts"
+					icon={RefreshCw}
+					color={stats?.hosts?.needs_reboot > 0 ? "amber" : "green"}
 				/>
 			</div>
 
-			{/* Two-column layout: recent jobs + upcoming windows */}
+			{/* ── Job Trend + Packages Trend (side by side) ───────────── */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* Recent Jobs */}
-				<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4">
-					<h3 className="text-sm font-semibold text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-						<History className="h-4 w-4" /> Recent Jobs
-					</h3>
-					{stats?.jobs?.recent?.length > 0 ? (
+				<ChartCard title="Job Trend (30 Days)" icon={BarChart3}>
+					{stats?.job_trend?.length > 0 ? (
+						<ResponsiveContainer width="100%" height={240}>
+							<AreaChart
+								data={stats.job_trend}
+								margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+							>
+								<defs>
+									<linearGradient
+										id="gradCompleted"
+										x1="0"
+										y1="0"
+										x2="0"
+										y2="1"
+									>
+										<stop
+											offset="0%"
+											stopColor={CHART_COLORS.completed}
+											stopOpacity={0.3}
+										/>
+										<stop
+											offset="100%"
+											stopColor={CHART_COLORS.completed}
+											stopOpacity={0}
+										/>
+									</linearGradient>
+									<linearGradient id="gradFailed" x1="0" y1="0" x2="0" y2="1">
+										<stop
+											offset="0%"
+											stopColor={CHART_COLORS.failed}
+											stopOpacity={0.3}
+										/>
+										<stop
+											offset="100%"
+											stopColor={CHART_COLORS.failed}
+											stopOpacity={0}
+										/>
+									</linearGradient>
+								</defs>
+								<CartesianGrid
+									strokeDasharray="3 3"
+									stroke="#374151"
+									opacity={0.15}
+								/>
+								<XAxis
+									dataKey="date"
+									tick={{ fontSize: 10 }}
+									tickFormatter={(d) => d.slice(5)}
+									stroke="#9ca3af"
+									interval="preserveStartEnd"
+								/>
+								<YAxis
+									tick={{ fontSize: 10 }}
+									stroke="#9ca3af"
+									allowDecimals={false}
+								/>
+								<Tooltip
+									contentStyle={{
+										backgroundColor: "#1f2937",
+										border: "1px solid #374151",
+										borderRadius: 8,
+										fontSize: 12,
+									}}
+									labelStyle={{ color: "#9ca3af" }}
+									labelFormatter={(d) => d}
+								/>
+								<Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+								<Area
+									type="monotone"
+									dataKey="completed"
+									stroke={CHART_COLORS.completed}
+									fill="url(#gradCompleted)"
+									name="Completed"
+								/>
+								<Area
+									type="monotone"
+									dataKey="failed"
+									stroke={CHART_COLORS.failed}
+									fill="url(#gradFailed)"
+									name="Failed"
+								/>
+								<Area
+									type="monotone"
+									dataKey="partial"
+									stroke={CHART_COLORS.partial}
+									fill={CHART_COLORS.partial}
+									fillOpacity={0.1}
+									name="Partial"
+								/>
+							</AreaChart>
+						</ResponsiveContainer>
+					) : (
+						<EmptyChart message="No job data in the last 30 days" />
+					)}
+				</ChartCard>
+
+				<ChartCard title="Packages Updated (30 Days)" icon={Package}>
+					{stats?.package_trend?.length > 0 ? (
+						<ResponsiveContainer width="100%" height={240}>
+							<BarChart
+								data={stats.package_trend}
+								margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+							>
+								<CartesianGrid
+									strokeDasharray="3 3"
+									stroke="#374151"
+									opacity={0.15}
+								/>
+								<XAxis
+									dataKey="date"
+									tick={{ fontSize: 10 }}
+									tickFormatter={(d) => d.slice(5)}
+									stroke="#9ca3af"
+									interval="preserveStartEnd"
+								/>
+								<YAxis
+									tick={{ fontSize: 10 }}
+									stroke="#9ca3af"
+									allowDecimals={false}
+								/>
+								<Tooltip
+									contentStyle={{
+										backgroundColor: "#1f2937",
+										border: "1px solid #374151",
+										borderRadius: 8,
+										fontSize: 12,
+									}}
+									labelStyle={{ color: "#9ca3af" }}
+								/>
+								<Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+								<Bar
+									dataKey="updated"
+									fill={CHART_COLORS.completed}
+									name="Updated"
+									radius={[2, 2, 0, 0]}
+								/>
+								<Bar
+									dataKey="failed"
+									fill={CHART_COLORS.failed}
+									name="Failed"
+									radius={[2, 2, 0, 0]}
+								/>
+							</BarChart>
+						</ResponsiveContainer>
+					) : (
+						<EmptyChart message="No package data in the last 30 days" />
+					)}
+				</ChartCard>
+			</div>
+
+			{/* ── Host Status + Policy Breakdown + Trigger Breakdown ──── */}
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+				{/* Host Patch Status */}
+				<ChartCard title="Host Patch Status" icon={Server}>
+					{stats?.hosts?.patch_status &&
+					Object.keys(stats.hosts.patch_status).length > 0 ? (
+						<div className="flex items-center gap-4">
+							<ResponsiveContainer width="55%" height={180}>
+								<PieChart>
+									<Pie
+										data={Object.entries(stats.hosts.patch_status).map(
+											([k, v]) => ({
+												name: k.replace(/_/g, " "),
+												value: v,
+											}),
+										)}
+										cx="50%"
+										cy="50%"
+										outerRadius={70}
+										innerRadius={40}
+										paddingAngle={2}
+										dataKey="value"
+									>
+										{Object.entries(stats.hosts.patch_status).map(
+											(_entry, i) => (
+												<Cell
+													key={`cell-${i}`}
+													fill={PIE_COLORS[i % PIE_COLORS.length]}
+												/>
+											),
+										)}
+									</Pie>
+									<Tooltip
+										contentStyle={{
+											backgroundColor: "#1f2937",
+											border: "1px solid #374151",
+											borderRadius: 8,
+											fontSize: 12,
+										}}
+									/>
+								</PieChart>
+							</ResponsiveContainer>
+							<div className="flex-1 space-y-1.5">
+								{Object.entries(stats.hosts.patch_status).map(
+									([status, count], i) => (
+										<div
+											key={status}
+											className="flex items-center justify-between text-xs"
+										>
+											<div className="flex items-center gap-1.5">
+												<span
+													className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+													style={{
+														backgroundColor: PIE_COLORS[i % PIE_COLORS.length],
+													}}
+												/>
+												<span className="text-secondary-600 dark:text-secondary-300 capitalize">
+													{status.replace(/_/g, " ")}
+												</span>
+											</div>
+											<span className="font-semibold text-secondary-900 dark:text-white">
+												{count}
+											</span>
+										</div>
+									),
+								)}
+							</div>
+						</div>
+					) : (
+						<EmptyChart message="No host patch data" />
+					)}
+				</ChartCard>
+
+				{/* Policy Success Rates */}
+				<ChartCard title="Policy Success Rates (90d)" icon={Shield}>
+					{stats?.policy_breakdown?.length > 0 ? (
+						<ResponsiveContainer width="100%" height={180}>
+							<BarChart
+								data={stats.policy_breakdown.slice(0, 6)}
+								layout="vertical"
+								margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
+							>
+								<CartesianGrid
+									strokeDasharray="3 3"
+									stroke="#374151"
+									opacity={0.15}
+									horizontal={false}
+								/>
+								<XAxis
+									type="number"
+									tick={{ fontSize: 10 }}
+									stroke="#9ca3af"
+									allowDecimals={false}
+								/>
+								<YAxis
+									dataKey="name"
+									type="category"
+									tick={{ fontSize: 10 }}
+									stroke="#9ca3af"
+									width={90}
+									tickFormatter={(n) =>
+										n.length > 14 ? `${n.slice(0, 12)}…` : n
+									}
+								/>
+								<Tooltip
+									contentStyle={{
+										backgroundColor: "#1f2937",
+										border: "1px solid #374151",
+										borderRadius: 8,
+										fontSize: 12,
+									}}
+								/>
+								<Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+								<Bar
+									dataKey="completed"
+									stackId="a"
+									fill={CHART_COLORS.completed}
+									name="Completed"
+								/>
+								<Bar
+									dataKey="partial"
+									stackId="a"
+									fill={CHART_COLORS.partial}
+									name="Partial"
+								/>
+								<Bar
+									dataKey="failed"
+									stackId="a"
+									fill={CHART_COLORS.failed}
+									name="Failed"
+								/>
+							</BarChart>
+						</ResponsiveContainer>
+					) : (
+						<EmptyChart message="No policy data" />
+					)}
+				</ChartCard>
+
+				{/* Trigger Breakdown + Avg Duration */}
+				<ChartCard title="Job Insights (30d)" icon={Zap}>
+					<div className="space-y-4">
+						{/* Trigger breakdown */}
+						<div>
+							<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-2">
+								Trigger Source
+							</p>
+							{stats?.trigger_breakdown &&
+							Object.keys(stats.trigger_breakdown).length > 0 ? (
+								<div className="flex gap-2">
+									{Object.entries(stats.trigger_breakdown).map(([key, val]) => {
+										const total = Object.values(stats.trigger_breakdown).reduce(
+											(s, v) => s + v,
+											0,
+										);
+										const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+										return (
+											<div
+												key={key}
+												className="flex-1 bg-secondary-50 dark:bg-secondary-700/40 rounded-lg p-2 text-center"
+											>
+												<p className="text-lg font-bold text-secondary-900 dark:text-white">
+													{val}
+												</p>
+												<p className="text-xs text-secondary-500 dark:text-secondary-400 capitalize">
+													{key} ({pct}%)
+												</p>
+											</div>
+										);
+									})}
+								</div>
+							) : (
+								<p className="text-xs text-secondary-400">No data</p>
+							)}
+						</div>
+
+						{/* Avg Duration */}
+						<div>
+							<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+								Avg Job Duration
+							</p>
+							<p className="text-2xl font-bold text-secondary-900 dark:text-white">
+								{stats?.avg_duration_minutes != null
+									? stats.avg_duration_minutes < 60
+										? `${stats.avg_duration_minutes}m`
+										: `${Math.floor(stats.avg_duration_minutes / 60)}h ${stats.avg_duration_minutes % 60}m`
+									: "—"}
+							</p>
+						</div>
+
+						{/* Reboot stats */}
+						<div>
+							<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+								Reboots (30d)
+							</p>
+							<div className="flex items-center gap-3">
+								<div className="flex items-center gap-1 text-sm">
+									<RefreshCw className="h-3.5 w-3.5 text-amber-500" />
+									<span className="font-medium text-secondary-900 dark:text-white">
+										{stats?.reboot?.required_30d ?? 0}
+									</span>
+									<span className="text-secondary-500 dark:text-secondary-400">
+										required
+									</span>
+								</div>
+								<div className="flex items-center gap-1 text-sm">
+									<CheckCircle className="h-3.5 w-3.5 text-green-500" />
+									<span className="font-medium text-secondary-900 dark:text-white">
+										{stats?.reboot?.completed_30d ?? 0}
+									</span>
+									<span className="text-secondary-500 dark:text-secondary-400">
+										completed
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</ChartCard>
+			</div>
+
+			{/* ── Top Failing Hosts + Recent Jobs + Upcoming Windows ───── */}
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+				{/* Top Failing Hosts */}
+				<ChartCard title="Top Failing Hosts (30d)" icon={AlertTriangle}>
+					{stats?.top_failing_hosts?.length > 0 ? (
 						<div className="space-y-2">
+							{stats.top_failing_hosts.map((h, i) => (
+								<div
+									key={h.host_id}
+									className="flex items-center justify-between"
+								>
+									<div className="flex items-center gap-2 min-w-0">
+										<span className="text-xs font-mono text-secondary-400 w-4">
+											{i + 1}.
+										</span>
+										<span className="text-sm text-secondary-700 dark:text-secondary-300 truncate">
+											{h.name}
+										</span>
+									</div>
+									<span className="flex items-center gap-1 text-xs font-medium text-red-500">
+										<XCircle className="h-3 w-3" />
+										{h.failures} failures
+									</span>
+								</div>
+							))}
+						</div>
+					) : (
+						<div className="flex flex-col items-center justify-center py-6 text-secondary-400">
+							<CheckCircle className="h-8 w-8 mb-2 text-green-500 opacity-50" />
+							<p className="text-sm">No failures in the last 30 days</p>
+						</div>
+					)}
+				</ChartCard>
+
+				{/* Recent Jobs */}
+				<ChartCard title="Recent Jobs" icon={History}>
+					{stats?.jobs?.recent?.length > 0 ? (
+						<div className="space-y-1.5">
 							{stats.jobs.recent.map((job) => (
 								<Link
 									key={job.id}
 									to={`/patch-management/jobs/${job.id}`}
-									className="flex items-center justify-between p-2 rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-700/50 transition-colors"
+									className="flex items-center justify-between p-1.5 rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-700/50 transition-colors"
 								>
 									<div className="flex items-center gap-2 min-w-0">
 										{statusBadge(job.status)}
@@ -392,23 +858,18 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 							))}
 						</div>
 					) : (
-						<p className="text-sm text-secondary-500 dark:text-secondary-400">
-							No recent jobs
-						</p>
+						<EmptyChart message="No recent jobs" />
 					)}
-				</div>
+				</ChartCard>
 
 				{/* Upcoming Windows */}
-				<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4">
-					<h3 className="text-sm font-semibold text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-						<Calendar className="h-4 w-4" /> Upcoming Windows
-					</h3>
+				<ChartCard title="Upcoming Windows" icon={Calendar}>
 					{stats?.upcoming_windows?.length > 0 ? (
 						<div className="space-y-2">
 							{stats.upcoming_windows.map((w) => (
 								<div
 									key={w.id}
-									className="flex items-center justify-between p-2 rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-700/50"
+									className="flex items-center justify-between p-1.5 rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-700/50"
 								>
 									<div className="min-w-0">
 										<p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
@@ -425,14 +886,12 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 							))}
 						</div>
 					) : (
-						<p className="text-sm text-secondary-500 dark:text-secondary-400">
-							No upcoming windows
-						</p>
+						<EmptyChart message="No upcoming windows" />
 					)}
-				</div>
+				</ChartCard>
 			</div>
 
-			{/* Quick-trigger from policies */}
+			{/* ── Quick Actions ────────────────────────────────────────── */}
 			{policies?.length > 0 && (
 				<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4">
 					<h3 className="text-sm font-semibold text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
@@ -466,7 +925,9 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 	);
 }
 
-function StatCard({ title, value, total, icon: Icon, color, subtitle }) {
+// ─── Shared Sub-components ──────────────────────────────────────────────────
+
+function KpiCard({ label, value, sub, icon: Icon, color }) {
 	const colorMap = {
 		primary:
 			"bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400",
@@ -475,35 +936,52 @@ function StatCard({ title, value, total, icon: Icon, color, subtitle }) {
 			"bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
 		amber:
 			"bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+		red: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+		purple:
+			"bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
 	};
 
 	return (
-		<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4">
-			<div className="flex items-center gap-3">
+		<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-3">
+			<div className="flex items-center gap-2.5">
 				<div
-					className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorMap[color]}`}
+					className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${colorMap[color] || colorMap.primary}`}
 				>
-					<Icon className="h-5 w-5" />
+					<Icon className="h-4 w-4" />
 				</div>
-				<div>
-					<p className="text-xs text-secondary-500 dark:text-secondary-400">
-						{title}
+				<div className="min-w-0">
+					<p className="text-[10px] uppercase tracking-wider text-secondary-500 dark:text-secondary-400 truncate">
+						{label}
 					</p>
-					<p className="text-xl font-bold text-secondary-900 dark:text-white">
+					<p className="text-lg font-bold text-secondary-900 dark:text-white leading-tight">
 						{value}
-						{total !== undefined && (
-							<span className="text-sm font-normal text-secondary-400 dark:text-secondary-500">
-								/{total}
-							</span>
-						)}
 					</p>
-					{subtitle && (
-						<p className="text-xs text-secondary-500 dark:text-secondary-400">
-							{subtitle}
+					{sub && (
+						<p className="text-[10px] text-secondary-400 dark:text-secondary-500 truncate">
+							{sub}
 						</p>
 					)}
 				</div>
 			</div>
+		</div>
+	);
+}
+
+function ChartCard({ title, icon: Icon, children }) {
+	return (
+		<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4">
+			<h3 className="text-sm font-semibold text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
+				<Icon className="h-4 w-4 text-secondary-400" /> {title}
+			</h3>
+			{children}
+		</div>
+	);
+}
+
+function EmptyChart({ message }) {
+	return (
+		<div className="flex items-center justify-center h-40 text-secondary-400 dark:text-secondary-500 text-sm">
+			{message}
 		</div>
 	);
 }

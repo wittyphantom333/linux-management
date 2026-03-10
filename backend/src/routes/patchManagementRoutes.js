@@ -847,9 +847,13 @@ router.post("/jobs/:id/cancel", authenticateToken, async (req, res) => {
 router.get("/stats", authenticateToken, async (_req, res) => {
 	/* #swagger.tags = ['Patch Management - Dashboard'] */
 	/* #swagger.summary = 'Get patch management statistics' */
-	/* #swagger.description = 'Overview statistics: policy/window counts, pending/running jobs, 5 most recent jobs, 5 upcoming windows, job status breakdown for last 30 days. Requires JWT auth.' */
+	/* #swagger.description = 'Rich analytics: policy/window/job counts, job trend (30d), host patch status breakdown, packages updated over time, per-policy success rates, reboot stats, top failing hosts, and more. Requires JWT auth.' */
 	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
+		const prisma = getPrismaClient();
+		const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+		const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
 		const [
 			totalPolicies,
 			activePolicies,
@@ -858,6 +862,9 @@ router.get("/stats", authenticateToken, async (_req, res) => {
 			recentJobs,
 			pendingJobs,
 			runningJobs,
+			totalHosts,
+			patchEnabledHosts,
+			hostsNeedingReboot,
 		] = await Promise.all([
 			prisma.patch_policies.count(),
 			prisma.patch_policies.count({ where: { enabled: true } }),
@@ -865,7 +872,7 @@ router.get("/stats", authenticateToken, async (_req, res) => {
 			prisma.patch_windows.count({ where: { enabled: true } }),
 			prisma.patch_jobs.findMany({
 				orderBy: { created_at: "desc" },
-				take: 5,
+				take: 10,
 				include: {
 					policy: { select: { name: true } },
 					_count: { select: { patch_job_hosts: true } },
@@ -873,6 +880,11 @@ router.get("/stats", authenticateToken, async (_req, res) => {
 			}),
 			prisma.patch_jobs.count({ where: { status: "pending" } }),
 			prisma.patch_jobs.count({ where: { status: "running" } }),
+			prisma.hosts.count({ where: { status: "active" } }),
+			prisma.hosts.count({
+				where: { status: "active", patchmanagement_enabled: true },
+			}),
+			prisma.hosts.count({ where: { status: "active", needs_reboot: true } }),
 		]);
 
 		// Upcoming windows
@@ -888,17 +900,155 @@ router.get("/stats", authenticateToken, async (_req, res) => {
 			take: 5,
 		});
 
-		// Job success rate (last 30 days)
-		const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+		// ── Job status breakdown (last 30 days) ──────────────────────
 		const recentJobCounts = await prisma.patch_jobs.groupBy({
 			by: ["status"],
 			where: { created_at: { gte: thirtyDaysAgo } },
 			_count: true,
 		});
-
 		const jobStats = {};
 		for (const row of recentJobCounts) {
 			jobStats[row.status] = row._count;
+		}
+
+		// ── Job trend (daily for last 30 days) ──────────────────────
+		const allJobsLast30 = await prisma.patch_jobs.findMany({
+			where: { created_at: { gte: thirtyDaysAgo } },
+			select: { created_at: true, status: true },
+			orderBy: { created_at: "asc" },
+		});
+		const jobTrend = buildDailyTrend(allJobsLast30, 30);
+
+		// ── Packages updated over time (daily for last 30 days) ──────
+		const jobHostsLast30 = await prisma.patch_job_hosts.findMany({
+			where: {
+				completed_at: { gte: thirtyDaysAgo },
+				status: { in: ["completed", "failed"] },
+			},
+			select: {
+				completed_at: true,
+				packages_updated: true,
+				packages_failed: true,
+			},
+		});
+		const packageTrend = buildPackageTrend(jobHostsLast30, 30);
+
+		// ── Per-policy success rates ──────────────────────────────────
+		const policyJobs = await prisma.patch_jobs.findMany({
+			where: { created_at: { gte: ninetyDaysAgo } },
+			select: {
+				policy_id: true,
+				status: true,
+				policy: { select: { name: true } },
+			},
+		});
+		const policyBreakdown = buildPolicyBreakdown(policyJobs);
+
+		// ── Host patch status breakdown ──────────────────────────────
+		// Get the latest job_host status for each patch-enabled host
+		const hostStatuses = await prisma.$queryRaw`
+			SELECT
+				COALESCE(latest.status, 'never_patched') AS patch_status,
+				COUNT(*)::int AS count
+			FROM hosts h
+			LEFT JOIN LATERAL (
+				SELECT pjh.status
+				FROM patch_job_hosts pjh
+				JOIN patch_jobs pj ON pj.id = pjh.job_id
+				WHERE pjh.host_id = h.id
+				ORDER BY pj.created_at DESC
+				LIMIT 1
+			) latest ON true
+			WHERE h.status = 'active' AND h.patchmanagement_enabled = true
+			GROUP BY patch_status
+			ORDER BY count DESC
+		`;
+		const hostPatchStatus = {};
+		for (const row of hostStatuses) {
+			hostPatchStatus[row.patch_status] = Number(row.count);
+		}
+
+		// ── Top failing hosts (last 30 days) ─────────────────────────
+		const topFailingHosts = await prisma.patch_job_hosts.groupBy({
+			by: ["host_id"],
+			where: {
+				status: "failed",
+				job: { created_at: { gte: thirtyDaysAgo } },
+			},
+			_count: true,
+			orderBy: { _count: { host_id: "desc" } },
+			take: 5,
+		});
+		// Enrich with host names
+		let failingHostsEnriched = [];
+		if (topFailingHosts.length > 0) {
+			const hostIds = topFailingHosts.map((h) => h.host_id);
+			const hosts = await prisma.hosts.findMany({
+				where: { id: { in: hostIds } },
+				select: { id: true, friendly_name: true, hostname: true },
+			});
+			const hostMap = {};
+			for (const h of hosts) hostMap[h.id] = h;
+			failingHostsEnriched = topFailingHosts.map((h) => ({
+				host_id: h.host_id,
+				failures: h._count,
+				name:
+					hostMap[h.host_id]?.friendly_name ||
+					hostMap[h.host_id]?.hostname ||
+					h.host_id,
+			}));
+		}
+
+		// ── Reboot stats (from recent completed jobs) ────────────────
+		const rebootStats = await prisma.patch_job_hosts.aggregate({
+			where: {
+				status: "completed",
+				job: { created_at: { gte: thirtyDaysAgo } },
+			},
+			_sum: { packages_updated: true, packages_failed: true },
+			_count: true,
+		});
+		const rebootRequired = await prisma.patch_job_hosts.count({
+			where: {
+				reboot_required: true,
+				job: { created_at: { gte: thirtyDaysAgo } },
+			},
+		});
+		const rebootCompleted = await prisma.patch_job_hosts.count({
+			where: {
+				reboot_required: true,
+				reboot_completed: true,
+				job: { created_at: { gte: thirtyDaysAgo } },
+			},
+		});
+
+		// ── Triggered by breakdown (manual vs schedule) ──────────────
+		const triggerBreakdown = await prisma.patch_jobs.groupBy({
+			by: ["triggered_by"],
+			where: { created_at: { gte: thirtyDaysAgo } },
+			_count: true,
+		});
+		const triggerStats = {};
+		for (const row of triggerBreakdown) {
+			triggerStats[row.triggered_by] = row._count;
+		}
+
+		// ── Mean time to complete (last 30 days) ─────────────────────
+		const completedJobs = await prisma.patch_jobs.findMany({
+			where: {
+				status: { in: ["completed", "completed_with_errors"] },
+				started_at: { not: null },
+				completed_at: { not: null },
+				created_at: { gte: thirtyDaysAgo },
+			},
+			select: { started_at: true, completed_at: true },
+		});
+		let avgDurationMinutes = null;
+		if (completedJobs.length > 0) {
+			const totalMs = completedJobs.reduce((sum, j) => {
+				return sum + (new Date(j.completed_at) - new Date(j.started_at));
+			}, 0);
+			avgDurationMinutes = Math.round(totalMs / completedJobs.length / 60000);
 		}
 
 		return res.json({
@@ -913,6 +1063,29 @@ router.get("/stats", authenticateToken, async (_req, res) => {
 					last_30_days: jobStats,
 				},
 				upcoming_windows: upcomingWindows,
+				// ── New analytics fields ─────────────────────────
+				hosts: {
+					total: totalHosts,
+					patch_enabled: patchEnabledHosts,
+					needs_reboot: hostsNeedingReboot,
+					patch_status: hostPatchStatus,
+				},
+				job_trend: jobTrend,
+				package_trend: packageTrend,
+				policy_breakdown: policyBreakdown,
+				top_failing_hosts: failingHostsEnriched,
+				reboot: {
+					required_30d: rebootRequired,
+					completed_30d: rebootCompleted,
+					hosts_needing_now: hostsNeedingReboot,
+				},
+				packages_30d: {
+					updated: rebootStats._sum?.packages_updated || 0,
+					failed: rebootStats._sum?.packages_failed || 0,
+					host_patches: rebootStats._count || 0,
+				},
+				trigger_breakdown: triggerStats,
+				avg_duration_minutes: avgDurationMinutes,
 			},
 		});
 	} catch (error) {
@@ -922,6 +1095,95 @@ router.get("/stats", authenticateToken, async (_req, res) => {
 			.json({ error: "Failed to get patch management stats" });
 	}
 });
+
+/**
+ * Build a daily job trend for the last N days.
+ * Returns array of { date, completed, failed, partial, total }
+ */
+function buildDailyTrend(jobs, days) {
+	const trend = [];
+	const now = new Date();
+	for (let i = days - 1; i >= 0; i--) {
+		const d = new Date(now);
+		d.setDate(d.getDate() - i);
+		const key = d.toISOString().slice(0, 10);
+		trend.push({
+			date: key,
+			completed: 0,
+			failed: 0,
+			partial: 0,
+			cancelled: 0,
+			total: 0,
+		});
+	}
+	const dateMap = {};
+	for (const t of trend) dateMap[t.date] = t;
+
+	for (const job of jobs) {
+		const key = new Date(job.created_at).toISOString().slice(0, 10);
+		if (dateMap[key]) {
+			dateMap[key].total++;
+			if (job.status === "completed") dateMap[key].completed++;
+			else if (job.status === "failed") dateMap[key].failed++;
+			else if (job.status === "completed_with_errors") dateMap[key].partial++;
+			else if (job.status === "cancelled") dateMap[key].cancelled++;
+		}
+	}
+	return trend;
+}
+
+/**
+ * Build daily package update trend.
+ * Returns array of { date, updated, failed }
+ */
+function buildPackageTrend(jobHosts, days) {
+	const trend = [];
+	const now = new Date();
+	for (let i = days - 1; i >= 0; i--) {
+		const d = new Date(now);
+		d.setDate(d.getDate() - i);
+		const key = d.toISOString().slice(0, 10);
+		trend.push({ date: key, updated: 0, failed: 0 });
+	}
+	const dateMap = {};
+	for (const t of trend) dateMap[t.date] = t;
+
+	for (const jh of jobHosts) {
+		if (!jh.completed_at) continue;
+		const key = new Date(jh.completed_at).toISOString().slice(0, 10);
+		if (dateMap[key]) {
+			dateMap[key].updated += jh.packages_updated || 0;
+			dateMap[key].failed += jh.packages_failed || 0;
+		}
+	}
+	return trend;
+}
+
+/**
+ * Build per-policy success/failure breakdown.
+ * Returns array of { policy_id, name, completed, failed, partial, total }
+ */
+function buildPolicyBreakdown(policyJobs) {
+	const map = {};
+	for (const job of policyJobs) {
+		if (!map[job.policy_id]) {
+			map[job.policy_id] = {
+				policy_id: job.policy_id,
+				name: job.policy?.name || job.policy_id,
+				completed: 0,
+				failed: 0,
+				partial: 0,
+				total: 0,
+			};
+		}
+		const entry = map[job.policy_id];
+		entry.total++;
+		if (job.status === "completed") entry.completed++;
+		else if (job.status === "failed") entry.failed++;
+		else if (job.status === "completed_with_errors") entry.partial++;
+	}
+	return Object.values(map).sort((a, b) => b.total - a.total);
+}
 
 // GET /api/v1/patch-management/history - Full job history with pagination
 router.get("/history", authenticateToken, async (req, res) => {
