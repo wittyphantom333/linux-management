@@ -3,6 +3,7 @@ package configmanagement
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"patchmon-agent/internal/utils"
@@ -172,16 +173,25 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 			// Check method condition
 			if method.Condition != "" && !pe.evaluateCondition(method.Condition, conditionResults) {
 				pe.logger.WithFields(logrus.Fields{
-					"method":    method.Name,
-					"condition": method.Condition,
-				}).Debug("Method condition not met, skipping")
+					"method":             method.Name,
+					"condition":          method.Condition,
+					"available_results":  conditionResults,
+				}).Info("Method condition not met, skipping")
+				// Build a summary of what statuses are available so the user knows what to reference
+				availableSummary := ""
+				for alias, status := range conditionResults {
+					if availableSummary != "" {
+						availableSummary += ", "
+					}
+					availableSummary += alias + "=" + status
+				}
 				// Record a visible "skipped" result so the method isn't silently invisible
 				methodResults = append(methodResults, models.ConfigMethodResult{
 					MethodID:   method.ID,
 					MethodName: method.Name,
 					MethodType: method.Type,
 					Status:     "skipped",
-					Message:    fmt.Sprintf("Condition not met: %s", method.Condition),
+					Message:    fmt.Sprintf("Condition not met: %s (available: %s)", method.Condition, availableSummary),
 				})
 				continue
 			}
@@ -338,27 +348,121 @@ func (pe *PolicyExecutor) resolveParameters(methodParams, directiveParams models
 }
 
 // evaluateCondition checks whether a condition string is met.
-// Supports simple conditions like "method_id.repaired", "method_id.success",
-// and boolean operators: ! (not), | (or), . (and).
+//
+// Supported condition formats:
+//
+//	Dot notation:          "method_1.success"   — method_1 resulted in success
+//	Equality syntax:       "method_1 == success" — same thing, for readability
+//	Negation (dot):        "!method_1.error"    — method_1 did NOT error
+//	Negation (equality):   "method_1 != error"  — same
+//	OR (dot):              "method_1.success | method_2.success"
+//
+// Status aliases (case-insensitive, any of these match):
+//
+//	"success"    → success, compliant, audit_compliant
+//	"compliant"  → success, compliant, audit_compliant
+//	"ok"         → success, compliant, audit_compliant
+//	"repaired"   → repaired
+//	"error"      → error, audit_error
+//	"failed"     → error, audit_error, non_compliant, audit_non_compliant
+//	"non_compliant" → non_compliant, audit_non_compliant
+//	"any"        → method exists (any status)
 func (pe *PolicyExecutor) evaluateCondition(condition string, results map[string]string) bool {
-	// Simple case: "method_id.status"
-	// For now, support the simple dotted notation: "<alias>.<status>"
-	// More complex boolean expressions can be added later.
-	for alias, status := range results {
-		check := alias + "." + status
-		if condition == check {
-			return true
+	condition = strings.TrimSpace(condition)
+	if condition == "" {
+		return true
+	}
+
+	// OR: split on " | " or "|"
+	parts := strings.Split(condition, "|")
+	if len(parts) > 1 {
+		for _, p := range parts {
+			if pe.evaluateSingleCondition(strings.TrimSpace(p), results) {
+				return true
+			}
 		}
-		// Also match broad conditions like "method_id.repaired"
-		if condition == alias+".repaired" && status == "repaired" {
-			return true
+		return false
+	}
+
+	return pe.evaluateSingleCondition(condition, results)
+}
+
+// evaluateSingleCondition evaluates a single condition expression (no OR).
+func (pe *PolicyExecutor) evaluateSingleCondition(condition string, results map[string]string) bool {
+	condition = strings.TrimSpace(condition)
+
+	// Negation: "!method_1.success" or "! method_1.success"
+	negated := false
+	if strings.HasPrefix(condition, "!") {
+		negated = true
+		condition = strings.TrimSpace(condition[1:])
+	}
+
+	var alias, wantStatus string
+
+	// Try equality syntax: "method_1 == success" or "method_1 != success"
+	if strings.Contains(condition, "!=") {
+		parts := strings.SplitN(condition, "!=", 2)
+		alias = strings.TrimSpace(parts[0])
+		wantStatus = strings.TrimSpace(parts[1])
+		negated = !negated // != is already a negation
+	} else if strings.Contains(condition, "==") {
+		parts := strings.SplitN(condition, "==", 2)
+		alias = strings.TrimSpace(parts[0])
+		wantStatus = strings.TrimSpace(parts[1])
+	} else if strings.Contains(condition, ".") {
+		// Dot notation: "method_1.success"
+		dotIdx := strings.LastIndex(condition, ".")
+		alias = condition[:dotIdx]
+		wantStatus = condition[dotIdx+1:]
+	} else {
+		// Bare alias — treat as "any" (method exists with any status)
+		alias = condition
+		wantStatus = "any"
+	}
+
+	alias = strings.TrimSpace(alias)
+	wantStatus = strings.ToLower(strings.TrimSpace(wantStatus))
+
+	actualStatus, exists := results[alias]
+	if !exists {
+		// Alias not found — condition cannot be met
+		if negated {
+			return true // "!missing_method.success" is vacuously true
 		}
-		if condition == alias+".error" && status == "error" {
-			return true
-		}
-		if condition == alias+".success" && (status == "success" || status == "compliant" || status == "audit_compliant") {
-			return true
-		}
+		return false
+	}
+
+	matched := statusMatches(actualStatus, wantStatus)
+	if negated {
+		return !matched
+	}
+	return matched
+}
+
+// statusMatches checks if an actual status matches a desired status or alias.
+func statusMatches(actual, want string) bool {
+	actual = strings.ToLower(actual)
+	want = strings.ToLower(want)
+
+	if actual == want {
+		return true
+	}
+
+	switch want {
+	case "success", "compliant", "ok":
+		return actual == "success" || actual == "compliant" || actual == "audit_compliant"
+	case "repaired":
+		return actual == "repaired"
+	case "error":
+		return actual == "error" || actual == "audit_error"
+	case "failed":
+		return actual == "error" || actual == "audit_error" ||
+			actual == "non_compliant" || actual == "audit_non_compliant"
+	case "non_compliant":
+		return actual == "non_compliant" || actual == "audit_non_compliant"
+	case "any":
+		return true // Method exists with any status
 	}
 
 	return false

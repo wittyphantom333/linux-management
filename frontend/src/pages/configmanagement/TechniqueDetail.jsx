@@ -777,13 +777,49 @@ export default function TechniqueDetail() {
 													onChange={(e) =>
 														updateMethod(idx, "condition", e.target.value)
 													}
-													placeholder="e.g. method_1.status == compliant"
+													placeholder="e.g. method_1 == success"
 													className="w-full px-2 py-1.5 rounded border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm font-mono"
 												/>
 												<p className="text-xs text-secondary-400 mt-0.5">
-													Reference earlier methods by their alias:
-													method_N.status == compliant|non_compliant|error
+													Only run this method when a previous method's result
+													matches. Use the method ID (e.g.{" "}
+													<code className="bg-secondary-100 dark:bg-secondary-700 px-1 rounded">
+														method_1
+													</code>
+													) or result_alias.
 												</p>
+												<details className="mt-1">
+													<summary className="text-xs text-primary-500 cursor-pointer hover:underline">
+														Condition syntax reference
+													</summary>
+													<div className="mt-1 p-2 rounded bg-secondary-50 dark:bg-secondary-800 text-xs text-secondary-500 dark:text-secondary-400 space-y-1 font-mono">
+														<p>
+															<strong>Equality:</strong> method_1 == success
+														</p>
+														<p>
+															<strong>Not-equal:</strong> method_1 != error
+														</p>
+														<p>
+															<strong>Dot notation:</strong> method_1.success
+														</p>
+														<p>
+															<strong>Negation:</strong> !method_1.error
+														</p>
+														<p>
+															<strong>OR:</strong> method_1.success |
+															method_2.success
+														</p>
+														<p className="pt-1 font-sans">
+															<strong>Status keywords:</strong>
+														</p>
+														<p>success / compliant / ok — method passed</p>
+														<p>repaired — method fixed something</p>
+														<p>error — method failed</p>
+														<p>non_compliant — drift detected (audit mode)</p>
+														<p>failed — error OR non_compliant (any failure)</p>
+														<p>any — method ran (any result)</p>
+													</div>
+												</details>
 											</div>
 										</div>
 									)}

@@ -399,3 +399,176 @@ func TestParamMapHandlesMixedTypes(t *testing.T) {
 		t.Errorf("m3 should have 0 params, got %d", len(tech.Methods[2].Parameters))
 	}
 }
+
+// TestConditionEvaluator verifies the revamped condition evaluator handles
+// all supported syntax variants: dot notation, == / != operators, negation,
+// OR, and status aliases.
+func TestConditionEvaluator(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	pe := NewPolicyExecutor(logger)
+
+	results := map[string]string{
+		"method_1": "audit_compliant",
+		"method_2": "repaired",
+		"method_3": "error",
+		"check":    "non_compliant",
+	}
+
+	tests := []struct {
+		condition string
+		expected  bool
+	}{
+		// Dot notation
+		{"method_1.success", true},
+		{"method_1.compliant", true},
+		{"method_1.ok", true},
+		{"method_1.audit_compliant", true},
+		{"method_1.error", false},
+		{"method_2.repaired", true},
+		{"method_2.success", false},
+		{"method_3.error", true},
+		{"method_3.success", false},
+		{"check.non_compliant", true},
+		{"check.failed", true},
+		{"check.success", false},
+
+		// Equality syntax (what the UI placeholder previously showed)
+		{"method_1 == success", true},
+		{"method_1 == compliant", true},
+		{"method_1 == error", false},
+		{"method_2 == repaired", true},
+		{"method_3 == error", true},
+		{"check == non_compliant", true},
+
+		// Not-equal syntax
+		{"method_1 != error", true},
+		{"method_1 != success", false},
+		{"method_3 != error", false},
+		{"method_3 != success", true},
+
+		// Negation with dot notation
+		{"!method_1.error", true},
+		{"!method_1.success", false},
+		{"!method_3.error", false},
+		{"!method_3.success", true},
+
+		// OR
+		{"method_1.success | method_2.success", true},
+		{"method_1.error | method_2.error", false},
+		{"method_1.error | method_3.error", true},
+		{"method_1 == success | method_3 == success", true},
+
+		// "any" — does method exist with any status?
+		{"method_1.any", true},
+		{"method_1 == any", true},
+		{"nonexistent.any", false},
+
+		// Missing method
+		{"nonexistent.success", false},
+		{"!nonexistent.success", true}, // vacuously true
+
+		// Empty condition
+		{"", true},
+		{"  ", true},
+
+		// "failed" alias — matches error or non_compliant
+		{"method_3.failed", true},
+		{"check.failed", true},
+		{"method_1.failed", false},
+		{"method_2.failed", false},
+	}
+
+	for _, tc := range tests {
+		got := pe.evaluateCondition(tc.condition, results)
+		if got != tc.expected {
+			t.Errorf("evaluateCondition(%q) = %v, want %v", tc.condition, got, tc.expected)
+		}
+	}
+}
+
+// TestConditionIntegrationWithMultiMethod verifies that conditions actually work
+// in a real policy evaluation with method chaining.
+func TestConditionIntegrationWithMultiMethod(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	pe := NewPolicyExecutor(logger)
+
+	policy := &models.ConfigPolicy{
+		PolicyID:   "cond-policy",
+		HostID:     "cond-host",
+		GlobalMode: "audit",
+		Techniques: []models.ConfigTechnique{
+			{
+				ID:      "tech-cond",
+				Name:    "Conditional Methods",
+				Version: "1.0",
+				Methods: []models.ConfigTechniqueMethod{
+					{
+						ID:         "method_1",
+						Type:       "command_run",
+						Name:       "Always runs",
+						Parameters: models.ParamMap{"command": "echo step1"},
+					},
+					{
+						ID:         "method_2",
+						Type:       "command_run",
+						Name:       "Runs if method_1 succeeded",
+						Parameters: models.ParamMap{"command": "echo step2"},
+						Condition:  "method_1 == success",
+					},
+					{
+						ID:         "method_3",
+						Type:       "command_run",
+						Name:       "Runs if method_1 failed",
+						Parameters: models.ParamMap{"command": "echo step3"},
+						Condition:  "method_1 == error",
+					},
+				},
+			},
+		},
+		Directives: []models.ConfigPolicyItem{
+			{
+				Directive: models.ConfigDirective{
+					ID:          "dir-cond",
+					Name:        "Conditional Directive",
+					TechniqueID: "tech-cond",
+					Version:     "1.0",
+					PolicyMode:  "audit",
+					Enabled:     true,
+					Parameters:  models.ParamMap{},
+				},
+				EffectiveMode: "audit",
+				Schedule: models.ConfigPolicySchedule{
+					RunSchedule: "always",
+				},
+			},
+		},
+	}
+
+	report := pe.Evaluate(context.Background(), policy, nil)
+	dr := report.DirectiveResults[0]
+
+	if len(dr.Methods) != 3 {
+		t.Fatalf("expected 3 method results, got %d", len(dr.Methods))
+	}
+
+	// method_1: should run (no condition) → audit_compliant
+	if dr.Methods[0].Status == "error" || dr.Methods[0].Status == "skipped" {
+		t.Errorf("method_1 should have run, got status %q", dr.Methods[0].Status)
+	}
+
+	// method_2: condition "method_1 == success" should match audit_compliant → should run
+	if dr.Methods[1].Status == "skipped" {
+		t.Errorf("method_2 should have run (method_1 was audit_compliant which matches 'success'), got skipped: %s", dr.Methods[1].Message)
+	}
+
+	// method_3: condition "method_1 == error" should NOT match → skipped
+	if dr.Methods[2].Status != "skipped" {
+		t.Errorf("method_3 should be skipped (method_1 was not error), got %q", dr.Methods[2].Status)
+	}
+
+	for i, mr := range dr.Methods {
+		t.Logf("Method %d: name=%q status=%s message=%q", i, mr.MethodName, mr.Status, mr.Message)
+	}
+}
