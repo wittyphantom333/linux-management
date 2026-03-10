@@ -29,6 +29,10 @@ export const patchManagementAPI = {
 	// History
 	getHistory: (params = {}) => api.get("/patch-management/history", { params }),
 
+	// Per-host results
+	getHostPatchResults: (hostId, params = {}) =>
+		api.get(`/patch-management/hosts/${hostId}/results`, { params }),
+
 	// Diffs
 	getJobHostDiff: (jobId, jobHostId) =>
 		api.get(`/patch-management/jobs/${jobId}/hosts/${jobHostId}/diff`),

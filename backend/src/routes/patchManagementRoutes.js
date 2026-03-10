@@ -1185,6 +1185,84 @@ function buildPolicyBreakdown(policyJobs) {
 	return Object.values(map).sort((a, b) => b.total - a.total);
 }
 
+// GET /api/v1/patch-management/hosts/:hostId/results - Patch results for a specific host
+router.get("/hosts/:hostId/results", authenticateToken, async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Hosts'] */
+	/* #swagger.summary = 'Get patch results for a host' */
+	/* #swagger.description = 'Retrieve all patch job results for a specific host, with job info, per-package details, and pagination. Requires JWT auth.' */
+	/* #swagger.security = [{ "bearerAuth": [] }] */
+	/* #swagger.parameters['hostId'] = { in: 'path', type: 'string', description: 'Host UUID', required: true } */
+	/* #swagger.parameters['limit'] = { in: 'query', type: 'integer', description: 'Max results (default 25)', required: false } */
+	/* #swagger.parameters['offset'] = { in: 'query', type: 'integer', description: 'Pagination offset', required: false } */
+	/* #swagger.parameters['status'] = { in: 'query', type: 'string', description: 'Filter by host-job status', required: false } */
+	try {
+		const { hostId } = req.params;
+		const { limit = "25", offset = "0", status } = req.query;
+
+		const where = { host_id: hostId };
+		if (status) where.status = status;
+
+		const [results, total] = await Promise.all([
+			prisma.patch_job_hosts.findMany({
+				where,
+				include: {
+					job: {
+						select: {
+							id: true,
+							status: true,
+							triggered_by: true,
+							triggered_by_user: true,
+							created_at: true,
+							started_at: true,
+							completed_at: true,
+							total_hosts: true,
+							completed_hosts: true,
+							failed_hosts: true,
+							policy: { select: { id: true, name: true } },
+							window: { select: { id: true, name: true } },
+						},
+					},
+					patch_job_packages: {
+						orderBy: { package_name: "asc" },
+					},
+				},
+				orderBy: { created_at: "desc" },
+				take: parseInt(limit, 10),
+				skip: parseInt(offset, 10),
+			}),
+			prisma.patch_job_hosts.count({ where }),
+		]);
+
+		// Summary stats for this host
+		const allHostJobs = await prisma.patch_job_hosts.findMany({
+			where: { host_id: hostId },
+			select: { status: true, packages_updated: true, packages_failed: true },
+		});
+
+		const summary = {
+			total_jobs: allHostJobs.length,
+			completed: allHostJobs.filter((j) => j.status === "completed").length,
+			failed: allHostJobs.filter((j) => j.status === "failed").length,
+			skipped: allHostJobs.filter((j) => j.status === "skipped").length,
+			total_packages_updated: allHostJobs.reduce(
+				(sum, j) => sum + (j.packages_updated || 0),
+				0,
+			),
+			total_packages_failed: allHostJobs.reduce(
+				(sum, j) => sum + (j.packages_failed || 0),
+				0,
+			),
+		};
+
+		return res.json({ success: true, results, total, summary });
+	} catch (error) {
+		logger.error(
+			`[PatchMgmt] Failed to get host patch results: ${error.message}`,
+		);
+		return res.status(500).json({ error: "Failed to get host patch results" });
+	}
+});
+
 // GET /api/v1/patch-management/history - Full job history with pagination
 router.get("/history", authenticateToken, async (req, res) => {
 	/* #swagger.tags = ['Patch Management - Dashboard'] */

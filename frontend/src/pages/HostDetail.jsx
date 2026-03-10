@@ -52,6 +52,7 @@ import AgentLogsTab from "./hostdetail/AgentLogsTab";
 import AgentQueueTab from "./hostdetail/AgentQueueTab";
 import CredentialsModal from "./hostdetail/CredentialsModal";
 import DeleteConfirmationModal from "./hostdetail/DeleteConfirmationModal";
+import PatchResultsTab from "./hostdetail/PatchResultsTab";
 
 /**
  * Format a memory size (in GiB from the agent) for display.
@@ -257,6 +258,7 @@ const HostDetail = () => {
 				"reporting",
 				"docker",
 				"compliance",
+				"patches",
 				"terminal",
 			].includes(requestedTab)
 		) {
@@ -2439,6 +2441,19 @@ const HostDetail = () => {
 								Compliance
 							</button>
 						)}
+						{integrationsData?.data?.integrations?.patchmanagement && (
+							<button
+								type="button"
+								onClick={() => handleTabChange("patches")}
+								className={`px-4 py-2 text-sm font-medium ${
+									activeTab === "patches"
+										? "text-primary-600 dark:text-primary-400 border-b-2 border-primary-500"
+										: "text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300"
+								}`}
+							>
+								Patch Results
+							</button>
+						)}
 						<button
 							type="button"
 							onClick={() => handleTabChange("logs")}
@@ -3472,6 +3487,9 @@ const HostDetail = () => {
 								</div>
 							</div>
 						)}
+
+						{/* Patch Results */}
+						{activeTab === "patches" && <PatchResultsTab hostId={hostId} />}
 
 						{/* Agent Queue */}
 						{activeTab === "queue" && <AgentQueueTab hostId={hostId} />}
