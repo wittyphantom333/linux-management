@@ -572,3 +572,91 @@ func TestConditionIntegrationWithMultiMethod(t *testing.T) {
 		t.Logf("Method %d: name=%q status=%s message=%q", i, mr.MethodName, mr.Status, mr.Message)
 	}
 }
+
+// TestPositionalMethodAliases verifies that conditions using "method_1", "method_2"
+// positional aliases work even when the actual method IDs are long/random strings
+// (e.g. "method_1773030615059"). This was the root cause of user-reported
+// "Condition not met: method_1 == success" failures.
+func TestPositionalMethodAliases(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	pe := NewPolicyExecutor(logger)
+
+	policy := &models.ConfigPolicy{
+		PolicyID:   "pos-alias-policy",
+		HostID:     "pos-alias-host",
+		GlobalMode: "audit",
+		Techniques: []models.ConfigTechnique{
+			{
+				ID:      "tech-pos",
+				Name:    "Positional Alias Test",
+				Version: "1.0",
+				Methods: []models.ConfigTechniqueMethod{
+					{
+						ID:         "method_1773030615059", // realistic timestamp-based ID
+						Type:       "command_run",
+						Name:       "Check package",
+						Parameters: models.ParamMap{"command": "echo installed"},
+					},
+					{
+						ID:         "method_1773030615999", // another realistic ID
+						Type:       "command_run",
+						Name:       "Run if first succeeded",
+						Parameters: models.ParamMap{"command": "echo configuring"},
+						Condition:  "method_1 == success", // positional alias, NOT the real ID
+					},
+					{
+						ID:         "method_1773030616111",
+						Type:       "command_run",
+						Name:       "Run if first failed",
+						Parameters: models.ParamMap{"command": "echo fallback"},
+						Condition:  "method_1 == error",
+					},
+				},
+			},
+		},
+		Directives: []models.ConfigPolicyItem{
+			{
+				Directive: models.ConfigDirective{
+					ID:          "dir-pos",
+					Name:        "Positional Alias Directive",
+					TechniqueID: "tech-pos",
+					Version:     "1.0",
+					PolicyMode:  "audit",
+					Enabled:     true,
+					Parameters:  models.ParamMap{},
+				},
+				EffectiveMode: "audit",
+				Schedule: models.ConfigPolicySchedule{
+					RunSchedule: "always",
+				},
+			},
+		},
+	}
+
+	report := pe.Evaluate(context.Background(), policy, nil)
+	dr := report.DirectiveResults[0]
+
+	if len(dr.Methods) != 3 {
+		t.Fatalf("expected 3 method results, got %d", len(dr.Methods))
+	}
+
+	// method_1773030615059: should run (no condition) → audit_compliant
+	if dr.Methods[0].Status == "error" || dr.Methods[0].Status == "skipped" {
+		t.Errorf("first method should have run, got status %q", dr.Methods[0].Status)
+	}
+
+	// method_1773030615999: condition "method_1 == success" should match via positional alias
+	if dr.Methods[1].Status == "skipped" {
+		t.Errorf("second method should have run via positional alias 'method_1 == success', got skipped: %s", dr.Methods[1].Message)
+	}
+
+	// method_1773030616111: condition "method_1 == error" should NOT match → skipped
+	if dr.Methods[2].Status != "skipped" {
+		t.Errorf("third method should be skipped (method_1 was not error), got %q", dr.Methods[2].Status)
+	}
+
+	for i, mr := range dr.Methods {
+		t.Logf("Method %d (id=%s): name=%q status=%s message=%q", i, mr.MethodID, mr.MethodName, mr.Status, mr.Message)
+	}
+}

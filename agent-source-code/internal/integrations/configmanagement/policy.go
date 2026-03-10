@@ -223,6 +223,8 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 					condAlias = method.ResultAlias
 				}
 				conditionResults[condAlias] = "error"
+				// Also register positional alias so "method_1" works
+				conditionResults[fmt.Sprintf("method_%d", i+1)] = "error"
 				dirStatus = "error"
 				continue
 			}
@@ -256,6 +258,8 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 				condAlias = method.ResultAlias
 			}
 			conditionResults[condAlias] = result.Status
+			// Also register positional alias so "method_1 == success" works
+			conditionResults[fmt.Sprintf("method_%d", i+1)] = result.Status
 
 			// Update directive status (worst status wins)
 			dirStatus = worstStatus(dirStatus, result.Status)

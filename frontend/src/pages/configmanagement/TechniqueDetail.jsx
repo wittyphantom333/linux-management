@@ -782,11 +782,15 @@ export default function TechniqueDetail() {
 												/>
 												<p className="text-xs text-secondary-400 mt-0.5">
 													Only run this method when a previous method's result
-													matches. Use the method ID (e.g.{" "}
+													matches. Use{" "}
 													<code className="bg-secondary-100 dark:bg-secondary-700 px-1 rounded">
 														method_1
-													</code>
-													) or result_alias.
+													</code>{" "}
+													for the 1st method,{" "}
+													<code className="bg-secondary-100 dark:bg-secondary-700 px-1 rounded">
+														method_2
+													</code>{" "}
+													for the 2nd, etc.
 												</p>
 												<details className="mt-1">
 													<summary className="text-xs text-primary-500 cursor-pointer hover:underline">
