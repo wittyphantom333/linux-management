@@ -357,16 +357,34 @@ router.get("/techniques/:id/versions", authenticateToken, async (req, res) => {
 	}
 });
 
-// DELETE /api/v1/configmanagement/techniques/:id - Delete a technique
+// DELETE /api/v1/configmanagement/techniques/:id - Delete a technique (all versions)
 router.delete("/techniques/:id", authenticateToken, async (req, res) => {
 	/* #swagger.tags = ['Config Management - Techniques'] */
 	/* #swagger.summary = 'Delete a technique' */
-	/* #swagger.description = 'Delete a technique by ID. Requires JWT auth.' */
+	/* #swagger.description = 'Delete a technique by ID. Also removes all other versions with the same name (since the UI deduplicates by name). Requires JWT auth.' */
 	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
-		await prisma.cm_techniques.delete({ where: { id: req.params.id } });
-		logger.info(`[ConfigMgmt] Technique deleted: ${req.params.id}`);
-		return res.json({ success: true, message: "Technique deleted" });
+		// Look up the technique to get its name so we can delete all versions
+		const technique = await prisma.cm_techniques.findUnique({
+			where: { id: req.params.id },
+			select: { name: true },
+		});
+		if (!technique) {
+			return res.status(404).json({ error: "Technique not found" });
+		}
+
+		// Delete ALL versions with the same name (cascade removes directives)
+		const result = await prisma.cm_techniques.deleteMany({
+			where: { name: technique.name },
+		});
+
+		logger.info(
+			`[ConfigMgmt] Technique "${technique.name}" deleted (${result.count} version(s))`,
+		);
+		return res.json({
+			success: true,
+			message: `Technique "${technique.name}" deleted (${result.count} version(s))`,
+		});
 	} catch (error) {
 		logger.error(`[ConfigMgmt] Failed to delete technique: ${error.message}`);
 		return res.status(500).json({ error: "Failed to delete technique" });
