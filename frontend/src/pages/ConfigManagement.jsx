@@ -24,11 +24,27 @@ import {
 	Stethoscope,
 	Timer,
 	Trash2,
+	TrendingUp,
 	Wrench,
 	XCircle,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+	Area,
+	AreaChart,
+	Bar,
+	BarChart,
+	CartesianGrid,
+	Cell,
+	Legend,
+	Pie,
+	PieChart,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from "recharts";
 import { useToast } from "../contexts/ToastContext";
 import { configManagementAPI } from "../utils/configManagementApi";
 
@@ -42,6 +58,35 @@ const TABS = [
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+const CHART_COLORS = {
+	compliant: "#22c55e",
+	non_compliant: "#ef4444",
+	errors: "#f97316",
+	repaired: "#3b82f6",
+	not_applicable: "#94a3b8",
+	audited: "#8b5cf6",
+	audit: "#f59e0b",
+	enforce: "#3b82f6",
+};
+
+const PIE_COLORS = [
+	"#22c55e",
+	"#ef4444",
+	"#f97316",
+	"#3b82f6",
+	"#94a3b8",
+	"#8b5cf6",
+	"#ec4899",
+];
+
+const SCORE_DIST_COLORS = {
+	"90-100": "#22c55e",
+	"70-89": "#eab308",
+	"50-69": "#f97316",
+	"0-49": "#ef4444",
+};
+
 function scoreColor(score) {
 	if (score >= 90) return "text-green-500";
 	if (score >= 70) return "text-yellow-500";
@@ -276,56 +321,6 @@ export default function ConfigManagement() {
 				</div>
 			</div>
 
-			{/* Stat cards */}
-			{dashboard && (
-				<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
-					<StatCard
-						label="Techniques"
-						value={dashboard.techniques}
-						icon={FileCode2}
-						color="text-blue-500"
-					/>
-					<StatCard
-						label="Directives"
-						value={dashboard.directives}
-						icon={ListChecks}
-						color="text-indigo-500"
-					/>
-					<StatCard
-						label="Rules"
-						value={dashboard.rules}
-						icon={Network}
-						color="text-purple-500"
-					/>
-					<StatCard
-						label="Managed Hosts"
-						value={dashboard.enabled_hosts}
-						icon={Settings2}
-						color="text-teal-500"
-					/>
-					<StatCard
-						label="Runs (24h)"
-						value={dashboard.runs_24h}
-						icon={History}
-						color="text-cyan-500"
-					/>
-					<StatCard
-						label="Avg Score (24h)"
-						value={
-							dashboard.avg_score_24h != null
-								? `${dashboard.avg_score_24h}%`
-								: "—"
-						}
-						icon={dashboard.avg_score_24h >= 90 ? ShieldCheck : ShieldAlert}
-						color={
-							dashboard.avg_score_24h != null
-								? scoreColor(dashboard.avg_score_24h)
-								: "text-secondary-400"
-						}
-					/>
-				</div>
-			)}
-
 			{/* Tab navigation */}
 			<div className="border-b border-secondary-200 dark:border-secondary-600">
 				<nav className="-mb-px flex space-x-8 px-4" aria-label="Tabs">
@@ -355,6 +350,7 @@ export default function ConfigManagement() {
 			{activeTab === "overview" && (
 				<OverviewTab
 					dashboard={dashboard}
+					dashboardLoading={isLoading}
 					techniques={techniques}
 					directives={directives}
 					rules={rules}
@@ -408,150 +404,586 @@ export default function ConfigManagement() {
 	);
 }
 
-// ─── Stat card ──────────────────────────────────────────────────────────────
-function StatCard({ label, value, icon: Icon, color }) {
-	return (
-		<div className="card p-4 cursor-default text-left w-full">
-			<div className="flex items-center justify-between">
-				<Icon className={`h-5 w-5 ${color}`} />
+// ─── Overview tab (analytics) ───────────────────────────────────────────────
+function OverviewTab({
+	dashboard,
+	dashboardLoading,
+	techniques,
+	directives,
+	rules,
+	runs,
+}) {
+	if (dashboardLoading) {
+		return (
+			<div className="flex items-center justify-center py-20">
+				<Loader2 className="h-8 w-8 animate-spin text-primary-600" />
 			</div>
-			<p className="mt-2 text-2xl font-semibold text-secondary-900 dark:text-white">
-				{value ?? "—"}
-			</p>
-			<p className="text-xs text-secondary-500 dark:text-secondary-400 mt-1">
-				{label}
-			</p>
+		);
+	}
+
+	const d = dashboard || {};
+	const scoreTrend = d.score_trend || [];
+	const compliance = d.compliance || {};
+	const modeDist = d.mode_distribution || {};
+	const catBreak = d.category_breakdown || [];
+	const schedBreak = d.schedule_breakdown || {};
+	const scoreDist = d.score_distribution || {};
+	const topNonCompliant = d.top_non_compliant || [];
+	const recentRuns = d.recent_runs || [];
+
+	const complianceData = [
+		{ name: "Compliant", value: compliance.compliant || 0 },
+		{ name: "Non-Compliant", value: compliance.non_compliant || 0 },
+		{ name: "Errors", value: compliance.errors || 0 },
+		{ name: "Repaired", value: compliance.repaired || 0 },
+		{ name: "N/A", value: compliance.not_applicable || 0 },
+		{ name: "Audited", value: compliance.audited || 0 },
+	].filter((c) => c.value > 0);
+
+	const modeData = [
+		{ name: "Audit", value: modeDist.audit || 0 },
+		{ name: "Enforce", value: modeDist.enforce || 0 },
+	].filter((c) => c.value > 0);
+
+	const scoreDistData = Object.entries(scoreDist)
+		.map(([range, count]) => ({ range, count }))
+		.filter((c) => c.count > 0);
+
+	const compTotal = complianceData.reduce((s, c) => s + c.value, 0) || 1;
+
+	return (
+		<div className="space-y-6">
+			{/* ── Pipeline Diagnostics ─────────────────────────────────── */}
+			<DiagnosticsPanel />
+
+			{/* ── KPI Cards Row ────────────────────────────────────────── */}
+			<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+				<KpiCard
+					label="Techniques"
+					value={d.techniques ?? 0}
+					icon={FileCode2}
+					color="blue"
+				/>
+				<KpiCard
+					label="Directives"
+					value={d.directives ?? 0}
+					icon={ListChecks}
+					color="purple"
+				/>
+				<KpiCard
+					label="Rules"
+					value={d.rules ?? 0}
+					icon={Network}
+					color="primary"
+				/>
+				<KpiCard
+					label="Managed Hosts"
+					value={d.enabled_hosts ?? 0}
+					icon={Settings2}
+					color="green"
+				/>
+				<KpiCard
+					label="Runs (24h)"
+					value={d.runs_24h ?? 0}
+					sub={d.total_runs_30d ? `${d.total_runs_30d} in 30d` : undefined}
+					icon={History}
+					color="blue"
+				/>
+				<KpiCard
+					label="Avg Score (24h)"
+					value={d.avg_score_24h != null ? `${d.avg_score_24h}%` : "—"}
+					icon={d.avg_score_24h >= 90 ? ShieldCheck : ShieldAlert}
+					color={
+						d.avg_score_24h != null
+							? d.avg_score_24h >= 90
+								? "green"
+								: d.avg_score_24h >= 70
+									? "amber"
+									: "red"
+							: "primary"
+					}
+				/>
+			</div>
+
+			{/* ── Score Trend + Run Volume ─────────────────────────────── */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+				<ChartCard title="Compliance Score Trend (30 Days)" icon={TrendingUp}>
+					{scoreTrend.some((s) => s.avg_score !== null) ? (
+						<ResponsiveContainer width="100%" height={220}>
+							<AreaChart data={scoreTrend}>
+								<defs>
+									<linearGradient id="cmScoreGrad" x1="0" y1="0" x2="0" y2="1">
+										<stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+										<stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+									</linearGradient>
+								</defs>
+								<CartesianGrid
+									strokeDasharray="3 3"
+									stroke="#374151"
+									opacity={0.3}
+								/>
+								<XAxis
+									dataKey="date"
+									tickFormatter={(v) => v.slice(5)}
+									tick={{ fontSize: 10, fill: "#9ca3af" }}
+								/>
+								<YAxis
+									domain={[0, 100]}
+									tick={{ fontSize: 10, fill: "#9ca3af" }}
+									tickFormatter={(v) => `${v}%`}
+								/>
+								<Tooltip
+									contentStyle={{
+										backgroundColor: "#1f2937",
+										border: "none",
+										borderRadius: 8,
+										fontSize: 12,
+									}}
+									formatter={(v) => [v != null ? `${v}%` : "—", "Avg Score"]}
+									labelFormatter={(l) => l}
+								/>
+								<Area
+									type="monotone"
+									dataKey="avg_score"
+									stroke="#22c55e"
+									fill="url(#cmScoreGrad)"
+									strokeWidth={2}
+									connectNulls
+									dot={false}
+								/>
+							</AreaChart>
+						</ResponsiveContainer>
+					) : (
+						<EmptyChart message="No score data in the last 30 days" />
+					)}
+				</ChartCard>
+
+				<ChartCard title="Run Volume (30 Days)" icon={BarChart3}>
+					{scoreTrend.some((s) => s.runs > 0) ? (
+						<ResponsiveContainer width="100%" height={220}>
+							<BarChart data={scoreTrend}>
+								<CartesianGrid
+									strokeDasharray="3 3"
+									stroke="#374151"
+									opacity={0.3}
+								/>
+								<XAxis
+									dataKey="date"
+									tickFormatter={(v) => v.slice(5)}
+									tick={{ fontSize: 10, fill: "#9ca3af" }}
+								/>
+								<YAxis
+									allowDecimals={false}
+									tick={{ fontSize: 10, fill: "#9ca3af" }}
+								/>
+								<Tooltip
+									contentStyle={{
+										backgroundColor: "#1f2937",
+										border: "none",
+										borderRadius: 8,
+										fontSize: 12,
+									}}
+								/>
+								<Bar
+									dataKey="runs"
+									name="Runs"
+									fill="#3b82f6"
+									radius={[3, 3, 0, 0]}
+								/>
+							</BarChart>
+						</ResponsiveContainer>
+					) : (
+						<EmptyChart message="No runs in the last 30 days" />
+					)}
+				</ChartCard>
+			</div>
+
+			{/* ── Compliance Donut + Mode + Score Distribution ─────────── */}
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<ChartCard title="Compliance Breakdown (30d)" icon={CheckCircle2}>
+					{complianceData.length > 0 ? (
+						<div className="flex flex-col items-center">
+							<ResponsiveContainer width="100%" height={180}>
+								<PieChart>
+									<Pie
+										data={complianceData}
+										cx="50%"
+										cy="50%"
+										innerRadius={50}
+										outerRadius={75}
+										paddingAngle={2}
+										dataKey="value"
+									>
+										{complianceData.map((_entry, i) => (
+											<Cell
+												key={`comp-${i}`}
+												fill={PIE_COLORS[i % PIE_COLORS.length]}
+											/>
+										))}
+									</Pie>
+									<Tooltip
+										contentStyle={{
+											backgroundColor: "#1f2937",
+											border: "none",
+											borderRadius: 8,
+											fontSize: 12,
+										}}
+									/>
+								</PieChart>
+							</ResponsiveContainer>
+							<div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1">
+								{complianceData.map((c, i) => (
+									<span
+										key={c.name}
+										className="flex items-center gap-1 text-[10px] text-secondary-500 dark:text-secondary-400"
+									>
+										<span
+											className="w-2 h-2 rounded-full inline-block"
+											style={{
+												backgroundColor: PIE_COLORS[i % PIE_COLORS.length],
+											}}
+										/>
+										{c.name} ({Math.round((c.value / compTotal) * 100)}%)
+									</span>
+								))}
+							</div>
+						</div>
+					) : (
+						<EmptyChart message="No compliance data" />
+					)}
+				</ChartCard>
+
+				<ChartCard title="Directive Mode Split" icon={Wrench}>
+					{modeData.length > 0 ? (
+						<div className="flex flex-col items-center">
+							<ResponsiveContainer width="100%" height={180}>
+								<PieChart>
+									<Pie
+										data={modeData}
+										cx="50%"
+										cy="50%"
+										innerRadius={50}
+										outerRadius={75}
+										paddingAngle={2}
+										dataKey="value"
+									>
+										<Cell fill={CHART_COLORS.audit} />
+										<Cell fill={CHART_COLORS.enforce} />
+									</Pie>
+									<Tooltip
+										contentStyle={{
+											backgroundColor: "#1f2937",
+											border: "none",
+											borderRadius: 8,
+											fontSize: 12,
+										}}
+									/>
+								</PieChart>
+							</ResponsiveContainer>
+							<div className="flex justify-center gap-4 mt-1">
+								{modeData.map((m) => (
+									<span
+										key={m.name}
+										className="flex items-center gap-1 text-[10px] text-secondary-500 dark:text-secondary-400"
+									>
+										<span
+											className="w-2 h-2 rounded-full inline-block"
+											style={{
+												backgroundColor:
+													m.name === "Audit"
+														? CHART_COLORS.audit
+														: CHART_COLORS.enforce,
+											}}
+										/>
+										{m.name} ({m.value})
+									</span>
+								))}
+							</div>
+						</div>
+					) : (
+						<EmptyChart message="No directives" />
+					)}
+				</ChartCard>
+
+				<ChartCard title="Host Score Distribution" icon={ShieldCheck}>
+					{scoreDistData.length > 0 ? (
+						<div className="flex flex-col items-center">
+							<ResponsiveContainer width="100%" height={180}>
+								<BarChart data={scoreDistData} layout="vertical">
+									<CartesianGrid
+										strokeDasharray="3 3"
+										stroke="#374151"
+										opacity={0.3}
+									/>
+									<XAxis
+										type="number"
+										allowDecimals={false}
+										tick={{ fontSize: 10, fill: "#9ca3af" }}
+									/>
+									<YAxis
+										type="category"
+										dataKey="range"
+										tick={{ fontSize: 10, fill: "#9ca3af" }}
+										width={55}
+									/>
+									<Tooltip
+										contentStyle={{
+											backgroundColor: "#1f2937",
+											border: "none",
+											borderRadius: 8,
+											fontSize: 12,
+										}}
+									/>
+									<Bar dataKey="count" name="Hosts" radius={[0, 3, 3, 0]}>
+										{scoreDistData.map((entry) => (
+											<Cell
+												key={entry.range}
+												fill={SCORE_DIST_COLORS[entry.range] || "#6b7280"}
+											/>
+										))}
+									</Bar>
+								</BarChart>
+							</ResponsiveContainer>
+						</div>
+					) : (
+						<EmptyChart message="No host score data" />
+					)}
+				</ChartCard>
+			</div>
+
+			{/* ── Category Breakdown + Schedule Breakdown ──────────────── */}
+			{(catBreak.length > 0 || Object.keys(schedBreak).length > 0) && (
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+					{catBreak.length > 0 && (
+						<ChartCard title="Technique Categories" icon={FileCode2}>
+							<ResponsiveContainer
+								width="100%"
+								height={Math.max(120, catBreak.length * 32)}
+							>
+								<BarChart data={catBreak} layout="vertical">
+									<CartesianGrid
+										strokeDasharray="3 3"
+										stroke="#374151"
+										opacity={0.3}
+									/>
+									<XAxis
+										type="number"
+										allowDecimals={false}
+										tick={{ fontSize: 10, fill: "#9ca3af" }}
+									/>
+									<YAxis
+										type="category"
+										dataKey="category"
+										tick={{ fontSize: 10, fill: "#9ca3af" }}
+										width={90}
+									/>
+									<Tooltip
+										contentStyle={{
+											backgroundColor: "#1f2937",
+											border: "none",
+											borderRadius: 8,
+											fontSize: 12,
+										}}
+									/>
+									<Bar
+										dataKey="count"
+										name="Techniques"
+										fill="#8b5cf6"
+										radius={[0, 3, 3, 0]}
+									/>
+								</BarChart>
+							</ResponsiveContainer>
+						</ChartCard>
+					)}
+
+					<ChartCard title="Rule Schedule Types" icon={CalendarClock}>
+						<div className="space-y-3 py-2">
+							{(d.schedule_breakdown || []).map((s) => (
+								<div
+									key={s.schedule}
+									className="flex items-center justify-between"
+								>
+									<div className="flex items-center gap-2">
+										{schedBadge(s.schedule)}
+									</div>
+									<span className="text-sm font-semibold text-secondary-900 dark:text-white">
+										{s.count}
+									</span>
+								</div>
+							))}
+							{(!d.schedule_breakdown || d.schedule_breakdown.length === 0) && (
+								<p className="text-sm text-secondary-400">No rules defined</p>
+							)}
+						</div>
+					</ChartCard>
+				</div>
+			)}
+
+			{/* ── Top Non-Compliant + Recent Runs + Quick Links ────────── */}
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+				{/* Top non-compliant hosts */}
+				<ChartCard title="Lowest Scoring Hosts (30d)" icon={ShieldAlert}>
+					{topNonCompliant.length > 0 ? (
+						<div className="space-y-2">
+							{topNonCompliant.slice(0, 8).map((h, i) => (
+								<div
+									key={h.host_id}
+									className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-800/50"
+								>
+									<div className="flex items-center gap-2 min-w-0">
+										<span className="text-xs font-mono text-secondary-400 w-4 text-right">
+											{i + 1}.
+										</span>
+										<span className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+											{h.host_name}
+										</span>
+									</div>
+									<div className="flex items-center gap-2 flex-shrink-0">
+										<span className="text-xs text-secondary-400">
+											{h.run_count} runs
+										</span>
+										<span
+											className={`text-sm font-bold ${scoreColor(h.avg_score)}`}
+										>
+											{h.avg_score}%
+										</span>
+									</div>
+								</div>
+							))}
+						</div>
+					) : (
+						<EmptyChart message="No host data in the last 30 days" />
+					)}
+				</ChartCard>
+
+				{/* Recent runs */}
+				<ChartCard title="Recent Policy Runs" icon={History}>
+					{recentRuns.length > 0 ? (
+						<div className="space-y-2">
+							{recentRuns.slice(0, 8).map((run) => (
+								<Link
+									key={run.id}
+									to={`/config-management/runs/${run.id}`}
+									className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
+								>
+									<div className="flex items-center gap-2 min-w-0">
+										<div
+											className={`h-2 w-2 rounded-full flex-shrink-0 ${scoreBg(run.score)}`}
+										/>
+										<div className="min-w-0">
+											<p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+												{run.hosts?.friendly_name ||
+													run.hosts?.hostname ||
+													"Unknown"}
+											</p>
+											<p className="text-[10px] text-secondary-500">
+												{run.total_directives} dir · {timeAgo(run.evaluated_at)}
+											</p>
+										</div>
+									</div>
+									<span
+										className={`text-sm font-bold flex-shrink-0 ${scoreColor(run.score)}`}
+									>
+										{Math.round(run.score)}%
+									</span>
+								</Link>
+							))}
+						</div>
+					) : (
+						<EmptyChart message="No runs yet" />
+					)}
+				</ChartCard>
+
+				{/* Active rules */}
+				<ChartCard title="Active Rules" icon={Network}>
+					{rules && rules.filter((r) => r.enabled).length > 0 ? (
+						<div className="space-y-2">
+							{rules
+								.filter((r) => r.enabled)
+								.slice(0, 8)
+								.map((r) => (
+									<Link
+										key={r.id}
+										to={`/config-management/rules/${r.id}`}
+										className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
+									>
+										<p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+											{r.name}
+										</p>
+										<span className="text-xs text-secondary-400 flex-shrink-0">
+											{r.cm_rule_directives?.length || 0} dir
+											{" · "}
+											{r.cm_rule_groups?.length || 0} groups
+										</span>
+									</Link>
+								))}
+						</div>
+					) : (
+						<EmptyChart message="No active rules" />
+					)}
+				</ChartCard>
+			</div>
 		</div>
 	);
 }
 
-// ─── Overview tab ───────────────────────────────────────────────────────────
-function OverviewTab({ dashboard, techniques, directives, rules, runs }) {
-	return (
-		<div className="space-y-6">
-			{/* Pipeline Diagnostics */}
-			<DiagnosticsPanel />
+// ─── Shared chart sub-components ────────────────────────────────────────────
 
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* Recent runs */}
-				<div className="card p-5">
-					<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
-						Recent Policy Runs
-					</h2>
-					{!runs || runs.length === 0 ? (
-						<p className="text-sm text-secondary-500 dark:text-secondary-400">
-							No policy runs yet. Enable config management on hosts and assign
-							rules to get started.
+function KpiCard({ label, value, sub, icon: Icon, color }) {
+	const colorMap = {
+		primary:
+			"bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400",
+		blue: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+		green:
+			"bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+		amber:
+			"bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+		red: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+		purple:
+			"bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+	};
+
+	return (
+		<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-3">
+			<div className="flex items-center gap-2.5">
+				<div
+					className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${colorMap[color] || colorMap.primary}`}
+				>
+					<Icon className="h-4 w-4" />
+				</div>
+				<div className="min-w-0">
+					<p className="text-[10px] uppercase tracking-wider text-secondary-500 dark:text-secondary-400 truncate">
+						{label}
+					</p>
+					<p className="text-lg font-bold text-secondary-900 dark:text-white leading-tight">
+						{value}
+					</p>
+					{sub && (
+						<p className="text-[10px] text-secondary-400 dark:text-secondary-500 truncate">
+							{sub}
 						</p>
-					) : (
-						<div className="space-y-3">
-							{runs.slice(0, 8).map((run) => (
-								<Link
-									key={run.id}
-									to={`/config-management/runs/${run.id}`}
-									className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
-								>
-									<div className="flex items-center gap-3">
-										<div
-											className={`h-2.5 w-2.5 rounded-full ${scoreBg(run.score)}`}
-										/>
-										<div>
-											<p className="text-sm font-medium text-secondary-900 dark:text-white">
-												{run.hosts?.friendly_name ||
-													run.hosts?.hostname ||
-													"Unknown Host"}
-											</p>
-											<p className="text-xs text-secondary-500 dark:text-secondary-400">
-												{run.total_directives} directives ·{" "}
-												{timeAgo(run.evaluated_at)}
-											</p>
-										</div>
-									</div>
-									<div className="flex items-center gap-2">
-										<span
-											className={`text-sm font-semibold ${scoreColor(run.score)}`}
-										>
-											{Math.round(run.score)}%
-										</span>
-										<ChevronRight className="h-4 w-4 text-secondary-400" />
-									</div>
-								</Link>
-							))}
-						</div>
 					)}
 				</div>
-
-				{/* Quick summary */}
-				<div className="space-y-6">
-					{/* Top techniques */}
-					<div className="card p-5">
-						<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
-							Techniques
-						</h2>
-						{!techniques || techniques.length === 0 ? (
-							<EmptyState message="No techniques defined yet" />
-						) : (
-							<div className="space-y-2">
-								{techniques.slice(0, 5).map((t) => (
-									<Link
-										key={t.id}
-										to={`/config-management/techniques/${t.id}`}
-										className="flex items-center justify-between p-2 rounded hover:bg-secondary-50 dark:hover:bg-secondary-800"
-									>
-										<div>
-											<p className="text-sm font-medium text-secondary-900 dark:text-white">
-												{t.name}
-											</p>
-											{t.category && (
-												<p className="text-xs text-secondary-500">
-													{t.category}
-												</p>
-											)}
-										</div>
-										<span className="text-xs text-secondary-400">
-											v{t.version} ·{" "}
-											{t.total_directives ?? t._count?.cm_directives ?? 0}{" "}
-											directives
-										</span>
-									</Link>
-								))}
-							</div>
-						)}
-					</div>
-
-					{/* Active rules */}
-					<div className="card p-5">
-						<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
-							Active Rules
-						</h2>
-						{!rules || rules.length === 0 ? (
-							<EmptyState message="No rules defined yet" />
-						) : (
-							<div className="space-y-2">
-								{rules
-									.filter((r) => r.enabled)
-									.slice(0, 5)
-									.map((r) => (
-										<Link
-											key={r.id}
-											to={`/config-management/rules/${r.id}`}
-											className="flex items-center justify-between p-2 rounded hover:bg-secondary-50 dark:hover:bg-secondary-800"
-										>
-											<p className="text-sm font-medium text-secondary-900 dark:text-white">
-												{r.name}
-											</p>
-											<span className="text-xs text-secondary-400">
-												{r.cm_rule_directives?.length || 0} directives
-												{" · "}
-												{r.cm_rule_groups?.length || 0} groups
-											</span>
-										</Link>
-									))}
-							</div>
-						)}
-					</div>
-				</div>
 			</div>
+		</div>
+	);
+}
+
+function ChartCard({ title, icon: Icon, children }) {
+	return (
+		<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4">
+			<h3 className="text-sm font-semibold text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
+				<Icon className="h-4 w-4 text-secondary-400" /> {title}
+			</h3>
+			{children}
+		</div>
+	);
+}
+
+function EmptyChart({ message }) {
+	return (
+		<div className="flex items-center justify-center h-40 text-secondary-400 dark:text-secondary-500 text-sm">
+			{message}
 		</div>
 	);
 }

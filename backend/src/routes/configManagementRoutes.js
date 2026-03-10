@@ -1340,45 +1340,203 @@ router.get("/runs/:id", authenticateToken, async (req, res) => {
 	}
 });
 
-// GET /api/v1/configmanagement/dashboard - Overview stats
+// GET /api/v1/configmanagement/dashboard - Overview stats (rich analytics)
 router.get("/dashboard", authenticateToken, async (_req, res) => {
 	/* #swagger.tags = ['Config Management - Dashboard'] */
 	/* #swagger.summary = 'Get dashboard statistics' */
-	/* #swagger.description = 'Overview stats: technique/directive/rule/host counts, recent runs, average score over last 24h. Requires JWT auth.' */
+	/* #swagger.description = 'Rich analytics: counts, score/run trends (30d), compliance breakdown, mode distribution, category breakdown, top non-compliant hosts, schedule breakdown. Requires JWT auth.' */
 	/* #swagger.security = [{ "bearerAuth": [] }] */
 	try {
+		const now = new Date();
+		const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+		const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
 		const [
 			allEnabledTechniques,
+			allTechniques,
 			directiveCount,
+			allDirectives,
 			ruleCount,
+			allRules,
 			enabledHosts,
 			recentRuns,
+			runs30d,
+			recent24h,
 		] = await Promise.all([
 			prisma.cm_techniques.findMany({
 				where: { enabled: true },
 				select: { name: true },
 				distinct: ["name"],
 			}),
+			prisma.cm_techniques.findMany({
+				where: { enabled: true },
+				select: { id: true, name: true, category: true },
+			}),
 			prisma.cm_directives.count({ where: { enabled: true } }),
+			prisma.cm_directives.findMany({
+				where: { enabled: true },
+				select: { id: true, policy_mode: true },
+			}),
 			prisma.cm_rules.count({ where: { enabled: true } }),
+			prisma.cm_rules.findMany({
+				where: { enabled: true },
+				select: { id: true, run_schedule: true },
+			}),
 			prisma.hosts.count({ where: { configmanagement_enabled: true } }),
 			prisma.cm_policy_runs.findMany({
 				orderBy: { evaluated_at: "desc" },
 				take: 10,
 				include: {
-					hosts: { select: { id: true, friendly_name: true } },
+					hosts: {
+						select: {
+							id: true,
+							friendly_name: true,
+							hostname: true,
+						},
+					},
 				},
 			}),
+			prisma.cm_policy_runs.findMany({
+				where: { evaluated_at: { gte: thirtyDaysAgo } },
+				select: {
+					id: true,
+					host_id: true,
+					evaluated_at: true,
+					score: true,
+					total_directives: true,
+					compliant: true,
+					non_compliant: true,
+					errors: true,
+					repaired: true,
+					not_applicable: true,
+					audited: true,
+					global_mode: true,
+				},
+				orderBy: { evaluated_at: "asc" },
+			}),
+			prisma.cm_policy_runs.aggregate({
+				where: { evaluated_at: { gte: oneDayAgo } },
+				_avg: { score: true },
+				_count: true,
+			}),
 		]);
+
 		const techniqueCount = allEnabledTechniques.length;
 
-		// Compute average score from last 24h runs
-		const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-		const recent = await prisma.cm_policy_runs.aggregate({
-			where: { evaluated_at: { gte: oneDayAgo } },
-			_avg: { score: true },
-			_count: true,
-		});
+		// ── Score & run trend (30d, daily) ────────────────────────────
+		const scoreTrend = buildDailyScoreTrend(runs30d, 30);
+
+		// ── Compliance breakdown (30d totals) ─────────────────────────
+		const compliance = {
+			compliant: 0,
+			non_compliant: 0,
+			errors: 0,
+			repaired: 0,
+			not_applicable: 0,
+			audited: 0,
+		};
+		for (const r of runs30d) {
+			compliance.compliant += r.compliant || 0;
+			compliance.non_compliant += r.non_compliant || 0;
+			compliance.errors += r.errors || 0;
+			compliance.repaired += r.repaired || 0;
+			compliance.not_applicable += r.not_applicable || 0;
+			compliance.audited += r.audited || 0;
+		}
+
+		// ── Mode distribution (directives) ────────────────────────────
+		const modeDistribution = { audit: 0, enforce: 0 };
+		for (const d of allDirectives) {
+			if (d.policy_mode === "enforce") modeDistribution.enforce++;
+			else modeDistribution.audit++;
+		}
+
+		// ── Run mode distribution (30d) ───────────────────────────────
+		const runModeDistribution = { audit: 0, enforce: 0, mixed: 0 };
+		for (const r of runs30d) {
+			if (r.global_mode === "enforce") runModeDistribution.enforce++;
+			else if (r.global_mode === "audit") runModeDistribution.audit++;
+			else runModeDistribution.mixed++;
+		}
+
+		// ── Category breakdown (techniques) ───────────────────────────
+		const catMap = {};
+		for (const t of allTechniques) {
+			const cat = t.category || "uncategorized";
+			catMap[cat] = (catMap[cat] || 0) + 1;
+		}
+		const categoryBreakdown = Object.entries(catMap)
+			.map(([category, count]) => ({ category, count }))
+			.sort((a, b) => b.count - a.count);
+
+		// ── Schedule breakdown (rules) ────────────────────────────────
+		const schedMap = {};
+		for (const r of allRules) {
+			const s = r.run_schedule || "always";
+			schedMap[s] = (schedMap[s] || 0) + 1;
+		}
+		const scheduleBreakdown = Object.entries(schedMap)
+			.map(([schedule, count]) => ({ schedule, count }))
+			.sort((a, b) => b.count - a.count);
+
+		// ── Top non-compliant hosts (30d, lowest avg score) ───────────
+		const hostScores = {};
+		for (const r of runs30d) {
+			if (!hostScores[r.host_id]) {
+				hostScores[r.host_id] = { total: 0, count: 0 };
+			}
+			hostScores[r.host_id].total += r.score || 0;
+			hostScores[r.host_id].count++;
+		}
+		const hostAvgs = Object.entries(hostScores)
+			.map(([host_id, s]) => ({
+				host_id,
+				avg_score: Math.round((s.total / s.count) * 10) / 10,
+				run_count: s.count,
+			}))
+			.sort((a, b) => a.avg_score - b.avg_score)
+			.slice(0, 10);
+
+		// Resolve host names for top non-compliant
+		const hostIds = hostAvgs.map((h) => h.host_id);
+		const hostsInfo =
+			hostIds.length > 0
+				? await prisma.hosts.findMany({
+						where: { id: { in: hostIds } },
+						select: {
+							id: true,
+							friendly_name: true,
+							hostname: true,
+						},
+					})
+				: [];
+		const hostNameMap = {};
+		for (const h of hostsInfo) {
+			hostNameMap[h.id] = h.friendly_name || h.hostname || h.id;
+		}
+		const topNonCompliant = hostAvgs.map((h) => ({
+			...h,
+			host_name: hostNameMap[h.host_id] || h.host_id,
+		}));
+
+		// ── Score distribution (latest score per host) ────────────────
+		const latestByHost = {};
+		for (const r of runs30d) {
+			if (
+				!latestByHost[r.host_id] ||
+				r.evaluated_at > latestByHost[r.host_id].evaluated_at
+			) {
+				latestByHost[r.host_id] = r;
+			}
+		}
+		const scoreDist = { "90-100": 0, "70-89": 0, "50-69": 0, "0-49": 0 };
+		for (const r of Object.values(latestByHost)) {
+			const s = r.score || 0;
+			if (s >= 90) scoreDist["90-100"]++;
+			else if (s >= 70) scoreDist["70-89"]++;
+			else if (s >= 50) scoreDist["50-69"]++;
+			else scoreDist["0-49"]++;
+		}
 
 		return res.json({
 			success: true,
@@ -1388,10 +1546,19 @@ router.get("/dashboard", authenticateToken, async (_req, res) => {
 				rules: ruleCount,
 				enabled_hosts: enabledHosts,
 				recent_runs: recentRuns,
-				avg_score_24h: recent._avg.score
-					? Math.round(recent._avg.score * 10) / 10
+				avg_score_24h: recent24h._avg.score
+					? Math.round(recent24h._avg.score * 10) / 10
 					: null,
-				runs_24h: recent._count,
+				runs_24h: recent24h._count,
+				score_trend: scoreTrend,
+				compliance: compliance,
+				mode_distribution: modeDistribution,
+				run_mode_distribution: runModeDistribution,
+				category_breakdown: categoryBreakdown,
+				schedule_breakdown: scheduleBreakdown,
+				top_non_compliant: topNonCompliant,
+				score_distribution: scoreDist,
+				total_runs_30d: runs30d.length,
 			},
 		});
 	} catch (error) {
@@ -1399,6 +1566,31 @@ router.get("/dashboard", authenticateToken, async (_req, res) => {
 		return res.status(500).json({ error: "Failed to load dashboard" });
 	}
 });
+
+/** Build daily score + run-count trend for the last N days. */
+function buildDailyScoreTrend(runs, days) {
+	const now = new Date();
+	const buckets = {};
+	for (let i = days - 1; i >= 0; i--) {
+		const d = new Date(now);
+		d.setDate(d.getDate() - i);
+		const key = d.toISOString().slice(0, 10);
+		buckets[key] = { date: key, runs: 0, total_score: 0, avg_score: 0 };
+	}
+	for (const r of runs) {
+		const key = new Date(r.evaluated_at).toISOString().slice(0, 10);
+		if (buckets[key]) {
+			buckets[key].runs++;
+			buckets[key].total_score += r.score || 0;
+		}
+	}
+	return Object.values(buckets).map((b) => ({
+		date: b.date,
+		runs: b.runs,
+		avg_score:
+			b.runs > 0 ? Math.round((b.total_score / b.runs) * 10) / 10 : null,
+	}));
+}
 
 // ============================================================================
 // DIAGNOSTICS (trace the full pipeline to find issues)
