@@ -356,7 +356,9 @@ app.use(
 	swaggerUi.serve,
 	(req, res, next) => {
 		swaggerDocument.host = req.get("host");
-		swaggerDocument.schemes = [req.protocol];
+		// Detect real protocol: trust X-Forwarded-Proto when behind a reverse proxy
+		const proto = req.get("x-forwarded-proto") || req.protocol;
+		swaggerDocument.schemes = proto === "https" ? ["https", "http"] : ["http", "https"];
 		const handler = swaggerUi.setup(swaggerDocument);
 		handler(req, res, next);
 	},
