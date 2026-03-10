@@ -1226,7 +1226,7 @@ router.get("/hosts/:hostId/results", authenticateToken, async (req, res) => {
 						orderBy: { package_name: "asc" },
 					},
 				},
-				orderBy: { created_at: "desc" },
+				orderBy: { job: { created_at: "desc" } },
 				take: parseInt(limit, 10),
 				skip: parseInt(offset, 10),
 			}),
