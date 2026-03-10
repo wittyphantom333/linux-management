@@ -7,6 +7,152 @@
   },
   "host": "localhost:3000",
   "basePath": "/api/v1",
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "Login, signup, sessions, admin user management"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Dashboard stats, host overviews, package trends"
+    },
+    {
+      "name": "Hosts",
+      "description": "Host registration, management, and integrations"
+    },
+    {
+      "name": "Host Groups",
+      "description": "Host group CRUD and membership management"
+    },
+    {
+      "name": "Packages",
+      "description": "Package listing and host-package relationships"
+    },
+    {
+      "name": "Repositories",
+      "description": "Repository management and stats"
+    },
+    {
+      "name": "Config Management - Techniques",
+      "description": "Configuration technique CRUD"
+    },
+    {
+      "name": "Config Management - Directives",
+      "description": "Directive CRUD (parameterised technique instances)"
+    },
+    {
+      "name": "Config Management - Rules",
+      "description": "Rule CRUD (link directives to host groups)"
+    },
+    {
+      "name": "Config Management - Policy",
+      "description": "Computed per-host policy generation"
+    },
+    {
+      "name": "Config Management - Compliance",
+      "description": "Compliance run history and details"
+    },
+    {
+      "name": "Config Management - Dashboard",
+      "description": "Config management overview and diagnostics"
+    },
+    {
+      "name": "Config Management - Agent",
+      "description": "Agent-facing config management endpoints"
+    },
+    {
+      "name": "Patch Management - Policies",
+      "description": "Patch policy CRUD"
+    },
+    {
+      "name": "Patch Management - Windows",
+      "description": "Maintenance window CRUD"
+    },
+    {
+      "name": "Patch Management - Jobs",
+      "description": "Patch job management and execution"
+    },
+    {
+      "name": "Patch Management - Dashboard",
+      "description": "Patch management stats and history"
+    },
+    {
+      "name": "Patch Management - Agent",
+      "description": "Agent-facing patch management endpoints"
+    },
+    {
+      "name": "Compliance Scanning",
+      "description": "OpenSCAP compliance scanning and remediation"
+    },
+    {
+      "name": "Docker",
+      "description": "Docker container, image, volume, and network management"
+    },
+    {
+      "name": "Alerts",
+      "description": "Alert management, actions, and configuration"
+    },
+    {
+      "name": "Agent Updates",
+      "description": "Agent version management and push updates"
+    },
+    {
+      "name": "Automation",
+      "description": "Background job queues, triggers, and monitoring"
+    },
+    {
+      "name": "AI Assistant",
+      "description": "AI-powered assistance and settings"
+    },
+    {
+      "name": "Auto Enrollment",
+      "description": "Auto-enrollment tokens and bulk enrollment"
+    },
+    {
+      "name": "Permissions",
+      "description": "Role and permission management"
+    },
+    {
+      "name": "Two-Factor Auth",
+      "description": "Two-factor authentication setup and verification"
+    },
+    {
+      "name": "User Preferences",
+      "description": "User dashboard preferences"
+    },
+    {
+      "name": "Metrics",
+      "description": "Anonymous usage metrics"
+    },
+    {
+      "name": "Version",
+      "description": "Application version and update checks"
+    },
+    {
+      "name": "Release Notes",
+      "description": "Release notes management"
+    },
+    {
+      "name": "Search",
+      "description": "Global search"
+    },
+    {
+      "name": "WebSocket",
+      "description": "WebSocket status and streaming endpoints"
+    },
+    {
+      "name": "Integrations",
+      "description": "Third-party integrations (GetHomepage, Discord, OIDC, etc.)"
+    },
+    {
+      "name": "Scoped API - Hosts",
+      "description": "Scoped API endpoints for host data (Basic Auth)"
+    },
+    {
+      "name": "System",
+      "description": "Health checks, settings, and system-level endpoints"
+    }
+  ],
   "schemes": [
     "http",
     "https"
@@ -38,7 +184,10 @@
           "200": {
             "description": "OK"
           }
-        }
+        },
+        "tags": [
+          "System"
+        ]
       }
     },
     "/auth/check-admin-users": {
@@ -58,7 +207,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/setup-admin": {
@@ -105,7 +257,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/users/for-assignment": {
@@ -133,7 +288,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/admin/users": {
@@ -176,7 +334,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       },
       "post": {
         "description": "",
@@ -235,7 +396,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/admin/users/{userId}": {
@@ -308,7 +472,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       },
       "delete": {
         "description": "",
@@ -349,7 +516,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/admin/users/{userId}/reset-password": {
@@ -404,7 +574,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/signup-enabled": {
@@ -424,7 +597,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/signup": {
@@ -477,7 +653,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/login": {
@@ -524,7 +703,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/verify-tfa": {
@@ -571,7 +753,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/ws-token": {
@@ -599,7 +784,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/ssh-ticket": {
@@ -642,7 +830,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/profile": {
@@ -670,7 +861,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       },
       "put": {
         "description": "",
@@ -726,7 +920,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/change-password": {
@@ -772,7 +969,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/logout": {
@@ -800,7 +1000,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/logout-all": {
@@ -828,7 +1031,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/refresh-token": {
@@ -866,7 +1072,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/sessions": {
@@ -894,7 +1103,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       },
       "delete": {
         "description": "",
@@ -920,7 +1132,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/sessions/{session_id}": {
@@ -960,7 +1175,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/oidc/config": {
@@ -977,7 +1195,10 @@
           "200": {
             "description": "OK"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/oidc/login": {
@@ -997,7 +1218,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/oidc/callback": {
@@ -1039,7 +1263,10 @@
           "400": {
             "description": "Bad Request"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/oidc/logout": {
@@ -1056,7 +1283,10 @@
           "default": {
             "description": ""
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/discord/config": {
@@ -1076,7 +1306,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/discord/login": {
@@ -1096,7 +1329,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/discord/callback": {
@@ -1133,7 +1369,10 @@
           "default": {
             "description": ""
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/discord/link": {
@@ -1164,7 +1403,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/discord/unlink": {
@@ -1198,7 +1440,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/auth/discord/settings": {
@@ -1226,7 +1471,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       },
       "put": {
         "description": "",
@@ -1279,7 +1527,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/hosts/agent/download": {
@@ -1328,7 +1579,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/agent/version": {
@@ -1382,7 +1636,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/create": {
@@ -1437,7 +1694,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/register": {
@@ -1454,7 +1714,10 @@
           "400": {
             "description": "Bad Request"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/update": {
@@ -1577,7 +1840,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/info": {
@@ -1610,7 +1876,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/integrations": {
@@ -1646,7 +1915,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/integration-status": {
@@ -1712,7 +1984,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/ping": {
@@ -1760,7 +2035,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/regenerate-credentials": {
@@ -1797,7 +2075,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/bulk/groups": {
@@ -1843,7 +2124,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/groups": {
@@ -1895,7 +2179,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/group": {
@@ -1947,7 +2234,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/admin/list": {
@@ -1990,7 +2280,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/bulk": {
@@ -2036,7 +2329,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}": {
@@ -2076,7 +2372,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/bulk/fetch-report": {
@@ -2122,7 +2421,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/fetch-report": {
@@ -2159,7 +2461,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/auto-update": {
@@ -2208,7 +2513,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/host-down-alerts": {
@@ -2257,7 +2565,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/force-agent-update": {
@@ -2294,7 +2605,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/refresh-integration-status": {
@@ -2331,7 +2645,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/refresh-docker": {
@@ -2368,7 +2685,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/install": {
@@ -2422,7 +2742,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/bootstrap/exchange": {
@@ -2460,7 +2783,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/remove": {
@@ -2486,7 +2812,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/agent/info": {
@@ -2514,7 +2843,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/agent/timestamp": {
@@ -2547,7 +2879,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/settings": {
@@ -2580,7 +2915,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/friendly-name": {
@@ -2632,7 +2970,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/connection": {
@@ -2687,7 +3028,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/notes": {
@@ -2739,7 +3083,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/integrations": {
@@ -2776,7 +3123,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/integrations/{integrationName}/status": {
@@ -2819,7 +3169,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/integrations/compliance/request-status": {
@@ -2856,7 +3209,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/integrations/{integrationName}/toggle": {
@@ -2917,7 +3273,10 @@
           "503": {
             "description": "Service Unavailable"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/integrations/compliance/mode": {
@@ -2972,7 +3331,10 @@
           "503": {
             "description": "Service Unavailable"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/integrations/compliance/scanners": {
@@ -3027,7 +3389,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/hosts/{hostId}/compliance/on-demand-only": {
@@ -3082,7 +3447,10 @@
           "503": {
             "description": "Service Unavailable"
           }
-        }
+        },
+        "tags": [
+          "Hosts"
+        ]
       }
     },
     "/host-groups/": {
@@ -3110,7 +3478,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Host Groups"
+        ]
       },
       "post": {
         "description": "",
@@ -3157,7 +3528,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Host Groups"
+        ]
       }
     },
     "/host-groups/{id}": {
@@ -3194,7 +3568,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Host Groups"
+        ]
       },
       "put": {
         "description": "",
@@ -3250,7 +3627,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Host Groups"
+        ]
       },
       "delete": {
         "description": "",
@@ -3285,7 +3665,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Host Groups"
+        ]
       }
     },
     "/host-groups/{id}/hosts": {
@@ -3319,7 +3702,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Host Groups"
+        ]
       }
     },
     "/packages/": {
@@ -3374,7 +3760,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Packages"
+        ]
       }
     },
     "/packages/{packageId}": {
@@ -3403,7 +3792,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Packages"
+        ]
       }
     },
     "/packages/{packageId}/hosts": {
@@ -3454,7 +3846,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Packages"
+        ]
       }
     },
     "/dashboard/stats": {
@@ -3482,7 +3877,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/dashboard/hosts": {
@@ -3510,7 +3908,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/dashboard/packages": {
@@ -3538,7 +3939,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/dashboard/hosts/{hostId}": {
@@ -3590,7 +3994,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/dashboard/hosts/{hostId}/queue": {
@@ -3632,7 +4039,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/dashboard/recent-users": {
@@ -3660,7 +4070,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/dashboard/recent-collection": {
@@ -3688,7 +4101,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/dashboard/package-trends": {
@@ -3726,7 +4142,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/dashboard/package-spike-analysis": {
@@ -3795,7 +4214,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Dashboard"
+        ]
       }
     },
     "/permissions/roles": {
@@ -3823,7 +4245,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Permissions"
+        ]
       }
     },
     "/permissions/roles/{role}": {
@@ -3860,7 +4285,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Permissions"
+        ]
       },
       "put": {
         "description": "",
@@ -3937,7 +4365,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Permissions"
+        ]
       },
       "delete": {
         "description": "",
@@ -3972,7 +4403,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Permissions"
+        ]
       }
     },
     "/permissions/user-permissions": {
@@ -4000,7 +4434,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Permissions"
+        ]
       }
     },
     "/repositories/": {
@@ -4028,7 +4465,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Repositories"
+        ]
       }
     },
     "/repositories/host/{hostId}": {
@@ -4062,7 +4502,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Repositories"
+        ]
       }
     },
     "/repositories/{repositoryId}": {
@@ -4099,7 +4542,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Repositories"
+        ]
       },
       "put": {
         "description": "",
@@ -4155,7 +4601,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Repositories"
+        ]
       },
       "delete": {
         "description": "",
@@ -4193,7 +4642,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Repositories"
+        ]
       }
     },
     "/repositories/host/{hostId}/repository/{repositoryId}": {
@@ -4248,7 +4700,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Repositories"
+        ]
       }
     },
     "/repositories/stats/summary": {
@@ -4276,7 +4731,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Repositories"
+        ]
       }
     },
     "/repositories/cleanup/orphaned": {
@@ -4304,7 +4762,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Repositories"
+        ]
       }
     },
     "/version/latest": {
@@ -4324,7 +4785,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Version"
+        ]
       }
     },
     "/version/current": {
@@ -4352,7 +4816,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Version"
+        ]
       }
     },
     "/version/test-ssh-key": {
@@ -4380,7 +4847,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Version"
+        ]
       }
     },
     "/version/check-updates": {
@@ -4411,7 +4881,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Version"
+        ]
       }
     },
     "/tfa/setup": {
@@ -4442,7 +4915,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Two-Factor Auth"
+        ]
       }
     },
     "/tfa/verify-setup": {
@@ -4485,7 +4961,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Two-Factor Auth"
+        ]
       }
     },
     "/tfa/disable": {
@@ -4528,7 +5007,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Two-Factor Auth"
+        ]
       }
     },
     "/tfa/status": {
@@ -4556,7 +5038,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Two-Factor Auth"
+        ]
       }
     },
     "/tfa/regenerate-backup-codes": {
@@ -4587,7 +5072,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Two-Factor Auth"
+        ]
       }
     },
     "/tfa/verify": {
@@ -4625,7 +5113,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Two-Factor Auth"
+        ]
       }
     },
     "/search/": {
@@ -4658,7 +5149,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Search"
+        ]
       }
     },
     "/auto-enrollment/tokens": {
@@ -4701,7 +5195,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Auto Enrollment"
+        ]
       },
       "get": {
         "description": "",
@@ -4727,7 +5224,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Auto Enrollment"
+        ]
       }
     },
     "/auto-enrollment/tokens/{tokenId}": {
@@ -4764,7 +5264,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Auto Enrollment"
+        ]
       },
       "patch": {
         "description": "",
@@ -4832,7 +5335,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Auto Enrollment"
+        ]
       },
       "delete": {
         "description": "",
@@ -4867,7 +5373,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Auto Enrollment"
+        ]
       }
     },
     "/auto-enrollment/script": {
@@ -4919,7 +5428,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Auto Enrollment"
+        ]
       }
     },
     "/auto-enrollment/enroll": {
@@ -4976,7 +5488,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Auto Enrollment"
+        ]
       }
     },
     "/auto-enrollment/enroll/bulk": {
@@ -5030,7 +5545,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Auto Enrollment"
+        ]
       }
     },
     "/gethomepage/stats": {
@@ -5061,7 +5579,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Integrations"
+        ]
       }
     },
     "/gethomepage/health": {
@@ -5092,7 +5613,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Integrations"
+        ]
       }
     },
     "/automation/bullboard-ticket": {
@@ -5123,7 +5647,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/stats": {
@@ -5151,7 +5678,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/stats/{queueName}": {
@@ -5188,7 +5718,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/jobs/{queueName}": {
@@ -5230,7 +5763,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/version-update": {
@@ -5258,7 +5794,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/session-cleanup": {
@@ -5286,7 +5825,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/agent-collection": {
@@ -5314,7 +5856,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/orphaned-repo-cleanup": {
@@ -5342,7 +5887,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/orphaned-package-cleanup": {
@@ -5370,7 +5918,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/docker-inventory-cleanup": {
@@ -5398,7 +5949,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/system-statistics": {
@@ -5426,7 +5980,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/alert-cleanup": {
@@ -5454,7 +6011,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/trigger/host-status-monitor": {
@@ -5482,7 +6042,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/health": {
@@ -5510,7 +6073,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/automation/overview": {
@@ -5538,7 +6104,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Automation"
+        ]
       }
     },
     "/docker/dashboard": {
@@ -5566,7 +6135,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/containers": {
@@ -5624,7 +6196,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/containers/{id}": {
@@ -5661,7 +6236,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       },
       "delete": {
         "description": "",
@@ -5696,7 +6274,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/images": {
@@ -5744,7 +6325,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/images/{id}": {
@@ -5781,7 +6365,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       },
       "delete": {
         "description": "",
@@ -5819,7 +6406,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/hosts": {
@@ -5857,7 +6447,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/hosts/{id}": {
@@ -5894,7 +6487,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/updates": {
@@ -5937,7 +6533,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/collect": {
@@ -5984,7 +6583,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/volumes": {
@@ -6032,7 +6634,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/volumes/{id}": {
@@ -6069,7 +6674,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       },
       "delete": {
         "description": "",
@@ -6104,7 +6712,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/networks": {
@@ -6152,7 +6763,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/networks/{id}": {
@@ -6189,7 +6803,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       },
       "delete": {
         "description": "",
@@ -6224,7 +6841,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/docker/agent": {
@@ -6250,7 +6870,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Docker"
+        ]
       }
     },
     "/integrations/docker": {
@@ -6319,7 +6942,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Integrations"
+        ]
       }
     },
     "/ws/status": {
@@ -6352,7 +6978,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "WebSocket"
+        ]
       }
     },
     "/ws/status/{apiId}": {
@@ -6386,7 +7015,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "WebSocket"
+        ]
       }
     },
     "/ws/status/{apiId}/stream": {
@@ -6425,7 +7057,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "WebSocket"
+        ]
       }
     },
     "/ws/compliance-progress/{apiId}/stream": {
@@ -6464,7 +7099,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "WebSocket"
+        ]
       }
     },
     "/agent/test-github": {
@@ -6495,7 +7133,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/version": {
@@ -6523,7 +7164,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/version/refresh": {
@@ -6554,7 +7198,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/version/download-stream": {
@@ -6590,7 +7237,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/version/download": {
@@ -6633,7 +7283,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/version/check": {
@@ -6664,7 +7317,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/versions": {
@@ -6692,7 +7348,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/releases": {
@@ -6720,7 +7379,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/binary/{version}/{architecture}": {
@@ -6763,7 +7425,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/download/{version}/{architecture}": {
@@ -6803,7 +7468,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/latest/{architecture}": {
@@ -6835,7 +7503,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/notify-update/{apiId}": {
@@ -6890,7 +7561,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/notify-update-all": {
@@ -6939,7 +7613,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/check-update/{apiId}": {
@@ -6994,7 +7671,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/push-updates-all": {
@@ -7037,7 +7717,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/agent/report-version": {
@@ -7083,7 +7766,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Agent Updates"
+        ]
       }
     },
     "/metrics/": {
@@ -7111,7 +7797,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Metrics"
+        ]
       },
       "put": {
         "description": "",
@@ -7152,7 +7841,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Metrics"
+        ]
       }
     },
     "/metrics/regenerate-id": {
@@ -7180,7 +7872,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Metrics"
+        ]
       }
     },
     "/metrics/send-now": {
@@ -7211,7 +7906,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Metrics"
+        ]
       }
     },
     "/user/preferences/": {
@@ -7242,7 +7940,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "User Preferences"
+        ]
       },
       "patch": {
         "description": "",
@@ -7289,7 +7990,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "User Preferences"
+        ]
       }
     },
     "/api/hosts": {
@@ -7330,7 +8034,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/stats": {
@@ -7370,7 +8077,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/info": {
@@ -7410,7 +8120,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/network": {
@@ -7450,7 +8163,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/system": {
@@ -7490,7 +8206,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/package_reports": {
@@ -7535,7 +8254,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/agent_queue": {
@@ -7580,7 +8302,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/notes": {
@@ -7620,7 +8345,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/integrations": {
@@ -7660,7 +8388,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}/packages": {
@@ -7705,7 +8436,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/api/hosts/{id}": {
@@ -7748,7 +8482,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Scoped API - Hosts"
+        ]
       }
     },
     "/release-notes/{version}": {
@@ -7782,7 +8519,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Release Notes"
+        ]
       }
     },
     "/release-notes/current": {
@@ -7810,7 +8550,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Release Notes"
+        ]
       }
     },
     "/release-notes/": {
@@ -7838,7 +8581,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Release Notes"
+        ]
       }
     },
     "/buy-me-a-coffee/supporter-count": {
@@ -7866,7 +8612,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Integrations"
+        ]
       }
     },
     "/compliance/scans": {
@@ -7956,7 +8705,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/profiles": {
@@ -7984,7 +8736,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/dashboard": {
@@ -8012,7 +8767,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/scans/active": {
@@ -8040,7 +8798,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/scans/history": {
@@ -8093,7 +8854,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/scans/stalled": {
@@ -8121,7 +8885,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/scans/cleanup": {
@@ -8149,7 +8916,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/scans/{hostId}": {
@@ -8196,7 +8966,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/scans/{hostId}/latest": {
@@ -8241,7 +9014,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/scans/{hostId}/latest-by-type": {
@@ -8278,7 +9054,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/results/{scanId}": {
@@ -8335,7 +9114,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/trigger/bulk": {
@@ -8390,7 +9172,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/trigger/{hostId}": {
@@ -8460,7 +9245,10 @@
           "503": {
             "description": "Service Unavailable"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/cancel/{hostId}": {
@@ -8500,7 +9288,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/install-job/{hostId}": {
@@ -8540,7 +9331,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/install-scanner/{hostId}/cancel": {
@@ -8580,7 +9374,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/install-scanner/{hostId}": {
@@ -8620,7 +9417,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/upgrade-ssg/{hostId}": {
@@ -8660,7 +9460,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/remediate/{hostId}": {
@@ -8712,7 +9515,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/trends/{hostId}": {
@@ -8754,7 +9560,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/rules": {
@@ -8830,7 +9639,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/compliance/rules/{ruleId}": {
@@ -8870,7 +9682,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Compliance Scanning"
+        ]
       }
     },
     "/configmanagement/techniques": {
@@ -11458,7 +12273,11 @@
     },
     "/patch-management/agent/status": {
       "post": {
-        "description": "",
+        "tags": [
+          "Patch Management - Agent"
+        ],
+        "summary": "Agent: update job host status (POST)",
+        "description": "Agent updates its job-host status. Body: job_host_id, status. If first host starts, marks parent job as running. Authenticated via X-API-ID/X-API-KEY headers.",
         "parameters": [
           {
             "name": "x-request-id",
@@ -11466,38 +12285,50 @@
             "type": "string"
           },
           {
+            "name": "X-API-ID",
+            "in": "header",
+            "type": "string",
+            "description": "Host API ID",
+            "required": true
+          },
+          {
+            "name": "X-API-KEY",
+            "in": "header",
+            "type": "string",
+            "description": "Host API Key",
+            "required": true
+          },
+          {
             "name": "body",
             "in": "body",
+            "required": true,
             "schema": {
               "type": "object",
               "properties": {
                 "job_host_id": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "uuid-of-job-host"
                 },
                 "status": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "downloading"
                 }
               }
             }
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
+          "default": {
+            "description": ""
           }
         }
       },
       "put": {
-        "description": "",
+        "tags": [
+          "Patch Management - Agent"
+        ],
+        "summary": "Agent: update job host status (PUT)",
+        "description": "Agent updates its job-host status (alias for POST). Authenticated via X-API-ID/X-API-KEY headers.",
         "parameters": [
           {
             "name": "x-request-id",
@@ -11505,33 +12336,41 @@
             "type": "string"
           },
           {
+            "name": "X-API-ID",
+            "in": "header",
+            "type": "string",
+            "description": "Host API ID",
+            "required": true
+          },
+          {
+            "name": "X-API-KEY",
+            "in": "header",
+            "type": "string",
+            "description": "Host API Key",
+            "required": true
+          },
+          {
             "name": "body",
             "in": "body",
+            "required": true,
             "schema": {
               "type": "object",
               "properties": {
                 "job_host_id": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "uuid-of-job-host"
                 },
                 "status": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "downloading"
                 }
               }
             }
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
+          "default": {
+            "description": ""
           }
         }
       }
@@ -11561,7 +12400,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "AI Assistant"
+        ]
       }
     },
     "/ai/debug": {
@@ -11589,7 +12431,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "AI Assistant"
+        ]
       }
     },
     "/ai/providers": {
@@ -11617,7 +12462,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "AI Assistant"
+        ]
       }
     },
     "/ai/settings": {
@@ -11645,7 +12493,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "AI Assistant"
+        ]
       },
       "put": {
         "description": "",
@@ -11695,7 +12546,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "AI Assistant"
+        ]
       }
     },
     "/ai/test": {
@@ -11726,7 +12580,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "AI Assistant"
+        ]
       }
     },
     "/ai/assist": {
@@ -11778,7 +12635,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "AI Assistant"
+        ]
       }
     },
     "/ai/complete": {
@@ -11827,7 +12687,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "AI Assistant"
+        ]
       }
     },
     "/alerts/": {
@@ -11860,7 +12723,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/stats": {
@@ -11888,7 +12754,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/actions": {
@@ -11916,7 +12785,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/config": {
@@ -11944,7 +12816,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/config/bulk-update": {
@@ -11987,7 +12862,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/config/{alertType}": {
@@ -12024,7 +12902,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       },
       "put": {
         "description": "",
@@ -12056,7 +12937,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/cleanup/preview": {
@@ -12084,7 +12968,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/cleanup": {
@@ -12112,7 +12999,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/{id}": {
@@ -12149,7 +13039,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       },
       "delete": {
         "description": "",
@@ -12181,7 +13074,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/{id}/history": {
@@ -12215,7 +13111,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/{id}/action": {
@@ -12270,7 +13169,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/{id}/assign": {
@@ -12319,7 +13221,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/{id}/unassign": {
@@ -12353,7 +13258,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/{id}/resolve": {
@@ -12387,7 +13295,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     },
     "/alerts/bulk-delete": {
@@ -12430,8 +13341,16 @@
           "500": {
             "description": "Internal Server Error"
           }
-        }
+        },
+        "tags": [
+          "Alerts"
+        ]
       }
     }
-  }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
 }

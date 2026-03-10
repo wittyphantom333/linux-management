@@ -976,19 +976,35 @@ router.post("/agent/report", async (req, res) => {
 	}
 });
 
-// POST/PUT /api/v1/patch-management/agent/status - Agent updates its host-job status
-router.post("/agent/status", handleAgentStatus);
-/* #swagger.tags = ['Patch Management - Agent'] */
-/* #swagger.summary = 'Agent: update job host status (POST)' */
-/* #swagger.description = 'Agent updates its job-host status. If first host starts, marks parent job as running. Authenticated via X-API-ID/X-API-KEY headers.' */
-/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
-/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
-router.put("/agent/status", handleAgentStatus);
-/* #swagger.tags = ['Patch Management - Agent'] */
-/* #swagger.summary = 'Agent: update job host status (PUT)' */
-/* #swagger.description = 'Agent updates its job-host status (alias). Authenticated via X-API-ID/X-API-KEY headers.' */
-/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
-/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
+// POST /api/v1/patch-management/agent/status - Agent updates its host-job status
+router.post("/agent/status", async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Agent'] */
+	/* #swagger.summary = 'Agent: update job host status (POST)' */
+	/* #swagger.description = 'Agent updates its job-host status. Body: job_host_id, status. If first host starts, marks parent job as running. Authenticated via X-API-ID/X-API-KEY headers.' */
+	/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
+	/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: { job_host_id: 'uuid-of-job-host', status: 'downloading' }
+	} */
+	return handleAgentStatus(req, res);
+});
+
+// PUT /api/v1/patch-management/agent/status - Agent updates its host-job status (alias)
+router.put("/agent/status", async (req, res) => {
+	/* #swagger.tags = ['Patch Management - Agent'] */
+	/* #swagger.summary = 'Agent: update job host status (PUT)' */
+	/* #swagger.description = 'Agent updates its job-host status (alias for POST). Authenticated via X-API-ID/X-API-KEY headers.' */
+	/* #swagger.parameters['X-API-ID'] = { in: 'header', type: 'string', description: 'Host API ID', required: true } */
+	/* #swagger.parameters['X-API-KEY'] = { in: 'header', type: 'string', description: 'Host API Key', required: true } */
+	/* #swagger.parameters['body'] = {
+		in: 'body',
+		required: true,
+		schema: { job_host_id: 'uuid-of-job-host', status: 'downloading' }
+	} */
+	return handleAgentStatus(req, res);
+});
 
 async function handleAgentStatus(req, res) {
 	try {
