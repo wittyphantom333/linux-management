@@ -81,6 +81,7 @@ const SettingsServerConfig = lazy(
 );
 const SettingsUsers = lazy(() => import("./pages/settings/SettingsUsers"));
 const SettingsMetrics = lazy(() => import("./pages/settings/SettingsMetrics"));
+const SettingsDebug = lazy(() => import("./pages/settings/SettingsDebug"));
 const AiSettings = lazy(() => import("./pages/settings/AiSettings"));
 const DiscordSettings = lazy(() => import("./pages/settings/DiscordSettings"));
 
@@ -624,6 +625,16 @@ function AppRoutes() {
 						<ProtectedRoute requirePermission="can_manage_settings">
 							<Layout>
 								<DiscordSettings />
+							</Layout>
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path="/settings/debug"
+					element={
+						<ProtectedRoute requirePermission="can_manage_settings">
+							<Layout>
+								<SettingsDebug />
 							</Layout>
 						</ProtectedRoute>
 					}

@@ -2,6 +2,7 @@ import {
 	BarChart3,
 	Bell,
 	Bot,
+	Bug,
 	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
@@ -164,6 +165,17 @@ const SettingsLayout = ({ children }) => {
 						name: "Metrics",
 						href: "/settings/metrics",
 						icon: BarChart3,
+					},
+				],
+			});
+
+			nav.push({
+				section: "Advanced",
+				items: [
+					{
+						name: "Debug",
+						href: "/settings/debug",
+						icon: Bug,
 					},
 				],
 			});
