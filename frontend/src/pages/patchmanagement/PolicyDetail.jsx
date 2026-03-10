@@ -1,23 +1,21 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	ArrowLeft,
-	Save,
-	Shield,
-	Plus,
-	X,
-	Server,
-	Package,
 	AlertTriangle,
-	Play,
-	Loader2,
-	Trash2,
+	ArrowLeft,
 	Filter,
+	Loader2,
+	Play,
+	Plus,
+	Save,
+	Server,
+	Shield,
+	X,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "../../contexts/ToastContext";
-import { patchManagementAPI } from "../../utils/patchManagementApi";
 import { hostGroupsAPI } from "../../utils/api";
+import { patchManagementAPI } from "../../utils/patchManagementApi";
 
 export default function PolicyDetail() {
 	const { id } = useParams();
@@ -46,7 +44,8 @@ export default function PolicyDetail() {
 	// Available groups
 	const { data: groups } = useQuery({
 		queryKey: ["host-groups"],
-		queryFn: () => hostGroupsAPI.list().then((r) => r.data?.data || r.data || []),
+		queryFn: () =>
+			hostGroupsAPI.list().then((r) => r.data?.data || r.data || []),
 	});
 
 	// Load existing policy
@@ -74,7 +73,9 @@ export default function PolicyDetail() {
 			setBlackoutStart(policy.blackout_start || "");
 			setBlackoutEnd(policy.blackout_end || "");
 			setEnabled(policy.enabled ?? true);
-			setSelectedGroups((policy.patch_policy_groups || []).map((pg) => pg.host_group_id));
+			setSelectedGroups(
+				(policy.patch_policy_groups || []).map((pg) => pg.host_group_id),
+			);
 			setFilters(
 				(policy.patch_policy_filters || []).map((f) => ({
 					filter_type: f.filter_type,
@@ -94,10 +95,13 @@ export default function PolicyDetail() {
 			queryClient.invalidateQueries(["patchmgmt"]);
 			toast.success(isNew ? "Policy created" : "Policy updated");
 			if (isNew && res.data?.policy?.id) {
-				navigate(`/patch-management/policies/${res.data.policy.id}`, { replace: true });
+				navigate(`/patch-management/policies/${res.data.policy.id}`, {
+					replace: true,
+				});
 			}
 		},
-		onError: (err) => toast.error(`Save failed: ${err.response?.data?.error || err.message}`),
+		onError: (err) =>
+			toast.error(`Save failed: ${err.response?.data?.error || err.message}`),
 	});
 
 	const triggerJob = useMutation({
@@ -107,7 +111,8 @@ export default function PolicyDetail() {
 			toast.success(`Job created for ${res.data.hosts_count} hosts`);
 			navigate(`/patch-management/jobs/${res.data.job.id}`);
 		},
-		onError: (err) => toast.error(err.response?.data?.error || "Failed to trigger job"),
+		onError: (err) =>
+			toast.error(err.response?.data?.error || "Failed to trigger job"),
 	});
 
 	function handleSave() {
@@ -139,7 +144,10 @@ export default function PolicyDetail() {
 	}
 
 	function addFilter() {
-		setFilters([...filters, { filter_type: "exclude", match_type: "glob", pattern: "" }]);
+		setFilters([
+			...filters,
+			{ filter_type: "exclude", match_type: "glob", pattern: "" },
+		]);
 	}
 
 	function removeFilter(index) {
@@ -176,7 +184,9 @@ export default function PolicyDetail() {
 							{isNew ? "New Patch Policy" : `Edit: ${policy?.name || ""}`}
 						</h1>
 						<p className="text-sm text-secondary-500 dark:text-secondary-400">
-							{isNew ? "Define what to patch, where, and how" : "Modify policy settings"}
+							{isNew
+								? "Define what to patch, where, and how"
+								: "Modify policy settings"}
 						</p>
 					</div>
 				</div>
@@ -184,7 +194,9 @@ export default function PolicyDetail() {
 					{!isNew && (
 						<button
 							onClick={() => {
-								if (window.confirm(`Trigger a patch job for "${policy?.name}"?`)) {
+								if (
+									window.confirm(`Trigger a patch job for "${policy?.name}"?`)
+								) {
 									triggerJob.mutate();
 								}
 							}}
@@ -199,7 +211,11 @@ export default function PolicyDetail() {
 						disabled={saveMutation.isPending}
 						className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
 					>
-						{saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+						{saveMutation.isPending ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<Save className="h-4 w-4" />
+						)}
 						{isNew ? "Create" : "Save"}
 					</button>
 				</div>
@@ -245,7 +261,9 @@ export default function PolicyDetail() {
 									onChange={(e) => setEnabled(e.target.checked)}
 									className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
 								/>
-								<span className="text-sm text-secondary-700 dark:text-secondary-300">Enabled</span>
+								<span className="text-sm text-secondary-700 dark:text-secondary-300">
+									Enabled
+								</span>
 							</label>
 						</div>
 					</div>
@@ -267,7 +285,9 @@ export default function PolicyDetail() {
 								>
 									<option value="all">All Available Updates</option>
 									<option value="security_only">Security Updates Only</option>
-									<option value="selected">Selected Packages (use filters)</option>
+									<option value="selected">
+										Selected Packages (use filters)
+									</option>
 								</select>
 							</div>
 							<div>
@@ -293,7 +313,9 @@ export default function PolicyDetail() {
 									min={1}
 									max={100}
 									value={maxConcurrentHosts}
-									onChange={(e) => setMaxConcurrentHosts(parseInt(e.target.value, 10) || 5)}
+									onChange={(e) =>
+										setMaxConcurrentHosts(parseInt(e.target.value, 10) || 5)
+									}
 									className="w-full px-3 py-2 text-sm border border-secondary-300 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-900 text-secondary-900 dark:text-white"
 								/>
 							</div>
@@ -306,7 +328,9 @@ export default function PolicyDetail() {
 									min={0}
 									max={100}
 									value={stopOnFailurePercent}
-									onChange={(e) => setStopOnFailurePercent(parseInt(e.target.value, 10) || 0)}
+									onChange={(e) =>
+										setStopOnFailurePercent(parseInt(e.target.value, 10) || 0)
+									}
 									className="w-full px-3 py-2 text-sm border border-secondary-300 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-900 text-secondary-900 dark:text-white"
 								/>
 								<p className="text-xs text-secondary-500 mt-1">
@@ -322,7 +346,9 @@ export default function PolicyDetail() {
 									onChange={(e) => setPreSnapshot(e.target.checked)}
 									className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
 								/>
-								<span className="text-sm text-secondary-700 dark:text-secondary-300">Pre-patch snapshot</span>
+								<span className="text-sm text-secondary-700 dark:text-secondary-300">
+									Pre-patch snapshot
+								</span>
 							</label>
 							<label className="flex items-center gap-2 cursor-pointer">
 								<input
@@ -331,7 +357,9 @@ export default function PolicyDetail() {
 									onChange={(e) => setPostSnapshot(e.target.checked)}
 									className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
 								/>
-								<span className="text-sm text-secondary-700 dark:text-secondary-300">Post-patch snapshot</span>
+								<span className="text-sm text-secondary-700 dark:text-secondary-300">
+									Post-patch snapshot
+								</span>
 							</label>
 						</div>
 					</div>
@@ -352,7 +380,8 @@ export default function PolicyDetail() {
 
 						{filters.length === 0 ? (
 							<p className="text-sm text-secondary-500 dark:text-secondary-400">
-								No filters — all matching packages will be included based on policy type.
+								No filters — all matching packages will be included based on
+								policy type.
 							</p>
 						) : (
 							<div className="space-y-2">
@@ -360,7 +389,9 @@ export default function PolicyDetail() {
 									<div key={i} className="flex items-center gap-2">
 										<select
 											value={f.filter_type}
-											onChange={(e) => updateFilter(i, "filter_type", e.target.value)}
+											onChange={(e) =>
+												updateFilter(i, "filter_type", e.target.value)
+											}
 											className="px-2 py-1.5 text-xs border border-secondary-300 dark:border-secondary-600 rounded-md bg-white dark:bg-secondary-900 text-secondary-900 dark:text-white"
 										>
 											<option value="exclude">Exclude</option>
@@ -368,7 +399,9 @@ export default function PolicyDetail() {
 										</select>
 										<select
 											value={f.match_type}
-											onChange={(e) => updateFilter(i, "match_type", e.target.value)}
+											onChange={(e) =>
+												updateFilter(i, "match_type", e.target.value)
+											}
 											className="px-2 py-1.5 text-xs border border-secondary-300 dark:border-secondary-600 rounded-md bg-white dark:bg-secondary-900 text-secondary-900 dark:text-white"
 										>
 											<option value="glob">Glob</option>
@@ -378,7 +411,9 @@ export default function PolicyDetail() {
 										<input
 											type="text"
 											value={f.pattern}
-											onChange={(e) => updateFilter(i, "pattern", e.target.value)}
+											onChange={(e) =>
+												updateFilter(i, "pattern", e.target.value)
+											}
 											placeholder="e.g. linux-image-* or ^nginx$"
 											className="flex-1 px-2 py-1.5 text-xs border border-secondary-300 dark:border-secondary-600 rounded-md bg-white dark:bg-secondary-900 text-secondary-900 dark:text-white"
 										/>
@@ -405,7 +440,10 @@ export default function PolicyDetail() {
 						{groups && groups.length > 0 ? (
 							<div className="space-y-2 max-h-60 overflow-y-auto">
 								{groups.map((g) => (
-									<label key={g.id} className="flex items-center gap-2 cursor-pointer">
+									<label
+										key={g.id}
+										className="flex items-center gap-2 cursor-pointer"
+									>
 										<input
 											type="checkbox"
 											checked={selectedGroups.includes(g.id)}
@@ -413,7 +451,9 @@ export default function PolicyDetail() {
 												if (e.target.checked) {
 													setSelectedGroups([...selectedGroups, g.id]);
 												} else {
-													setSelectedGroups(selectedGroups.filter((x) => x !== g.id));
+													setSelectedGroups(
+														selectedGroups.filter((x) => x !== g.id),
+													);
 												}
 											}}
 											className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
@@ -433,7 +473,10 @@ export default function PolicyDetail() {
 						) : (
 							<p className="text-sm text-secondary-500 dark:text-secondary-400">
 								No host groups available.{" "}
-								<Link to="/settings/host-groups" className="text-primary-600 hover:underline">
+								<Link
+									to="/settings/host-groups"
+									className="text-primary-600 hover:underline"
+								>
 									Create one
 								</Link>
 							</p>
@@ -444,11 +487,15 @@ export default function PolicyDetail() {
 					{!isNew && hostSummaries.length > 0 && (
 						<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-5 space-y-3">
 							<h3 className="text-sm font-semibold text-secondary-900 dark:text-white flex items-center gap-2">
-								<Server className="h-4 w-4" /> Targeted Hosts ({hostSummaries.length})
+								<Server className="h-4 w-4" /> Targeted Hosts (
+								{hostSummaries.length})
 							</h3>
 							<div className="space-y-2 max-h-80 overflow-y-auto">
 								{hostSummaries.map((h) => (
-									<div key={h.id} className="flex items-center justify-between text-xs p-2 rounded-md bg-secondary-50 dark:bg-secondary-900/50">
+									<div
+										key={h.id}
+										className="flex items-center justify-between text-xs p-2 rounded-md bg-secondary-50 dark:bg-secondary-900/50"
+									>
 										<div>
 											<p className="font-medium text-secondary-900 dark:text-white">
 												{h.friendly_name || h.hostname}
@@ -504,15 +551,21 @@ export default function PolicyDetail() {
 
 function StatusBadgeInline({ status }) {
 	const map = {
-		pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+		pending:
+			"bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
 		running: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-		completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-		completed_with_errors: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+		completed:
+			"bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+		completed_with_errors:
+			"bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
 		failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-		cancelled: "bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400",
+		cancelled:
+			"bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400",
 	};
 	return (
-		<span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${map[status] || ""}`}>
+		<span
+			className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${map[status] || ""}`}
+		>
 			{status?.replace(/_/g, " ")}
 		</span>
 	);

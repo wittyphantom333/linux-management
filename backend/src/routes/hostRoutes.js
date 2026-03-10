@@ -3027,8 +3027,12 @@ router.get(
 			const integrations = {
 				docker: host.docker_enabled ?? cachedState.docker ?? false,
 				compliance: host.compliance_enabled ?? cachedState.compliance ?? false,
-				configmanagement: host.configmanagement_enabled ?? cachedState.configmanagement ?? false,
-				patchmanagement: host.patchmanagement_enabled ?? cachedState.patchmanagement ?? false,
+				configmanagement:
+					host.configmanagement_enabled ??
+					cachedState.configmanagement ??
+					false,
+				patchmanagement:
+					host.patchmanagement_enabled ?? cachedState.patchmanagement ?? false,
 			};
 
 			// Calculate compliance mode from database fields
@@ -3193,7 +3197,12 @@ router.post(
 			const { enabled } = req.body;
 
 			// Validate integration name
-			const validIntegrations = ["docker", "compliance", "configmanagement", "patchmanagement"];
+			const validIntegrations = [
+				"docker",
+				"compliance",
+				"configmanagement",
+				"patchmanagement",
+			];
 			if (!validIntegrations.includes(integrationName)) {
 				return res.status(400).json({
 					error: "Invalid integration name",

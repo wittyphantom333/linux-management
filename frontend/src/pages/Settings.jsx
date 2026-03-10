@@ -207,7 +207,8 @@ const Settings = () => {
 					updateInterval: s.update_interval ?? 60,
 					autoUpdate: s.auto_update ?? false,
 					githubRepoUrl:
-						s.github_repo_url || "https://github.com/wittyphantom333/linux-management.git",
+						s.github_repo_url ||
+						"https://github.com/wittyphantom333/linux-management.git",
 					repositoryType: s.repository_type || "public",
 					sshKeyPath: s.ssh_key_path || "",
 					useCustomSshKey: !!s.ssh_key_path,

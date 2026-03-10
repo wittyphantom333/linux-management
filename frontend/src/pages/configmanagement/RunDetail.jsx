@@ -1,26 +1,26 @@
-import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import {
+	Activity,
+	AlertTriangle,
 	ArrowLeft,
 	CheckCircle2,
-	XCircle,
-	AlertTriangle,
-	Wrench,
-	Eye,
-	MinusCircle,
-	Clock,
-	SkipForward,
 	ChevronDown,
 	ChevronRight,
+	Clock,
+	Eye,
 	FileCode,
-	Terminal,
+	FolderOpen,
+	MinusCircle,
 	Package,
 	Settings,
+	SkipForward,
+	Terminal,
 	User,
-	FolderOpen,
-	Activity,
+	Wrench,
+	XCircle,
 } from "lucide-react";
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { configManagementAPI } from "../../utils/configManagementApi";
 
 function scoreColor(score) {
@@ -87,20 +87,26 @@ export default function RunDetail() {
 	const { id } = useParams();
 	const [expandedDirectives, setExpandedDirectives] = useState(null);
 
-	const { data: run, isLoading, error } = useQuery({
+	const {
+		data: run,
+		isLoading,
+		error,
+	} = useQuery({
 		queryKey: ["configmgmt", "run", id],
 		queryFn: () => configManagementAPI.getRun(id).then((r) => r.data.run),
 	});
 
 	// Auto-expand all directives on first load
 	const directiveResults = run?.directive_results || [];
-	const effectiveExpanded = expandedDirectives ?? (() => {
-		const initial = {};
-		for (const dr of directiveResults) {
-			initial[dr.directive_id] = true;
-		}
-		return initial;
-	})();
+	const effectiveExpanded =
+		expandedDirectives ??
+		(() => {
+			const initial = {};
+			for (const dr of directiveResults) {
+				initial[dr.directive_id] = true;
+			}
+			return initial;
+		})();
 
 	if (isLoading) {
 		return (
@@ -130,7 +136,8 @@ export default function RunDetail() {
 				</Link>
 				<div>
 					<h1 className="text-xl font-semibold text-secondary-900 dark:text-white">
-						Policy Run: {run.hosts?.friendly_name || run.hosts?.hostname || "Unknown Host"}
+						Policy Run:{" "}
+						{run.hosts?.friendly_name || run.hosts?.hostname || "Unknown Host"}
 					</h1>
 					<p className="text-sm text-secondary-500 dark:text-secondary-400">
 						{new Date(run.evaluated_at).toLocaleString()} ·{" "}
@@ -141,13 +148,41 @@ export default function RunDetail() {
 
 			{/* Summary cards */}
 			<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-				<SummaryCard label="Score" value={`${Math.round(run.score)}%`} color={scoreColor(run.score)} />
-				<SummaryCard label="Total" value={run.total_directives} color="text-secondary-500" />
-				<SummaryCard label="Compliant" value={run.compliant} color="text-green-500" />
-				<SummaryCard label="Repaired" value={run.repaired} color="text-blue-500" />
-				<SummaryCard label="Non-Compliant" value={run.non_compliant} color="text-red-500" />
-				<SummaryCard label="Audited" value={run.audited || 0} color="text-indigo-500" />
-				<SummaryCard label="Errors" value={run.errors} color="text-orange-500" />
+				<SummaryCard
+					label="Score"
+					value={`${Math.round(run.score)}%`}
+					color={scoreColor(run.score)}
+				/>
+				<SummaryCard
+					label="Total"
+					value={run.total_directives}
+					color="text-secondary-500"
+				/>
+				<SummaryCard
+					label="Compliant"
+					value={run.compliant}
+					color="text-green-500"
+				/>
+				<SummaryCard
+					label="Repaired"
+					value={run.repaired}
+					color="text-blue-500"
+				/>
+				<SummaryCard
+					label="Non-Compliant"
+					value={run.non_compliant}
+					color="text-red-500"
+				/>
+				<SummaryCard
+					label="Audited"
+					value={run.audited || 0}
+					color="text-indigo-500"
+				/>
+				<SummaryCard
+					label="Errors"
+					value={run.errors}
+					color="text-orange-500"
+				/>
 			</div>
 
 			{/* Directive results */}
@@ -159,16 +194,23 @@ export default function RunDetail() {
 				{directiveResults.length === 0 ? (
 					<div className="card p-8 text-center">
 						<MinusCircle className="h-10 w-10 text-secondary-300 dark:text-secondary-600 mx-auto mb-3" />
-						<p className="text-sm text-secondary-400">No directive details available for this run.</p>
+						<p className="text-sm text-secondary-400">
+							No directive details available for this run.
+						</p>
 					</div>
 				) : (
 					<div className="space-y-4">
 						{directiveResults.map((dr, idx) => {
-								const isExpanded = effectiveExpanded[dr.directive_id || idx];
+							const isExpanded = effectiveExpanded[dr.directive_id || idx];
 							const hasMethods = dr.methods && dr.methods.length > 0;
-							const duration = dr.started_at && dr.completed_at
-								? Math.round((new Date(dr.completed_at) - new Date(dr.started_at)) / 1000 * 100) / 100
-								: null;
+							const duration =
+								dr.started_at && dr.completed_at
+									? Math.round(
+											((new Date(dr.completed_at) - new Date(dr.started_at)) /
+												1000) *
+												100,
+										) / 100
+									: null;
 
 							return (
 								<div
@@ -179,10 +221,11 @@ export default function RunDetail() {
 									<button
 										type="button"
 										onClick={() =>
-												setExpandedDirectives({
-													...effectiveExpanded,
-													[dr.directive_id || idx]: !effectiveExpanded[dr.directive_id || idx],
-												})
+											setExpandedDirectives({
+												...effectiveExpanded,
+												[dr.directive_id || idx]:
+													!effectiveExpanded[dr.directive_id || idx],
+											})
 										}
 										className="w-full flex items-center justify-between px-4 py-3 bg-secondary-50 dark:bg-secondary-800 hover:bg-secondary-100 dark:hover:bg-secondary-750 transition-colors text-left"
 									>
@@ -200,26 +243,33 @@ export default function RunDetail() {
 											<span className="text-sm font-medium text-secondary-900 dark:text-white truncate">
 												{dr.directive_name || dr.directive_id}
 											</span>
-											<span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${
-												dr.policy_mode === "enforce"
-													? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
-													: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
-											}`}>
+											<span
+												className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${
+													dr.policy_mode === "enforce"
+														? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
+														: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+												}`}
+											>
 												{dr.policy_mode === "enforce" ? "Enforce" : "Audit"}
 											</span>
 											{hasMethods && (
 												<span className="text-xs text-secondary-400 shrink-0">
-													{dr.methods.length} method{dr.methods.length !== 1 ? "s" : ""}
+													{dr.methods.length} method
+													{dr.methods.length !== 1 ? "s" : ""}
 												</span>
 											)}
 										</div>
 										<div className="flex items-center gap-3 shrink-0 ml-3">
 											{duration !== null && (
 												<span className="text-xs text-secondary-400">
-													{duration < 1 ? `${Math.round(duration * 1000)}ms` : `${duration}s`}
+													{duration < 1
+														? `${Math.round(duration * 1000)}ms`
+														: `${duration}s`}
 												</span>
 											)}
-											<span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusBadgeClass(dr.status)}`}>
+											<span
+												className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusBadgeClass(dr.status)}`}
+											>
 												{statusLabel(dr.status)}
 											</span>
 										</div>
@@ -238,7 +288,12 @@ export default function RunDetail() {
 									{isExpanded && hasMethods && (
 										<div className="border-t border-secondary-200 dark:border-secondary-700">
 											{dr.methods.map((mr, mIdx) => (
-												<MethodResultCard key={mr.method_id || mIdx} mr={mr} index={mIdx} isLast={mIdx === dr.methods.length - 1} />
+												<MethodResultCard
+													key={mr.method_id || mIdx}
+													mr={mr}
+													index={mIdx}
+													isLast={mIdx === dr.methods.length - 1}
+												/>
 											))}
 										</div>
 									)}
@@ -307,6 +362,7 @@ function methodTypeIcon(type) {
 			return <Activity className="h-3.5 w-3.5" />;
 		case "command_audit":
 		case "command_exec":
+		case "command_run":
 			return <Terminal className="h-3.5 w-3.5" />;
 		case "user_present":
 		case "user_absent":
@@ -331,6 +387,7 @@ function methodTypeLabel(type) {
 		service_restart: "Service Restart",
 		command_audit: "Command Audit",
 		command_exec: "Command Execute",
+		command_run: "Command Run",
 		user_present: "User Present",
 		user_absent: "User Absent",
 		directory_present: "Directory Present",
@@ -382,7 +439,9 @@ function MethodResultCard({ mr, index, isLast }) {
 					</div>
 					<div className="flex items-center gap-2 shrink-0">
 						{statusIcon(mr.status)}
-						<span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusBadgeClass(mr.status)}`}>
+						<span
+							className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusBadgeClass(mr.status)}`}
+						>
 							{statusLabel(mr.status)}
 						</span>
 					</div>
@@ -409,13 +468,18 @@ function MethodResultCard({ mr, index, isLast }) {
 							</div>
 						)}
 						{mr.actual && (
-							<div className={`rounded-md border px-3 py-2 ${
-								mr.status === "audit_non_compliant" || mr.status === "non_compliant"
-									? "bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800"
-									: mr.status === "audit_compliant" || mr.status === "success" || mr.status === "compliant"
-									? "bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800"
-									: "bg-secondary-50 dark:bg-secondary-900/50 border-secondary-200 dark:border-secondary-700"
-							}`}>
+							<div
+								className={`rounded-md border px-3 py-2 ${
+									mr.status === "audit_non_compliant" ||
+									mr.status === "non_compliant"
+										? "bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800"
+										: mr.status === "audit_compliant" ||
+												mr.status === "success" ||
+												mr.status === "compliant"
+											? "bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800"
+											: "bg-secondary-50 dark:bg-secondary-900/50 border-secondary-200 dark:border-secondary-700"
+								}`}
+							>
 								<p className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400 dark:text-secondary-500 mb-1">
 									Actual
 								</p>

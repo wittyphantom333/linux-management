@@ -436,7 +436,7 @@ func (pe *PolicyExecutor) methodCommandAudit(ctx context.Context, params map[str
 	return &models.ConfigMethodResult{
 		Status:   status,
 		Message:  fmt.Sprintf("Command exited with code %d", exitCode),
-		Actual:   truncate(string(output), 500),
+		Actual:   truncate(string(output), 4000),
 		Expected: fmt.Sprintf("exit code %d", compliantCode),
 	}, nil
 }
@@ -478,14 +478,46 @@ func (pe *PolicyExecutor) methodCommandExec(ctx context.Context, params map[stri
 		return &models.ConfigMethodResult{
 			Status:  "error",
 			Message: fmt.Sprintf("Command exited with code %d (expected %d)", exitCode, expectedCode),
-			Actual:  truncate(string(output), 500),
+			Actual:  truncate(string(output), 4000),
 		}, nil
 	}
 
 	return &models.ConfigMethodResult{
 		Status:  "repaired",
 		Message: fmt.Sprintf("Command executed successfully"),
-		Actual:  truncate(string(output), 200),
+		Actual:  truncate(string(output), 4000),
+	}, nil
+}
+
+// methodCommandRun always executes a command and captures its output.
+// Unlike command_exec it runs in ALL modes (including audit) and never
+// reports a compliance failure – the result is purely informational so
+// operators can inspect the output in the run details.
+// Parameters: "command" (required)
+func (pe *PolicyExecutor) methodCommandRun(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+	command := params["command"]
+	if command == "" {
+		return nil, fmt.Errorf("command_run requires 'command' parameter")
+	}
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	output, err := cmd.CombinedOutput()
+	exitCode := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			return &models.ConfigMethodResult{
+				Status:  "error",
+				Message: fmt.Sprintf("command execution failed: %v", err),
+			}, nil
+		}
+	}
+
+	return &models.ConfigMethodResult{
+		Status:  statusCompliant(mode),
+		Message: fmt.Sprintf("Command exited with code %d", exitCode),
+		Actual:  truncate(string(output), 4000),
 	}, nil
 }
 

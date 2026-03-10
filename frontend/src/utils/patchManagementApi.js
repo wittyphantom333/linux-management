@@ -5,14 +5,16 @@ export const patchManagementAPI = {
 	getStats: () => api.get("/patch-management/stats"),
 
 	// Policies
-	listPolicies: (params = {}) => api.get("/patch-management/policies", { params }),
+	listPolicies: (params = {}) =>
+		api.get("/patch-management/policies", { params }),
 	getPolicy: (id) => api.get(`/patch-management/policies/${id}`),
 	createPolicy: (data) => api.post("/patch-management/policies", data),
 	updatePolicy: (id, data) => api.put(`/patch-management/policies/${id}`, data),
 	deletePolicy: (id) => api.delete(`/patch-management/policies/${id}`),
 
 	// Windows
-	listWindows: (params = {}) => api.get("/patch-management/windows", { params }),
+	listWindows: (params = {}) =>
+		api.get("/patch-management/windows", { params }),
 	getWindow: (id) => api.get(`/patch-management/windows/${id}`),
 	createWindow: (data) => api.post("/patch-management/windows", data),
 	updateWindow: (id, data) => api.put(`/patch-management/windows/${id}`, data),

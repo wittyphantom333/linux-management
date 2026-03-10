@@ -47,9 +47,7 @@ const ConfigMgmtRuleDetail = lazy(
 const ConfigMgmtRunDetail = lazy(
 	() => import("./pages/configmanagement/RunDetail"),
 );
-const PatchManagementPage = lazy(
-	() => import("./pages/PatchManagement"),
-);
+const PatchManagementPage = lazy(() => import("./pages/PatchManagement"));
 const PatchMgmtPolicyDetail = lazy(
 	() => import("./pages/patchmanagement/PolicyDetail"),
 );

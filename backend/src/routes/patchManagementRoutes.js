@@ -187,12 +187,17 @@ router.post("/policies", authenticateToken, async (req, res) => {
 			filters = [],
 		} = req.body;
 
-		if (!name) return res.status(400).json({ error: "Policy name is required" });
+		if (!name)
+			return res.status(400).json({ error: "Policy name is required" });
 		if (!["all", "security_only", "selected"].includes(policy_type)) {
-			return res.status(400).json({ error: "Invalid policy_type. Must be: all, security_only, selected" });
+			return res.status(400).json({
+				error: "Invalid policy_type. Must be: all, security_only, selected",
+			});
 		}
 		if (!["never", "if_needed", "always"].includes(reboot_policy)) {
-			return res.status(400).json({ error: "Invalid reboot_policy. Must be: never, if_needed, always" });
+			return res.status(400).json({
+				error: "Invalid reboot_policy. Must be: never, if_needed, always",
+			});
 		}
 
 		const policyId = uuidv4();
@@ -246,11 +251,15 @@ router.post("/policies", authenticateToken, async (req, res) => {
 			return created;
 		});
 
-		logger.info(`[PatchMgmt] Policy "${name}" created by ${req.user?.username}`);
+		logger.info(
+			`[PatchMgmt] Policy "${name}" created by ${req.user?.username}`,
+		);
 		return res.status(201).json({ success: true, policy });
 	} catch (error) {
 		if (error.code === "P2002") {
-			return res.status(409).json({ error: "A policy with this name already exists" });
+			return res
+				.status(409)
+				.json({ error: "A policy with this name already exists" });
 		}
 		logger.error(`[PatchMgmt] Failed to create policy: ${error.message}`);
 		return res.status(500).json({ error: "Failed to create policy" });
@@ -306,12 +315,16 @@ router.put("/policies/:id", authenticateToken, async (req, res) => {
 					...(description !== undefined && { description }),
 					...(policy_type !== undefined && { policy_type }),
 					...(auto_approve !== undefined && { auto_approve }),
-					...(approval_timeout_hours !== undefined && { approval_timeout_hours }),
+					...(approval_timeout_hours !== undefined && {
+						approval_timeout_hours,
+					}),
 					...(reboot_policy !== undefined && { reboot_policy }),
 					...(pre_snapshot !== undefined && { pre_snapshot }),
 					...(post_snapshot !== undefined && { post_snapshot }),
 					...(max_concurrent_hosts !== undefined && { max_concurrent_hosts }),
-					...(stop_on_failure_percent !== undefined && { stop_on_failure_percent }),
+					...(stop_on_failure_percent !== undefined && {
+						stop_on_failure_percent,
+					}),
 					...(blackout_start !== undefined && { blackout_start }),
 					...(blackout_end !== undefined && { blackout_end }),
 					...(enabled !== undefined && { enabled }),
@@ -352,17 +365,23 @@ router.put("/policies/:id", authenticateToken, async (req, res) => {
 			where: { id },
 			include: {
 				patch_policy_groups: {
-					include: { host_groups: { select: { id: true, name: true, color: true } } },
+					include: {
+						host_groups: { select: { id: true, name: true, color: true } },
+					},
 				},
 				patch_policy_filters: true,
 			},
 		});
 
-		logger.info(`[PatchMgmt] Policy "${updated.name}" updated by ${req.user?.username}`);
+		logger.info(
+			`[PatchMgmt] Policy "${updated.name}" updated by ${req.user?.username}`,
+		);
 		return res.json({ success: true, policy: updated });
 	} catch (error) {
 		if (error.code === "P2002") {
-			return res.status(409).json({ error: "A policy with this name already exists" });
+			return res
+				.status(409)
+				.json({ error: "A policy with this name already exists" });
 		}
 		logger.error(`[PatchMgmt] Failed to update policy: ${error.message}`);
 		return res.status(500).json({ error: "Failed to update policy" });
@@ -381,7 +400,9 @@ router.delete("/policies/:id", authenticateToken, async (req, res) => {
 		if (!existing) return res.status(404).json({ error: "Policy not found" });
 
 		await prisma.patch_policies.delete({ where: { id } });
-		logger.info(`[PatchMgmt] Policy "${existing.name}" deleted by ${req.user?.username}`);
+		logger.info(
+			`[PatchMgmt] Policy "${existing.name}" deleted by ${req.user?.username}`,
+		);
 		return res.json({ success: true, message: "Policy deleted" });
 	} catch (error) {
 		logger.error(`[PatchMgmt] Failed to delete policy: ${error.message}`);
@@ -419,7 +440,9 @@ router.get("/windows", authenticateToken, async (req, res) => {
 		return res.json({ success: true, windows });
 	} catch (error) {
 		logger.error(`[PatchMgmt] Failed to list windows: ${error.message}`);
-		return res.status(500).json({ error: "Failed to list maintenance windows" });
+		return res
+			.status(500)
+			.json({ error: "Failed to list maintenance windows" });
 	}
 });
 
@@ -479,17 +502,25 @@ router.post("/windows", authenticateToken, async (req, res) => {
 			duration_minutes = 120,
 		} = req.body;
 
-		if (!name) return res.status(400).json({ error: "Window name is required" });
-		if (!policy_id) return res.status(400).json({ error: "Policy ID is required" });
+		if (!name)
+			return res.status(400).json({ error: "Window name is required" });
+		if (!policy_id)
+			return res.status(400).json({ error: "Policy ID is required" });
 
-		const policy = await prisma.patch_policies.findUnique({ where: { id: policy_id } });
+		const policy = await prisma.patch_policies.findUnique({
+			where: { id: policy_id },
+		});
 		if (!policy) return res.status(404).json({ error: "Policy not found" });
 
 		if (schedule_type === "recurring" && !schedule_cron) {
-			return res.status(400).json({ error: "Cron expression is required for recurring windows" });
+			return res
+				.status(400)
+				.json({ error: "Cron expression is required for recurring windows" });
 		}
 
-		const nextRun = schedule_cron ? computeNextRun(schedule_cron, schedule_timezone) : null;
+		const nextRun = schedule_cron
+			? computeNextRun(schedule_cron, schedule_timezone)
+			: null;
 
 		const window = await prisma.patch_windows.create({
 			data: {
@@ -508,11 +539,15 @@ router.post("/windows", authenticateToken, async (req, res) => {
 			},
 		});
 
-		logger.info(`[PatchMgmt] Window "${name}" created for policy "${policy.name}"`);
+		logger.info(
+			`[PatchMgmt] Window "${name}" created for policy "${policy.name}"`,
+		);
 		return res.status(201).json({ success: true, window });
 	} catch (error) {
 		logger.error(`[PatchMgmt] Failed to create window: ${error.message}`);
-		return res.status(500).json({ error: "Failed to create maintenance window" });
+		return res
+			.status(500)
+			.json({ error: "Failed to create maintenance window" });
 	}
 });
 
@@ -547,8 +582,12 @@ router.put("/windows/:id", authenticateToken, async (req, res) => {
 		const existing = await prisma.patch_windows.findUnique({ where: { id } });
 		if (!existing) return res.status(404).json({ error: "Window not found" });
 
-		const updatedCron = schedule_cron !== undefined ? schedule_cron : existing.schedule_cron;
-		const updatedTz = schedule_timezone !== undefined ? schedule_timezone : existing.schedule_timezone;
+		const updatedCron =
+			schedule_cron !== undefined ? schedule_cron : existing.schedule_cron;
+		const updatedTz =
+			schedule_timezone !== undefined
+				? schedule_timezone
+				: existing.schedule_timezone;
 		const nextRun = updatedCron ? computeNextRun(updatedCron, updatedTz) : null;
 
 		const window = await prisma.patch_windows.update({
@@ -569,7 +608,9 @@ router.put("/windows/:id", authenticateToken, async (req, res) => {
 		return res.json({ success: true, window });
 	} catch (error) {
 		logger.error(`[PatchMgmt] Failed to update window: ${error.message}`);
-		return res.status(500).json({ error: "Failed to update maintenance window" });
+		return res
+			.status(500)
+			.json({ error: "Failed to update maintenance window" });
 	}
 });
 
@@ -589,7 +630,9 @@ router.delete("/windows/:id", authenticateToken, async (req, res) => {
 		return res.json({ success: true, message: "Window deleted" });
 	} catch (error) {
 		logger.error(`[PatchMgmt] Failed to delete window: ${error.message}`);
-		return res.status(500).json({ error: "Failed to delete maintenance window" });
+		return res
+			.status(500)
+			.json({ error: "Failed to delete maintenance window" });
 	}
 });
 
@@ -645,11 +688,26 @@ router.get("/jobs/:id", authenticateToken, async (req, res) => {
 		const job = await prisma.patch_jobs.findUnique({
 			where: { id: req.params.id },
 			include: {
-				policy: { select: { id: true, name: true, policy_type: true, reboot_policy: true } },
+				policy: {
+					select: {
+						id: true,
+						name: true,
+						policy_type: true,
+						reboot_policy: true,
+					},
+				},
 				window: { select: { id: true, name: true } },
 				patch_job_hosts: {
 					include: {
-						host: { select: { id: true, friendly_name: true, hostname: true, os_type: true, os_version: true } },
+						host: {
+							select: {
+								id: true,
+								friendly_name: true,
+								hostname: true,
+								os_type: true,
+								os_version: true,
+							},
+						},
 						patch_job_packages: true,
 					},
 					orderBy: { started_at: "asc" },
@@ -666,37 +724,45 @@ router.get("/jobs/:id", authenticateToken, async (req, res) => {
 });
 
 // GET /api/v1/patch-management/jobs/:jobId/hosts/:jobHostId/diff - Get snapshot diff for a host
-router.get("/jobs/:jobId/hosts/:jobHostId/diff", authenticateToken, async (req, res) => {
-	/* #swagger.tags = ['Patch Management - Jobs'] */
-	/* #swagger.summary = 'Get before/after snapshot diff' */
-	/* #swagger.description = 'Get before/after snapshot diff for a specific host in a patch job. Requires JWT auth.' */
-	/* #swagger.security = [{ "bearerAuth": [] }] */
-	try {
-		const { jobHostId } = req.params;
+router.get(
+	"/jobs/:jobId/hosts/:jobHostId/diff",
+	authenticateToken,
+	async (req, res) => {
+		/* #swagger.tags = ['Patch Management - Jobs'] */
+		/* #swagger.summary = 'Get before/after snapshot diff' */
+		/* #swagger.description = 'Get before/after snapshot diff for a specific host in a patch job. Requires JWT auth.' */
+		/* #swagger.security = [{ "bearerAuth": [] }] */
+		try {
+			const { jobHostId } = req.params;
 
-		const jobHost = await prisma.patch_job_hosts.findUnique({
-			where: { id: jobHostId },
-			include: {
-				host: { select: { id: true, friendly_name: true, hostname: true } },
-			},
-		});
+			const jobHost = await prisma.patch_job_hosts.findUnique({
+				where: { id: jobHostId },
+				include: {
+					host: { select: { id: true, friendly_name: true, hostname: true } },
+				},
+			});
 
-		if (!jobHost) return res.status(404).json({ error: "Job host record not found" });
+			if (!jobHost)
+				return res.status(404).json({ error: "Job host record not found" });
 
-		const diff = computeSnapshotDiff(jobHost.pre_snapshot, jobHost.post_snapshot);
+			const diff = computeSnapshotDiff(
+				jobHost.pre_snapshot,
+				jobHost.post_snapshot,
+			);
 
-		return res.json({
-			success: true,
-			host: jobHost.host,
-			pre_snapshot: jobHost.pre_snapshot,
-			post_snapshot: jobHost.post_snapshot,
-			diff,
-		});
-	} catch (error) {
-		logger.error(`[PatchMgmt] Failed to compute diff: ${error.message}`);
-		return res.status(500).json({ error: "Failed to compute snapshot diff" });
-	}
-});
+			return res.json({
+				success: true,
+				host: jobHost.host,
+				pre_snapshot: jobHost.pre_snapshot,
+				post_snapshot: jobHost.post_snapshot,
+				diff,
+			});
+		} catch (error) {
+			logger.error(`[PatchMgmt] Failed to compute diff: ${error.message}`);
+			return res.status(500).json({ error: "Failed to compute snapshot diff" });
+		}
+	},
+);
 
 // POST /api/v1/patch-management/jobs/trigger - Trigger a new patch job
 router.post("/jobs/trigger", authenticateToken, async (req, res) => {
@@ -711,7 +777,8 @@ router.post("/jobs/trigger", authenticateToken, async (req, res) => {
 	} */
 	try {
 		const { policy_id } = req.body;
-		if (!policy_id) return res.status(400).json({ error: "Policy ID is required" });
+		if (!policy_id)
+			return res.status(400).json({ error: "Policy ID is required" });
 
 		const result = await createPatchJob(policy_id, {
 			triggeredBy: "manual",
@@ -740,7 +807,9 @@ router.post("/jobs/:id/cancel", authenticateToken, async (req, res) => {
 		const job = await prisma.patch_jobs.findUnique({ where: { id } });
 		if (!job) return res.status(404).json({ error: "Job not found" });
 		if (!["pending", "running"].includes(job.status)) {
-			return res.status(400).json({ error: "Only pending or running jobs can be cancelled" });
+			return res
+				.status(400)
+				.json({ error: "Only pending or running jobs can be cancelled" });
 		}
 
 		await prisma.$transaction(async (tx) => {
@@ -775,7 +844,7 @@ router.post("/jobs/:id/cancel", authenticateToken, async (req, res) => {
 // ============================================================================
 
 // GET /api/v1/patch-management/stats - Overview statistics
-router.get("/stats", authenticateToken, async (req, res) => {
+router.get("/stats", authenticateToken, async (_req, res) => {
 	/* #swagger.tags = ['Patch Management - Dashboard'] */
 	/* #swagger.summary = 'Get patch management statistics' */
 	/* #swagger.description = 'Overview statistics: policy/window counts, pending/running jobs, 5 most recent jobs, 5 upcoming windows, job status breakdown for last 30 days. Requires JWT auth.' */
@@ -848,7 +917,9 @@ router.get("/stats", authenticateToken, async (req, res) => {
 		});
 	} catch (error) {
 		logger.error(`[PatchMgmt] Failed to get stats: ${error.message}`);
-		return res.status(500).json({ error: "Failed to get patch management stats" });
+		return res
+			.status(500)
+			.json({ error: "Failed to get patch management stats" });
 	}
 });
 
@@ -1013,7 +1084,9 @@ async function handleAgentStatus(req, res) {
 
 		const { job_host_id, status } = req.body;
 		if (!job_host_id || !status) {
-			return res.status(400).json({ error: "job_host_id and status are required" });
+			return res
+				.status(400)
+				.json({ error: "job_host_id and status are required" });
 		}
 
 		const jobHost = await prisma.patch_job_hosts.findUnique({

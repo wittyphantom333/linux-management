@@ -1,4 +1,4 @@
-import { Shield, ArrowRight } from "lucide-react";
+import { ArrowRight, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import SettingsLayout from "../../components/SettingsLayout";
 

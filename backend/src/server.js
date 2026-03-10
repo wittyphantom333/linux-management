@@ -359,7 +359,8 @@ app.use(
 		swaggerDocument.host = req.get("host");
 		// Detect real protocol: trust X-Forwarded-Proto when behind a reverse proxy
 		const proto = req.get("x-forwarded-proto") || req.protocol;
-		swaggerDocument.schemes = proto === "https" ? ["https", "http"] : ["http", "https"];
+		swaggerDocument.schemes =
+			proto === "https" ? ["https", "http"] : ["http", "https"];
 		const handler = swaggerUi.setup(swaggerDocument);
 		handler(req, res, next);
 	},
@@ -886,10 +887,15 @@ async function startServer() {
 				data: { configmanagement_enabled: true },
 			});
 			if (updated.count > 0) {
-				logger.info(`✅ Config Management auto-enabled on ${updated.count} existing host(s)`);
+				logger.info(
+					`✅ Config Management auto-enabled on ${updated.count} existing host(s)`,
+				);
 			}
 		} catch (cmErr) {
-			logger.warn("⚠️ Failed to auto-enable Config Management on hosts:", cmErr.message);
+			logger.warn(
+				"⚠️ Failed to auto-enable Config Management on hosts:",
+				cmErr.message,
+			);
 		}
 
 		// Initialize OIDC if enabled
@@ -970,7 +976,10 @@ async function startServer() {
 
 		// Start patch management window scheduler (check every 60 seconds)
 		try {
-			const { refreshWindowSchedules, createPatchJob } = require("./services/patchManagementService");
+			const {
+				refreshWindowSchedules,
+				createPatchJob,
+			} = require("./services/patchManagementService");
 			const startPatchWindowScheduler = () => {
 				setInterval(async () => {
 					try {
@@ -991,23 +1000,33 @@ async function startServer() {
 						for (const window of dueWindows) {
 							try {
 								await createPatchJob(window.policy_id, `window:${window.id}`);
-								logger.info(`[PatchMgmt] Auto-triggered job for policy ${window.policy_id} via window "${window.name}"`);
+								logger.info(
+									`[PatchMgmt] Auto-triggered job for policy ${window.policy_id} via window "${window.name}"`,
+								);
 							} catch (err) {
-								logger.error(`[PatchMgmt] Failed to trigger job for policy ${window.policy_id} in window "${window.name}": ${err.message}`);
+								logger.error(
+									`[PatchMgmt] Failed to trigger job for policy ${window.policy_id} in window "${window.name}": ${err.message}`,
+								);
 							}
 
 							// Advance next_run_at so we don't re-trigger
-							const { computeNextRun } = require("./services/patchManagementService");
-							const nextRun = window.schedule_type === "recurring"
-								? computeNextRun(window.schedule_cron, window.schedule_timezone)
-								: null;
+							const {
+								computeNextRun,
+							} = require("./services/patchManagementService");
+							const nextRun =
+								window.schedule_type === "recurring"
+									? computeNextRun(
+											window.schedule_cron,
+											window.schedule_timezone,
+										)
+									: null;
 
 							await pdb.patch_windows.update({
 								where: { id: window.id },
 								data: {
 									next_run_at: nextRun,
 									last_run_at: new Date(),
-									enabled: nextRun ? true : (window.schedule_type === "once" ? false : true),
+									enabled: nextRun ? true : window.schedule_type !== "once",
 									updated_at: new Date(),
 								},
 							});
@@ -1018,9 +1037,13 @@ async function startServer() {
 				}, 60 * 1000); // Check every 60 seconds
 			};
 			startPatchWindowScheduler();
-			console.log("✅ Patch management window scheduler started (60s interval)");
+			console.log(
+				"✅ Patch management window scheduler started (60s interval)",
+			);
 		} catch (err) {
-			logger.error(`[PatchMgmt] Failed to start window scheduler: ${err.message}`);
+			logger.error(
+				`[PatchMgmt] Failed to start window scheduler: ${err.message}`,
+			);
 		}
 
 		server.listen(PORT, () => {
@@ -1033,7 +1056,8 @@ async function startServer() {
 		// Purge old agent logs on startup and then every 6 hours
 		try {
 			const { purgeOldLogs } = require("./routes/agentLogsRoutes");
-			const retentionDays = Number.parseInt(process.env.AGENT_LOG_RETENTION_DAYS, 10) || 7;
+			const retentionDays =
+				Number.parseInt(process.env.AGENT_LOG_RETENTION_DAYS, 10) || 7;
 			await purgeOldLogs(retentionDays);
 			setInterval(() => purgeOldLogs(retentionDays), 6 * 60 * 60 * 1000);
 			console.log(`✅ Agent log cleanup active (${retentionDays}d retention)`);

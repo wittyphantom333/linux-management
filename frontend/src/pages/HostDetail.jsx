@@ -2121,7 +2121,8 @@ const HostDetail = () => {
 												<h4 className="text-sm font-medium text-secondary-900 dark:text-white">
 													Config Management
 												</h4>
-												{integrationsData?.data?.integrations?.configmanagement ? (
+												{integrationsData?.data?.integrations
+													?.configmanagement ? (
 													<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
 														Enabled
 													</span>
@@ -2132,7 +2133,8 @@ const HostDetail = () => {
 												)}
 											</div>
 											<p className="text-xs text-secondary-600 dark:text-secondary-300">
-												Evaluate configuration policies (techniques, directives, rules) and report compliance.
+												Evaluate configuration policies (techniques, directives,
+												rules) and report compliance.
 											</p>
 										</div>
 										<div className="flex-shrink-0">
@@ -2142,7 +2144,8 @@ const HostDetail = () => {
 													toggleIntegrationMutation.mutate({
 														integrationName: "configmanagement",
 														enabled:
-															!integrationsData?.data?.integrations?.configmanagement,
+															!integrationsData?.data?.integrations
+																?.configmanagement,
 													})
 												}
 												disabled={
@@ -2162,7 +2165,8 @@ const HostDetail = () => {
 											>
 												<span
 													className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-														integrationsData?.data?.integrations?.configmanagement
+														integrationsData?.data?.integrations
+															?.configmanagement
 															? "translate-x-5"
 															: "translate-x-1"
 													}`}
@@ -4068,7 +4072,8 @@ const HostDetail = () => {
 												<h4 className="text-sm font-medium text-secondary-900 dark:text-white">
 													Config Management
 												</h4>
-												{integrationsData?.data?.integrations?.configmanagement ? (
+												{integrationsData?.data?.integrations
+													?.configmanagement ? (
 													<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
 														Enabled
 													</span>
@@ -4079,8 +4084,9 @@ const HostDetail = () => {
 												)}
 											</div>
 											<p className="text-xs text-secondary-600 dark:text-secondary-300">
-												Evaluate configuration policies (techniques, directives, rules) and report compliance.
-												Define desired system state and track drift across your fleet.
+												Evaluate configuration policies (techniques, directives,
+												rules) and report compliance. Define desired system
+												state and track drift across your fleet.
 											</p>
 										</div>
 										<div className="flex-shrink-0">
@@ -4090,7 +4096,8 @@ const HostDetail = () => {
 													toggleIntegrationMutation.mutate({
 														integrationName: "configmanagement",
 														enabled:
-															!integrationsData?.data?.integrations?.configmanagement,
+															!integrationsData?.data?.integrations
+																?.configmanagement,
 													})
 												}
 												disabled={
@@ -4100,7 +4107,8 @@ const HostDetail = () => {
 												title={
 													!wsStatus?.connected
 														? "Agent is not connected"
-														: integrationsData?.data?.integrations?.configmanagement
+														: integrationsData?.data?.integrations
+																	?.configmanagement
 															? "Disable Config Management integration"
 															: "Enable Config Management integration"
 												}
@@ -4117,7 +4125,8 @@ const HostDetail = () => {
 											>
 												<span
 													className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-														integrationsData?.data?.integrations?.configmanagement
+														integrationsData?.data?.integrations
+															?.configmanagement
 															? "translate-x-5"
 															: "translate-x-1"
 													}`}
@@ -4156,8 +4165,9 @@ const HostDetail = () => {
 											)}
 										</div>
 										<p className="text-xs text-secondary-600 dark:text-secondary-300">
-											Apply scheduled patches via policies and maintenance windows.
-											Track per-package results, capture pre/post snapshots, and manage reboots.
+											Apply scheduled patches via policies and maintenance
+											windows. Track per-package results, capture pre/post
+											snapshots, and manage reboots.
 										</p>
 									</div>
 									<div className="flex-shrink-0">
@@ -4167,7 +4177,8 @@ const HostDetail = () => {
 												toggleIntegrationMutation.mutate({
 													integrationName: "patchmanagement",
 													enabled:
-														!integrationsData?.data?.integrations?.patchmanagement,
+														!integrationsData?.data?.integrations
+															?.patchmanagement,
 												})
 											}
 											disabled={
@@ -4177,7 +4188,8 @@ const HostDetail = () => {
 											title={
 												!wsStatus?.connected
 													? "Agent is not connected"
-													: integrationsData?.data?.integrations?.patchmanagement
+													: integrationsData?.data?.integrations
+																?.patchmanagement
 														? "Disable Patch Management integration"
 														: "Enable Patch Management integration"
 											}
@@ -4204,8 +4216,7 @@ const HostDetail = () => {
 								</div>
 								{!wsStatus?.connected && (
 									<p className="text-xs text-warning-600 dark:text-warning-400 mt-2">
-										Agent must be connected via WebSocket to toggle
-										integrations
+										Agent must be connected via WebSocket to toggle integrations
 									</p>
 								)}
 							</div>

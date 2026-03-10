@@ -17,6 +17,10 @@ pre-commit:
     golangci-lint:
       run: |
         echo "Running golangci-lint on entire codebase (all files: committed, staged, and unstaged)..."
+        if ! command -v golangci-lint &>/dev/null; then
+          echo "golangci-lint not installed, skipping (install: brew install golangci-lint)"
+          exit 0
+        fi
         cd agent-source-code
         golangci-lint run --timeout=5m ./...
       stage_fixed: false

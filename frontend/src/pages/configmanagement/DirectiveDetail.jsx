@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	ArrowLeft,
-	Save,
-	ListChecks,
-	Eye,
-	Wrench,
 	AlertTriangle,
+	ArrowLeft,
 	ArrowUpCircle,
+	Eye,
+	ListChecks,
+	Save,
+	Wrench,
 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "../../contexts/ToastContext";
 import { configManagementAPI } from "../../utils/configManagementApi";
 
@@ -34,7 +34,9 @@ export default function DirectiveDetail() {
 	const { data: allTechniques } = useQuery({
 		queryKey: ["configmgmt", "techniques", "all"],
 		queryFn: () =>
-			configManagementAPI.listTechniques({ all_versions: true }).then((r) => r.data.techniques),
+			configManagementAPI
+				.listTechniques({ all_versions: true })
+				.then((r) => r.data.techniques),
 		staleTime: 60_000,
 	});
 
@@ -61,7 +63,9 @@ export default function DirectiveDetail() {
 			setName(directive.name || "");
 			setDescription(directive.description || "");
 			setTechniqueId(directive.technique_id || "");
-			setTechniqueVersion(directive.technique_version || directive.technique?.version || "");
+			setTechniqueVersion(
+				directive.technique_version || directive.technique?.version || "",
+			);
 			setPolicyMode(directive.policy_mode || "audit");
 			setPriority(directive.priority ?? 50);
 			setParameters(directive.parameters || {});
@@ -76,7 +80,9 @@ export default function DirectiveDetail() {
 	const { data: techniqueVersions } = useQuery({
 		queryKey: ["configmgmt", "technique-versions", techniqueId],
 		queryFn: () =>
-			configManagementAPI.getTechniqueVersions(techniqueId).then((r) => r.data.versions),
+			configManagementAPI
+				.getTechniqueVersions(techniqueId)
+				.then((r) => r.data.versions),
 		enabled: !!techniqueId,
 		staleTime: 30_000,
 	});
@@ -84,7 +90,10 @@ export default function DirectiveDetail() {
 	// Determine if there's a newer version available
 	const latestVersion = techniqueVersions?.[0];
 	const currentTechniqueVersion = selectedTechnique?.version;
-	const hasNewerVersion = techniqueVersion && currentTechniqueVersion && techniqueVersion !== currentTechniqueVersion;
+	const hasNewerVersion =
+		techniqueVersion &&
+		currentTechniqueVersion &&
+		techniqueVersion !== currentTechniqueVersion;
 
 	// Build parameter inputs from technique definition
 	const techniqueParams = selectedTechnique?.parameters || [];
@@ -232,15 +241,19 @@ export default function DirectiveDetail() {
 									const newVersion = e.target.value;
 									setTechniqueVersion(newVersion);
 									// If the user picks a different version row, switch technique_id
-									const versionRow = techniqueVersions.find((v) => v.version === newVersion);
+									const versionRow = techniqueVersions.find(
+										(v) => v.version === newVersion,
+									);
 									if (versionRow && versionRow.id !== techniqueId) {
 										setTechniqueId(versionRow.id);
 										// Re-load parameters from the new version's technique
-										const tech = allTechniques?.find((t) => t.id === versionRow.id);
+										const tech = allTechniques?.find(
+											(t) => t.id === versionRow.id,
+										);
 										if (tech) {
 											// Keep any matching param values, clear the rest
 											const newParams = {};
-											for (const p of (tech.parameters || [])) {
+											for (const p of tech.parameters || []) {
 												if (parameters[p.name] !== undefined) {
 													newParams[p.name] = parameters[p.name];
 												}
@@ -255,7 +268,9 @@ export default function DirectiveDetail() {
 									<option key={v.id} value={v.version}>
 										v{v.version}
 										{v.id === latestVersion?.id ? " (latest)" : ""}
-										{v._count?.cm_directives ? ` — ${v._count.cm_directives} directive(s)` : ""}
+										{v._count?.cm_directives
+											? ` — ${v._count.cm_directives} directive(s)`
+											: ""}
 									</option>
 								))}
 							</select>
@@ -263,8 +278,10 @@ export default function DirectiveDetail() {
 								<div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700">
 									<AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
 									<span className="text-xs text-amber-700 dark:text-amber-300">
-										This directive is pinned to <strong>v{techniqueVersion}</strong> but the technique is now at <strong>v{currentTechniqueVersion}</strong>.
-										New versions are not automatically applied.
+										This directive is pinned to{" "}
+										<strong>v{techniqueVersion}</strong> but the technique is
+										now at <strong>v{currentTechniqueVersion}</strong>. New
+										versions are not automatically applied.
 									</span>
 									<button
 										type="button"
@@ -282,7 +299,8 @@ export default function DirectiveDetail() {
 								</div>
 							)}
 							<p className="text-xs text-secondary-400 mt-0.5">
-								Directives are pinned to a specific technique version. Select a version to apply.
+								Directives are pinned to a specific technique version. Select a
+								version to apply.
 							</p>
 						</div>
 					)}
@@ -362,7 +380,8 @@ export default function DirectiveDetail() {
 						Technique Parameters
 					</h2>
 					<p className="text-xs text-secondary-500 dark:text-secondary-400">
-						Fill in the values that will be substituted into the technique&apos;s methods.
+						Fill in the values that will be substituted into the
+						technique&apos;s methods.
 					</p>
 					<div className="space-y-3">
 						{techniqueParams.map((param) => (

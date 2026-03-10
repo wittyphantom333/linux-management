@@ -39,8 +39,7 @@ const LEVEL_CONFIG = {
 	info: {
 		color: "text-blue-600 dark:text-blue-400",
 		bg: "",
-		badge:
-			"bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+		badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
 		icon: Info,
 	},
 	debug: {
@@ -152,9 +151,7 @@ const AgentLogsTab = ({ hostId }) => {
 
 	const toggleLevelFilter = useCallback((level) => {
 		setLevelFilter((prev) =>
-			prev.includes(level)
-				? prev.filter((l) => l !== level)
-				: [...prev, level],
+			prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level],
 		);
 	}, []);
 
@@ -233,11 +230,7 @@ const AgentLogsTab = ({ hostId }) => {
 						<button
 							type="button"
 							onClick={() => {
-								if (
-									window.confirm(
-										"Clear all agent logs for this host?",
-									)
-								) {
+								if (window.confirm("Clear all agent logs for this host?")) {
 									clearMutation.mutate();
 								}
 							}}
@@ -285,7 +278,7 @@ const AgentLogsTab = ({ hostId }) => {
 									key={level}
 									type="button"
 									onClick={() => toggleLevelFilter(level)}
-									className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${active ? cfg.badge + " ring-2 ring-primary-400" : "bg-secondary-200 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400 hover:bg-secondary-300 dark:hover:bg-secondary-600"}`}
+									className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${active ? `${cfg.badge} ring-2 ring-primary-400` : "bg-secondary-200 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400 hover:bg-secondary-300 dark:hover:bg-secondary-600"}`}
 								>
 									{level}
 								</button>
@@ -350,8 +343,8 @@ const AgentLogsTab = ({ hostId }) => {
 						No agent logs yet
 					</p>
 					<p className="text-secondary-400 dark:text-secondary-500 text-xs mt-1">
-						Logs will appear here after the agent completes its next
-						report cycle
+						Logs will appear here after the agent completes its next report
+						cycle
 					</p>
 				</div>
 			) : (
@@ -363,18 +356,14 @@ const AgentLogsTab = ({ hostId }) => {
 							const LevelIcon = cfg.icon;
 							const isExpanded = expandedRows.has(entry.id);
 							const hasMetadata =
-								entry.metadata &&
-								Object.keys(entry.metadata).length > 0;
+								entry.metadata && Object.keys(entry.metadata).length > 0;
 
 							return (
 								<div key={entry.id}>
 									<button
 										type="button"
 										className={`w-full text-left px-3 py-1.5 font-mono text-xs border-b border-secondary-800 hover:bg-secondary-900 transition-colors flex items-start gap-2 ${isExpanded ? "bg-secondary-900" : ""}`}
-										onClick={() =>
-											hasMetadata &&
-											toggleRow(entry.id)
-										}
+										onClick={() => hasMetadata && toggleRow(entry.id)}
 									>
 										{/* Expand chevron */}
 										<span className="mt-0.5 w-3 flex-shrink-0">
@@ -417,19 +406,10 @@ const AgentLogsTab = ({ hostId }) => {
 									{isExpanded && hasMetadata && (
 										<div className="px-3 py-2 bg-secondary-900/70 border-b border-secondary-800 ml-5">
 											<div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1">
-												{Object.entries(
-													entry.metadata,
-												).map(([k, v]) => (
-													<div
-														key={k}
-														className="font-mono text-xs"
-													>
-														<span className="text-secondary-500">
-															{k}:
-														</span>{" "}
-														<span className="text-green-400">
-															{v}
-														</span>
+												{Object.entries(entry.metadata).map(([k, v]) => (
+													<div key={k} className="font-mono text-xs">
+														<span className="text-secondary-500">{k}:</span>{" "}
+														<span className="text-green-400">{v}</span>
 													</div>
 												))}
 											</div>

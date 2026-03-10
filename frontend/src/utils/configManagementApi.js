@@ -37,12 +37,10 @@ export const configManagementAPI = {
 	deleteRule: (id) => api.delete(`/configmanagement/rules/${id}`),
 
 	// ── Policy ─────────────────────────────────────────────────────────
-	getHostPolicy: (hostId) =>
-		api.get(`/configmanagement/policy/${hostId}`),
+	getHostPolicy: (hostId) => api.get(`/configmanagement/policy/${hostId}`),
 
 	// ── Compliance runs ────────────────────────────────────────────────
-	listRuns: (params = {}) =>
-		api.get("/configmanagement/runs", { params }),
+	listRuns: (params = {}) => api.get("/configmanagement/runs", { params }),
 	getRun: (id) => api.get(`/configmanagement/runs/${id}`),
 
 	// ── Diagnostics ────────────────────────────────────────────────────

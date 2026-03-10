@@ -44,6 +44,7 @@ func (pe *PolicyExecutor) registerBuiltinMethods() {
 	pe.methods["service_restart"] = pe.methodServiceRestart
 	pe.methods["command_audit"] = pe.methodCommandAudit
 	pe.methods["command_exec"] = pe.methodCommandExec
+	pe.methods["command_run"] = pe.methodCommandRun
 	pe.methods["user_present"] = pe.methodUserPresent
 	pe.methods["user_absent"] = pe.methodUserAbsent
 	pe.methods["directory_present"] = pe.methodDirectoryPresent

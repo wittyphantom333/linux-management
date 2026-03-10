@@ -941,7 +941,7 @@ router.post(
 							api_id: api_id,
 							api_key: api_key_hash,
 							status: "pending",
-						configmanagement_enabled: true, // Config management enabled by default						patchmanagement_enabled: false, // Patch management disabled by default (enable per-host)							updated_at: new Date(),
+							configmanagement_enabled: true, // Config management enabled by default						patchmanagement_enabled: false, // Patch management disabled by default (enable per-host)							updated_at: new Date(),
 						},
 					});
 

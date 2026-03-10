@@ -1,30 +1,25 @@
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	Shield,
-	Calendar,
-	Play,
-	History,
 	BarChart3,
-	Plus,
-	Pencil,
-	Trash2,
+	Calendar,
 	ChevronRight,
-	CheckCircle2,
-	XCircle,
-	AlertTriangle,
-	Search,
-	RefreshCw,
-	Loader2,
 	Clock,
-	Package,
-	Server,
 	Filter,
+	History,
+	Loader2,
+	Package,
 	Pause,
-	Timer,
-	ArrowRight,
+	Pencil,
+	Play,
+	Plus,
+	Search,
+	Server,
+	Shield,
+	Trash2,
+	XCircle,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "../contexts/ToastContext";
 import { patchManagementAPI } from "../utils/patchManagementApi";
 
@@ -40,17 +35,48 @@ const TABS = [
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function statusBadge(status) {
 	const map = {
-		pending: { color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300", label: "Pending" },
-		running: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", label: "Running" },
-		completed: { color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", label: "Completed" },
-		completed_with_errors: { color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300", label: "Partial" },
-		failed: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", label: "Failed" },
-		cancelled: { color: "bg-secondary-100 text-secondary-800 dark:bg-secondary-700 dark:text-secondary-300", label: "Cancelled" },
-		skipped: { color: "bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400", label: "Skipped" },
+		pending: {
+			color:
+				"bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+			label: "Pending",
+		},
+		running: {
+			color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+			label: "Running",
+		},
+		completed: {
+			color:
+				"bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+			label: "Completed",
+		},
+		completed_with_errors: {
+			color:
+				"bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+			label: "Partial",
+		},
+		failed: {
+			color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+			label: "Failed",
+		},
+		cancelled: {
+			color:
+				"bg-secondary-100 text-secondary-800 dark:bg-secondary-700 dark:text-secondary-300",
+			label: "Cancelled",
+		},
+		skipped: {
+			color:
+				"bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400",
+			label: "Skipped",
+		},
 	};
-	const s = map[status] || { color: "bg-secondary-100 text-secondary-800", label: status };
+	const s = map[status] || {
+		color: "bg-secondary-100 text-secondary-800",
+		label: status,
+	};
 	return (
-		<span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${s.color}`}>
+		<span
+			className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${s.color}`}
+		>
 			{s.label}
 		</span>
 	);
@@ -58,13 +84,28 @@ function statusBadge(status) {
 
 function policyTypeBadge(type) {
 	const map = {
-		all: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", label: "All Updates" },
-		security_only: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", label: "Security Only" },
-		selected: { color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300", label: "Selected" },
+		all: {
+			color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+			label: "All Updates",
+		},
+		security_only: {
+			color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+			label: "Security Only",
+		},
+		selected: {
+			color:
+				"bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+			label: "Selected",
+		},
 	};
-	const s = map[type] || { color: "bg-secondary-100 text-secondary-800", label: type };
+	const s = map[type] || {
+		color: "bg-secondary-100 text-secondary-800",
+		label: type,
+	};
 	return (
-		<span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${s.color}`}>
+		<span
+			className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${s.color}`}
+		>
 			{s.label}
 		</span>
 	);
@@ -107,7 +148,8 @@ export default function PatchManagementPage() {
 
 	const { data: policies } = useQuery({
 		queryKey: ["patchmgmt", "policies"],
-		queryFn: () => patchManagementAPI.listPolicies().then((r) => r.data.policies),
+		queryFn: () =>
+			patchManagementAPI.listPolicies().then((r) => r.data.policies),
 		enabled: activeTab === "policies" || activeTab === "overview",
 	});
 
@@ -120,13 +162,16 @@ export default function PatchManagementPage() {
 	const { data: jobsData } = useQuery({
 		queryKey: ["patchmgmt", "jobs", jobFilter],
 		queryFn: () =>
-			patchManagementAPI.listJobs({ status: jobFilter || undefined, limit: 50 }).then((r) => r.data),
+			patchManagementAPI
+				.listJobs({ status: jobFilter || undefined, limit: 50 })
+				.then((r) => r.data),
 		enabled: activeTab === "jobs" || activeTab === "overview",
 	});
 
 	const { data: historyData } = useQuery({
 		queryKey: ["patchmgmt", "history"],
-		queryFn: () => patchManagementAPI.getHistory({ limit: 50 }).then((r) => r.data),
+		queryFn: () =>
+			patchManagementAPI.getHistory({ limit: 50 }).then((r) => r.data),
 		enabled: activeTab === "history",
 	});
 
@@ -150,12 +195,14 @@ export default function PatchManagementPage() {
 	});
 
 	const triggerJob = useMutation({
-		mutationFn: (policyId) => patchManagementAPI.triggerJob({ policy_id: policyId }),
+		mutationFn: (policyId) =>
+			patchManagementAPI.triggerJob({ policy_id: policyId }),
 		onSuccess: (res) => {
 			queryClient.invalidateQueries(["patchmgmt"]);
 			toast.success(`Job created for ${res.data.hosts_count} hosts`);
 		},
-		onError: (err) => toast.error(err.response?.data?.error || "Failed to trigger job"),
+		onError: (err) =>
+			toast.error(err.response?.data?.error || "Failed to trigger job"),
 	});
 
 	const cancelJob = useMutation({
@@ -190,7 +237,8 @@ export default function PatchManagementPage() {
 						Patch Management
 					</h1>
 					<p className="mt-1 text-sm text-secondary-600 dark:text-secondary-400">
-						Define policies, schedule maintenance windows, and track patch deployments across your infrastructure
+						Define policies, schedule maintenance windows, and track patch
+						deployments across your infrastructure
 					</p>
 				</div>
 			</div>
@@ -220,7 +268,13 @@ export default function PatchManagementPage() {
 
 			{/* Tab content */}
 			{activeTab === "overview" && (
-				<OverviewTab stats={stats} statsLoading={statsLoading} policies={policies} navigate={navigate} triggerJob={triggerJob} />
+				<OverviewTab
+					stats={stats}
+					statsLoading={statsLoading}
+					policies={policies}
+					navigate={navigate}
+					triggerJob={triggerJob}
+				/>
 			)}
 			{activeTab === "policies" && (
 				<PoliciesTab
@@ -233,7 +287,11 @@ export default function PatchManagementPage() {
 				/>
 			)}
 			{activeTab === "windows" && (
-				<WindowsTab windows={windows} deleteWindow={deleteWindow} navigate={navigate} />
+				<WindowsTab
+					windows={windows}
+					deleteWindow={deleteWindow}
+					navigate={navigate}
+				/>
 			)}
 			{activeTab === "jobs" && (
 				<JobsTab
@@ -267,17 +325,39 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 		<div className="space-y-6">
 			{/* Stat cards */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				<StatCard title="Active Policies" value={stats?.policies?.active ?? 0} total={stats?.policies?.total} icon={Shield} color="primary" />
-				<StatCard title="Active Windows" value={stats?.windows?.active ?? 0} total={stats?.windows?.total} icon={Calendar} color="blue" />
-				<StatCard title="Running Jobs" value={stats?.jobs?.running ?? 0} icon={Play} color="green"
-					subtitle={stats?.jobs?.pending > 0 ? `${stats.jobs.pending} pending` : null} />
+				<StatCard
+					title="Active Policies"
+					value={stats?.policies?.active ?? 0}
+					total={stats?.policies?.total}
+					icon={Shield}
+					color="primary"
+				/>
+				<StatCard
+					title="Active Windows"
+					value={stats?.windows?.active ?? 0}
+					total={stats?.windows?.total}
+					icon={Calendar}
+					color="blue"
+				/>
+				<StatCard
+					title="Running Jobs"
+					value={stats?.jobs?.running ?? 0}
+					icon={Play}
+					color="green"
+					subtitle={
+						stats?.jobs?.pending > 0 ? `${stats.jobs.pending} pending` : null
+					}
+				/>
 				<StatCard
 					title="Success Rate (30d)"
 					value={(() => {
 						const j = stats?.jobs?.last_30_days || {};
-						const completed = (j.completed || 0) + (j.completed_with_errors || 0);
+						const completed =
+							(j.completed || 0) + (j.completed_with_errors || 0);
 						const total = completed + (j.failed || 0);
-						return total > 0 ? `${Math.round((completed / total) * 100)}%` : "—";
+						return total > 0
+							? `${Math.round((completed / total) * 100)}%`
+							: "—";
 					})()}
 					icon={BarChart3}
 					color="amber"
@@ -312,7 +392,9 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 							))}
 						</div>
 					) : (
-						<p className="text-sm text-secondary-500 dark:text-secondary-400">No recent jobs</p>
+						<p className="text-sm text-secondary-500 dark:text-secondary-400">
+							No recent jobs
+						</p>
 					)}
 				</div>
 
@@ -329,8 +411,12 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 									className="flex items-center justify-between p-2 rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-700/50"
 								>
 									<div className="min-w-0">
-										<p className="text-sm font-medium text-secondary-900 dark:text-white truncate">{w.name}</p>
-										<p className="text-xs text-secondary-500 dark:text-secondary-400">{w.policy?.name}</p>
+										<p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+											{w.name}
+										</p>
+										<p className="text-xs text-secondary-500 dark:text-secondary-400">
+											{w.policy?.name}
+										</p>
 									</div>
 									<span className="text-xs text-secondary-500 dark:text-secondary-400 flex-shrink-0">
 										{formatDate(w.next_run_at)}
@@ -339,7 +425,9 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 							))}
 						</div>
 					) : (
-						<p className="text-sm text-secondary-500 dark:text-secondary-400">No upcoming windows</p>
+						<p className="text-sm text-secondary-500 dark:text-secondary-400">
+							No upcoming windows
+						</p>
 					)}
 				</div>
 			</div>
@@ -351,21 +439,26 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 						<Play className="h-4 w-4" /> Quick Actions
 					</h3>
 					<div className="flex flex-wrap gap-2">
-						{policies.filter((p) => p.enabled).slice(0, 6).map((p) => (
-							<button
-								key={p.id}
-								onClick={() => {
-									if (window.confirm(`Trigger a patch job for "${p.name}"?`)) {
-										triggerJob.mutate(p.id);
-									}
-								}}
-								disabled={triggerJob.isPending}
-								className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50 transition-colors disabled:opacity-50"
-							>
-								<Play className="h-3 w-3" />
-								{p.name}
-							</button>
-						))}
+						{policies
+							.filter((p) => p.enabled)
+							.slice(0, 6)
+							.map((p) => (
+								<button
+									key={p.id}
+									onClick={() => {
+										if (
+											window.confirm(`Trigger a patch job for "${p.name}"?`)
+										) {
+											triggerJob.mutate(p.id);
+										}
+									}}
+									disabled={triggerJob.isPending}
+									className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50 transition-colors disabled:opacity-50"
+								>
+									<Play className="h-3 w-3" />
+									{p.name}
+								</button>
+							))}
 					</div>
 				</div>
 			)}
@@ -375,20 +468,27 @@ function OverviewTab({ stats, statsLoading, policies, navigate, triggerJob }) {
 
 function StatCard({ title, value, total, icon: Icon, color, subtitle }) {
 	const colorMap = {
-		primary: "bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400",
+		primary:
+			"bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400",
 		blue: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
-		green: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
-		amber: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+		green:
+			"bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+		amber:
+			"bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
 	};
 
 	return (
 		<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4">
 			<div className="flex items-center gap-3">
-				<div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorMap[color]}`}>
+				<div
+					className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorMap[color]}`}
+				>
 					<Icon className="h-5 w-5" />
 				</div>
 				<div>
-					<p className="text-xs text-secondary-500 dark:text-secondary-400">{title}</p>
+					<p className="text-xs text-secondary-500 dark:text-secondary-400">
+						{title}
+					</p>
 					<p className="text-xl font-bold text-secondary-900 dark:text-white">
 						{value}
 						{total !== undefined && (
@@ -397,7 +497,11 @@ function StatCard({ title, value, total, icon: Icon, color, subtitle }) {
 							</span>
 						)}
 					</p>
-					{subtitle && <p className="text-xs text-secondary-500 dark:text-secondary-400">{subtitle}</p>}
+					{subtitle && (
+						<p className="text-xs text-secondary-500 dark:text-secondary-400">
+							{subtitle}
+						</p>
+					)}
 				</div>
 			</div>
 		</div>
@@ -407,7 +511,14 @@ function StatCard({ title, value, total, icon: Icon, color, subtitle }) {
 // ============================================================================
 // POLICIES TAB
 // ============================================================================
-function PoliciesTab({ policies, search, setSearch, deletePolicy, triggerJob, navigate }) {
+function PoliciesTab({
+	policies,
+	search,
+	setSearch,
+	deletePolicy,
+	triggerJob,
+	navigate,
+}) {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between gap-4">
@@ -497,7 +608,9 @@ function PoliciesTab({ policies, search, setSearch, deletePolicy, triggerJob, na
 								<div className="flex items-center gap-1 ml-4">
 									<button
 										onClick={() => {
-											if (window.confirm(`Trigger a patch job for "${p.name}"?`)) {
+											if (
+												window.confirm(`Trigger a patch job for "${p.name}"?`)
+											) {
 												triggerJob.mutate(p.id);
 											}
 										}}
@@ -516,7 +629,11 @@ function PoliciesTab({ policies, search, setSearch, deletePolicy, triggerJob, na
 									</Link>
 									<button
 										onClick={() => {
-											if (window.confirm(`Delete policy "${p.name}"? This will also delete all associated windows and jobs.`)) {
+											if (
+												window.confirm(
+													`Delete policy "${p.name}"? This will also delete all associated windows and jobs.`,
+												)
+											) {
 												deletePolicy.mutate(p.id);
 											}
 										}}
@@ -557,7 +674,9 @@ function WindowsTab({ windows, deleteWindow, navigate }) {
 				<div className="text-center py-12 text-secondary-500 dark:text-secondary-400">
 					<Calendar className="h-12 w-12 mx-auto mb-3 opacity-30" />
 					<p className="font-medium">No maintenance windows</p>
-					<p className="text-sm mt-1">Create a maintenance window to schedule automatic patching</p>
+					<p className="text-sm mt-1">
+						Create a maintenance window to schedule automatic patching
+					</p>
 				</div>
 			) : (
 				<div className="grid gap-3">
@@ -606,7 +725,8 @@ function WindowsTab({ windows, deleteWindow, navigate }) {
 									</Link>
 									<button
 										onClick={() => {
-											if (window.confirm(`Delete window "${w.name}"?`)) deleteWindow.mutate(w.id);
+											if (window.confirm(`Delete window "${w.name}"?`))
+												deleteWindow.mutate(w.id);
 										}}
 										className="p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
 									>
@@ -626,13 +746,26 @@ function WindowsTab({ windows, deleteWindow, navigate }) {
 // JOBS TAB
 // ============================================================================
 function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
-	const statusFilters = ["", "pending", "running", "completed", "completed_with_errors", "failed", "cancelled"];
+	const statusFilters = [
+		"",
+		"pending",
+		"running",
+		"completed",
+		"completed_with_errors",
+		"failed",
+		"cancelled",
+	];
 
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
 				<h2 className="text-lg font-semibold text-secondary-900 dark:text-white">
-					Patch Jobs {total > 0 && <span className="text-sm font-normal text-secondary-500 dark:text-secondary-400">({total})</span>}
+					Patch Jobs{" "}
+					{total > 0 && (
+						<span className="text-sm font-normal text-secondary-500 dark:text-secondary-400">
+							({total})
+						</span>
+					)}
 				</h2>
 				<div className="flex items-center gap-2">
 					<Filter className="h-4 w-4 text-secondary-400" />
@@ -643,7 +776,9 @@ function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
 					>
 						<option value="">All statuses</option>
 						{statusFilters.filter(Boolean).map((s) => (
-							<option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+							<option key={s} value={s}>
+								{s.replace(/_/g, " ")}
+							</option>
 						))}
 					</select>
 				</div>
@@ -659,17 +794,32 @@ function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
 					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
 						<thead className="bg-secondary-50 dark:bg-secondary-800/50">
 							<tr>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">Status</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">Policy</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">Triggered</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">Hosts</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">Created</th>
-								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">Actions</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">
+									Status
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">
+									Policy
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">
+									Triggered
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">
+									Hosts
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">
+									Created
+								</th>
+								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase">
+									Actions
+								</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
 							{jobs.map((job) => (
-								<tr key={job.id} className="hover:bg-secondary-50 dark:hover:bg-secondary-700/30">
+								<tr
+									key={job.id}
+									className="hover:bg-secondary-50 dark:hover:bg-secondary-700/30"
+								>
 									<td className="px-4 py-3">{statusBadge(job.status)}</td>
 									<td className="px-4 py-3 text-sm text-secondary-900 dark:text-white">
 										{job.policy?.name}
@@ -678,9 +828,15 @@ function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
 										{job.triggered_by}
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-700 dark:text-secondary-300">
-										<span className="text-green-600">{job.completed_hosts}</span>
-										{job.failed_hosts > 0 && <span className="text-red-500">/{job.failed_hosts}F</span>}
-										<span className="text-secondary-400">/{job.total_hosts}</span>
+										<span className="text-green-600">
+											{job.completed_hosts}
+										</span>
+										{job.failed_hosts > 0 && (
+											<span className="text-red-500">/{job.failed_hosts}F</span>
+										)}
+										<span className="text-secondary-400">
+											/{job.total_hosts}
+										</span>
 									</td>
 									<td className="px-4 py-3 text-xs text-secondary-500 dark:text-secondary-400">
 										{timeAgo(job.created_at)}
@@ -696,7 +852,8 @@ function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
 											{["pending", "running"].includes(job.status) && (
 												<button
 													onClick={() => {
-														if (window.confirm("Cancel this job?")) cancelJob.mutate(job.id);
+														if (window.confirm("Cancel this job?"))
+															cancelJob.mutate(job.id);
 													}}
 													className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
 												>
@@ -731,13 +888,24 @@ function HistoryTab({ jobs, total }) {
 	return (
 		<div className="space-y-4">
 			<h2 className="text-lg font-semibold text-secondary-900 dark:text-white">
-				Patch History {total > 0 && <span className="text-sm font-normal text-secondary-500">({total})</span>}
+				Patch History{" "}
+				{total > 0 && (
+					<span className="text-sm font-normal text-secondary-500">
+						({total})
+					</span>
+				)}
 			</h2>
 
 			<div className="space-y-3">
 				{jobs.map((job) => {
-					const totalPkgsUpdated = (job.patch_job_hosts || []).reduce((s, h) => s + h.packages_updated, 0);
-					const totalPkgsFailed = (job.patch_job_hosts || []).reduce((s, h) => s + h.packages_failed, 0);
+					const totalPkgsUpdated = (job.patch_job_hosts || []).reduce(
+						(s, h) => s + h.packages_updated,
+						0,
+					);
+					const totalPkgsFailed = (job.patch_job_hosts || []).reduce(
+						(s, h) => s + h.packages_failed,
+						0,
+					);
 
 					return (
 						<Link

@@ -309,9 +309,7 @@ router.delete("/:hostId", authenticateToken, async (req, res) => {
  * Call this from a background job or startup hook.
  */
 async function purgeOldLogs(retentionDays = DEFAULT_RETENTION_DAYS) {
-	const cutoff = new Date(
-		Date.now() - retentionDays * 24 * 60 * 60 * 1000,
-	);
+	const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 	const result = await prisma.agent_logs.deleteMany({
 		where: { received_at: { lt: cutoff } },
 	});

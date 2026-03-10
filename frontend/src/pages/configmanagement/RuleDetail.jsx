@@ -1,20 +1,18 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	ArrowLeft,
-	Save,
-	Network,
-	Plus,
-	X,
-	Clock,
-	RefreshCw,
 	CalendarClock,
+	Clock,
+	Network,
 	Play,
+	RefreshCw,
+	Save,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "../../contexts/ToastContext";
-import { configManagementAPI } from "../../utils/configManagementApi";
 import { hostGroupsAPI } from "../../utils/api";
+import { configManagementAPI } from "../../utils/configManagementApi";
 
 export default function RuleDetail() {
 	const { id } = useParams();
@@ -46,7 +44,8 @@ export default function RuleDetail() {
 
 	const { data: groups } = useQuery({
 		queryKey: ["host-groups"],
-		queryFn: () => hostGroupsAPI.list().then((r) => r.data?.data || r.data || []),
+		queryFn: () =>
+			hostGroupsAPI.list().then((r) => r.data?.data || r.data || []),
 		staleTime: 60_000,
 	});
 
@@ -64,7 +63,9 @@ export default function RuleDetail() {
 			setPriority(rule.priority ?? 50);
 			setEnabled(rule.enabled ?? true);
 			setSelectedDirectives(
-				(rule.cm_rule_directives || []).map((rd) => rd.directive_id || rd.directive?.id),
+				(rule.cm_rule_directives || []).map(
+					(rd) => rd.directive_id || rd.directive?.id,
+				),
 			);
 			setSelectedGroups(
 				(rule.cm_rule_groups || []).map((rg) => rg.host_group_id),
@@ -228,14 +229,35 @@ export default function RuleDetail() {
 					Run Schedule
 				</h2>
 				<p className="text-xs text-secondary-500 dark:text-secondary-400">
-					Control when and how often the directives in this rule are evaluated by agents.
+					Control when and how often the directives in this rule are evaluated
+					by agents.
 				</p>
 				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					{[
-						{ value: "always", label: "Every Check-in", icon: RefreshCw, desc: "Run every time the agent checks in" },
-						{ value: "once", label: "Run Once", icon: Play, desc: "Run once per directive version" },
-						{ value: "interval", label: "Fixed Interval", icon: Clock, desc: "Run every N minutes/hours" },
-						{ value: "cron", label: "Cron Schedule", icon: CalendarClock, desc: "Run on a cron expression" },
+						{
+							value: "always",
+							label: "Every Check-in",
+							icon: RefreshCw,
+							desc: "Run every time the agent checks in",
+						},
+						{
+							value: "once",
+							label: "Run Once",
+							icon: Play,
+							desc: "Run once per directive version",
+						},
+						{
+							value: "interval",
+							label: "Fixed Interval",
+							icon: Clock,
+							desc: "Run every N minutes/hours",
+						},
+						{
+							value: "cron",
+							label: "Cron Schedule",
+							icon: CalendarClock,
+							desc: "Run on a cron expression",
+						},
 					].map((opt) => {
 						const Icon = opt.icon;
 						return (
@@ -249,18 +271,26 @@ export default function RuleDetail() {
 										: "border-secondary-200 dark:border-secondary-700 hover:bg-secondary-50 dark:hover:bg-secondary-800"
 								}`}
 							>
-								<Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
-									runSchedule === opt.value ? "text-indigo-600 dark:text-indigo-400" : "text-secondary-400"
-								}`} />
-								<div>
-									<p className={`text-sm font-medium ${
+								<Icon
+									className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
 										runSchedule === opt.value
-											? "text-indigo-700 dark:text-indigo-300"
-											: "text-secondary-700 dark:text-secondary-300"
-									}`}>
+											? "text-indigo-600 dark:text-indigo-400"
+											: "text-secondary-400"
+									}`}
+								/>
+								<div>
+									<p
+										className={`text-sm font-medium ${
+											runSchedule === opt.value
+												? "text-indigo-700 dark:text-indigo-300"
+												: "text-secondary-700 dark:text-secondary-300"
+										}`}
+									>
 										{opt.label}
 									</p>
-									<p className="text-xs text-secondary-400 mt-0.5">{opt.desc}</p>
+									<p className="text-xs text-secondary-400 mt-0.5">
+										{opt.desc}
+									</p>
 								</div>
 							</button>
 						);
@@ -277,14 +307,22 @@ export default function RuleDetail() {
 							<input
 								type="number"
 								value={scheduleInterval}
-								onChange={(e) => setScheduleInterval(Math.max(1, Number.parseInt(e.target.value, 10) || 1))}
+								onChange={(e) =>
+									setScheduleInterval(
+										Math.max(1, Number.parseInt(e.target.value, 10) || 1),
+									)
+								}
 								min={1}
 								className="w-24 px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm text-secondary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
 							/>
-							<span className="text-sm text-secondary-600 dark:text-secondary-400">minutes</span>
+							<span className="text-sm text-secondary-600 dark:text-secondary-400">
+								minutes
+							</span>
 							{scheduleInterval >= 60 && (
 								<span className="text-xs text-secondary-400 ml-2">
-									({Math.floor(scheduleInterval / 60)}h {scheduleInterval % 60 > 0 ? `${scheduleInterval % 60}m` : ""})
+									({Math.floor(scheduleInterval / 60)}h{" "}
+									{scheduleInterval % 60 > 0 ? `${scheduleInterval % 60}m` : ""}
+									)
 								</span>
 							)}
 						</div>
@@ -364,8 +402,23 @@ export default function RuleDetail() {
 								onChange={(e) => setScheduleTimezone(e.target.value)}
 								className="w-full px-3 py-2 rounded-lg border border-secondary-300 dark:border-secondary-600 bg-white dark:bg-secondary-800 text-sm text-secondary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
 							>
-								{["UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "America/Phoenix", "Europe/London", "Europe/Berlin", "Europe/Paris", "Asia/Tokyo", "Asia/Shanghai", "Australia/Sydney"].map((tz) => (
-									<option key={tz} value={tz}>{tz}</option>
+								{[
+									"UTC",
+									"America/New_York",
+									"America/Chicago",
+									"America/Denver",
+									"America/Los_Angeles",
+									"America/Phoenix",
+									"Europe/London",
+									"Europe/Berlin",
+									"Europe/Paris",
+									"Asia/Tokyo",
+									"Asia/Shanghai",
+									"Australia/Sydney",
+								].map((tz) => (
+									<option key={tz} value={tz}>
+										{tz}
+									</option>
 								))}
 							</select>
 						</div>
@@ -376,8 +429,10 @@ export default function RuleDetail() {
 				{runSchedule === "once" && (
 					<div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
 						<p className="text-xs text-blue-700 dark:text-blue-300">
-							<strong>Run Once</strong> evaluates each directive exactly once. When you update a directive&apos;s version,
-							the agent will re-run it. This is ideal for one-time setup tasks like initial provisioning.
+							<strong>Run Once</strong> evaluates each directive exactly once.
+							When you update a directive&apos;s version, the agent will re-run
+							it. This is ideal for one-time setup tasks like initial
+							provisioning.
 						</p>
 					</div>
 				)}
@@ -389,9 +444,10 @@ export default function RuleDetail() {
 					Directives
 				</h2>
 				<p className="text-xs text-secondary-500 dark:text-secondary-400">
-					Select which directives this rule applies. The agent will evaluate all selected directives on matching hosts.
+					Select which directives this rule applies. The agent will evaluate all
+					selected directives on matching hosts.
 				</p>
-				{(!directives || directives.length === 0) ? (
+				{!directives || directives.length === 0 ? (
 					<p className="text-sm text-secondary-400 py-2">
 						No directives available.{" "}
 						<Link
@@ -444,9 +500,10 @@ export default function RuleDetail() {
 					Host Groups
 				</h2>
 				<p className="text-xs text-secondary-500 dark:text-secondary-400">
-					Select which host groups this rule targets. Hosts in these groups will receive the selected directives.
+					Select which host groups this rule targets. Hosts in these groups will
+					receive the selected directives.
 				</p>
-				{(!groups || groups.length === 0) ? (
+				{!groups || groups.length === 0 ? (
 					<p className="text-sm text-secondary-400 py-2">
 						No host groups available. Create groups in the Hosts section first.
 					</p>

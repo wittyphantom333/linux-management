@@ -119,7 +119,10 @@ function matchesFilter(packageName, filter) {
  * Create a new patch job for a policy.
  * Resolves target hosts, filters packages, and materialises the job rows.
  */
-async function createPatchJob(policyId, { triggeredBy = "manual", triggeredByUser = null, windowId = null } = {}) {
+async function createPatchJob(
+	policyId,
+	{ triggeredBy = "manual", triggeredByUser = null, windowId = null } = {},
+) {
 	const policy = await prisma.patch_policies.findUnique({
 		where: { id: policyId },
 		include: {
@@ -131,7 +134,8 @@ async function createPatchJob(policyId, { triggeredBy = "manual", triggeredByUse
 	if (!policy.enabled) throw new Error("Policy is disabled");
 
 	const hosts = await resolveHostsForPolicy(policyId);
-	if (hosts.length === 0) throw new Error("No active hosts targeted by this policy");
+	if (hosts.length === 0)
+		throw new Error("No active hosts targeted by this policy");
 
 	const jobId = uuidv4();
 	let totalHostsWithPackages = 0;
@@ -177,7 +181,9 @@ async function createPatchJob(policyId, { triggeredBy = "manual", triggeredByUse
 	}
 
 	if (totalHostsWithPackages === 0) {
-		throw new Error("No hosts have packages matching the policy filters that need updating");
+		throw new Error(
+			"No hosts have packages matching the policy filters that need updating",
+		);
 	}
 
 	// Create everything in a transaction
@@ -266,7 +272,10 @@ function computeSnapshotDiff(preSnapshot, postSnapshot) {
 
 	for (const [name] of preMap) {
 		if (!postMap.has(name)) {
-			removed.push({ package_name: name, old_version: preMap.get(name).current_version });
+			removed.push({
+				package_name: name,
+				old_version: preMap.get(name).current_version,
+			});
 		}
 	}
 
@@ -292,7 +301,7 @@ function computeSnapshotDiff(preSnapshot, postSnapshot) {
  * Compute the next run time from a cron expression.
  * Uses a simple parser for 5-field cron (minute hour dom month dow).
  */
-function computeNextRun(cronExpr, timezone = "UTC", after = new Date()) {
+function computeNextRun(cronExpr, _timezone = "UTC", after = new Date()) {
 	// Simple approach: iterate minute-by-minute up to 7 days out
 	// For production, a proper cron parser library would be used
 	if (!cronExpr) return null;
@@ -302,7 +311,7 @@ function computeNextRun(cronExpr, timezone = "UTC", after = new Date()) {
 
 	const [minExpr, hourExpr, domExpr, monExpr, dowExpr] = parts;
 
-	const matchField = (expr, value, max) => {
+	const matchField = (expr, value, _max) => {
 		if (expr === "*") return true;
 		// Handle */N
 		if (expr.startsWith("*/")) {
@@ -412,7 +421,17 @@ async function getPendingJobForHost(hostId) {
  * Process an agent's patch result report.
  */
 async function processAgentPatchReport(hostId, report) {
-	const { job_host_id, status, results, packages, post_snapshot, reboot_required, reboot_completed, reboot_done, error_message } = report;
+	const {
+		job_host_id,
+		status,
+		results,
+		packages,
+		post_snapshot,
+		reboot_required,
+		reboot_completed,
+		reboot_done,
+		error_message,
+	} = report;
 
 	// Agent sends "results", server originally used "packages" — accept both
 	const pkgResults = results || packages || [];
@@ -467,7 +486,9 @@ async function processAgentPatchReport(hostId, report) {
 		where: { id: job_host_id },
 		data: {
 			status,
-			completed_at: ["completed", "failed"].includes(status) ? new Date() : undefined,
+			completed_at: ["completed", "failed"].includes(status)
+				? new Date()
+				: undefined,
 			packages_updated: updatedCount,
 			packages_failed: failedCount,
 			post_snapshot: post_snapshot || undefined,
@@ -482,9 +503,13 @@ async function processAgentPatchReport(hostId, report) {
 		where: { job_id: jobHost.job_id },
 	});
 
-	const completedHosts = allJobHosts.filter((jh) => jh.status === "completed").length;
+	const completedHosts = allJobHosts.filter(
+		(jh) => jh.status === "completed",
+	).length;
 	const failedHosts = allJobHosts.filter((jh) => jh.status === "failed").length;
-	const skippedHosts = allJobHosts.filter((jh) => jh.status === "skipped").length;
+	const skippedHosts = allJobHosts.filter(
+		(jh) => jh.status === "skipped",
+	).length;
 	const pendingHosts = allJobHosts.filter((jh) =>
 		["pending", "downloading", "installing", "rebooting"].includes(jh.status),
 	).length;

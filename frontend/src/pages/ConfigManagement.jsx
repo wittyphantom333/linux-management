@@ -1,34 +1,34 @@
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	Settings2,
-	FileCode2,
-	ListChecks,
-	Network,
-	History,
-	BarChart3,
-	Plus,
-	Pencil,
-	Trash2,
-	ChevronRight,
-	CheckCircle2,
-	XCircle,
 	AlertTriangle,
-	ShieldCheck,
-	ShieldAlert,
-	Eye,
-	Wrench,
-	Search,
-	RefreshCw,
-	Stethoscope,
-	Play,
-	Loader2,
-	Clock,
-	Timer,
+	BarChart3,
 	CalendarClock,
+	CheckCircle2,
+	ChevronRight,
 	CircleDot,
+	Clock,
+	Eye,
+	FileCode2,
+	History,
+	ListChecks,
+	Loader2,
+	Network,
+	Pencil,
+	Play,
+	Plus,
+	RefreshCw,
+	Search,
+	Settings2,
+	ShieldAlert,
+	ShieldCheck,
+	Stethoscope,
+	Timer,
+	Trash2,
+	Wrench,
+	XCircle,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useToast } from "../contexts/ToastContext";
 import { configManagementAPI } from "../utils/configManagementApi";
 
@@ -135,7 +135,8 @@ export default function ConfigManagement() {
 		error,
 	} = useQuery({
 		queryKey: ["configmgmt", "dashboard"],
-		queryFn: () => configManagementAPI.getDashboard().then((r) => r.data.dashboard),
+		queryFn: () =>
+			configManagementAPI.getDashboard().then((r) => r.data.dashboard),
 		staleTime: 60_000,
 		refetchInterval: 120_000,
 	});
@@ -179,9 +180,7 @@ export default function ConfigManagement() {
 			toast.success("Technique deleted");
 		},
 		onError: (err) =>
-			toast.error(
-				`Delete failed: ${err.response?.data?.error || err.message}`,
-			),
+			toast.error(`Delete failed: ${err.response?.data?.error || err.message}`),
 	});
 
 	const deleteDirective = useMutation({
@@ -191,9 +190,7 @@ export default function ConfigManagement() {
 			toast.success("Directive deleted");
 		},
 		onError: (err) =>
-			toast.error(
-				`Delete failed: ${err.response?.data?.error || err.message}`,
-			),
+			toast.error(`Delete failed: ${err.response?.data?.error || err.message}`),
 	});
 
 	const deleteRule = useMutation({
@@ -203,9 +200,7 @@ export default function ConfigManagement() {
 			toast.success("Rule deleted");
 		},
 		onError: (err) =>
-			toast.error(
-				`Delete failed: ${err.response?.data?.error || err.message}`,
-			),
+			toast.error(`Delete failed: ${err.response?.data?.error || err.message}`),
 	});
 
 	// ─── Filtered lists ───────────────────────────────────────────────
@@ -216,8 +211,8 @@ export default function ConfigManagement() {
 		return techniques.filter(
 			(t) =>
 				t.name.toLowerCase().includes(q) ||
-				(t.category && t.category.toLowerCase().includes(q)) ||
-				(t.description && t.description.toLowerCase().includes(q)),
+				t.category?.toLowerCase().includes(q) ||
+				t.description?.toLowerCase().includes(q),
 		);
 	}, [techniques, techniqueSearch]);
 
@@ -228,7 +223,7 @@ export default function ConfigManagement() {
 		return directives.filter(
 			(d) =>
 				d.name.toLowerCase().includes(q) ||
-				(d.technique?.name && d.technique.name.toLowerCase().includes(q)),
+				d.technique?.name?.toLowerCase().includes(q),
 		);
 	}, [directives, directiveSearch]);
 
@@ -239,7 +234,7 @@ export default function ConfigManagement() {
 		return rules.filter(
 			(r) =>
 				r.name.toLowerCase().includes(q) ||
-				(r.description && r.description.toLowerCase().includes(q)),
+				r.description?.toLowerCase().includes(q),
 		);
 	}, [rules, ruleSearch]);
 
@@ -274,7 +269,8 @@ export default function ConfigManagement() {
 							Config Management
 						</h1>
 						<p className="text-sm text-secondary-600 dark:text-secondary-400 mt-1">
-							Define configuration policies and track compliance across your fleet
+							Define configuration policies and track compliance across your
+							fleet
 						</p>
 					</div>
 				</div>
@@ -320,9 +316,7 @@ export default function ConfigManagement() {
 								? `${dashboard.avg_score_24h}%`
 								: "—"
 						}
-						icon={
-							dashboard.avg_score_24h >= 90 ? ShieldCheck : ShieldAlert
-						}
+						icon={dashboard.avg_score_24h >= 90 ? ShieldCheck : ShieldAlert}
 						color={
 							dashboard.avg_score_24h != null
 								? scoreColor(dashboard.avg_score_24h)
@@ -373,7 +367,11 @@ export default function ConfigManagement() {
 					search={techniqueSearch}
 					setSearch={setTechniqueSearch}
 					onDelete={(id) => {
-						if (window.confirm("Delete this technique? Related directives may break.")) {
+						if (
+							window.confirm(
+								"Delete this technique? Related directives may break.",
+							)
+						) {
 							deleteTechnique.mutate(id);
 						}
 					}}
@@ -435,114 +433,125 @@ function OverviewTab({ dashboard, techniques, directives, rules, runs }) {
 			<DiagnosticsPanel />
 
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-			{/* Recent runs */}
-			<div className="card p-5">
-				<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
-					Recent Policy Runs
-				</h2>
-				{(!runs || runs.length === 0) ? (
-					<p className="text-sm text-secondary-500 dark:text-secondary-400">
-						No policy runs yet. Enable config management on hosts and assign rules to get started.
-					</p>
-				) : (
-					<div className="space-y-3">
-						{runs.slice(0, 8).map((run) => (
-							<Link
-								key={run.id}
-								to={`/config-management/runs/${run.id}`}
-								className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
-							>
-								<div className="flex items-center gap-3">
-									<div
-										className={`h-2.5 w-2.5 rounded-full ${scoreBg(run.score)}`}
-									/>
-									<div>
-										<p className="text-sm font-medium text-secondary-900 dark:text-white">
-											{run.hosts?.friendly_name || run.hosts?.hostname || "Unknown Host"}
-										</p>
-										<p className="text-xs text-secondary-500 dark:text-secondary-400">
-											{run.total_directives} directives · {timeAgo(run.evaluated_at)}
-										</p>
-									</div>
-								</div>
-								<div className="flex items-center gap-2">
-									<span className={`text-sm font-semibold ${scoreColor(run.score)}`}>
-										{Math.round(run.score)}%
-									</span>
-									<ChevronRight className="h-4 w-4 text-secondary-400" />
-								</div>
-							</Link>
-						))}
-					</div>
-				)}
-			</div>
-
-			{/* Quick summary */}
-			<div className="space-y-6">
-				{/* Top techniques */}
+				{/* Recent runs */}
 				<div className="card p-5">
 					<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
-						Techniques
+						Recent Policy Runs
 					</h2>
-					{(!techniques || techniques.length === 0) ? (
-						<EmptyState message="No techniques defined yet" />
+					{!runs || runs.length === 0 ? (
+						<p className="text-sm text-secondary-500 dark:text-secondary-400">
+							No policy runs yet. Enable config management on hosts and assign
+							rules to get started.
+						</p>
 					) : (
-						<div className="space-y-2">
-							{techniques.slice(0, 5).map((t) => (
+						<div className="space-y-3">
+							{runs.slice(0, 8).map((run) => (
 								<Link
-									key={t.id}
-									to={`/config-management/techniques/${t.id}`}
-									className="flex items-center justify-between p-2 rounded hover:bg-secondary-50 dark:hover:bg-secondary-800"
+									key={run.id}
+									to={`/config-management/runs/${run.id}`}
+									className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-800 transition-colors"
 								>
-									<div>
-										<p className="text-sm font-medium text-secondary-900 dark:text-white">
-											{t.name}
-										</p>
-										{t.category && (
-											<p className="text-xs text-secondary-500">
-												{t.category}
+									<div className="flex items-center gap-3">
+										<div
+											className={`h-2.5 w-2.5 rounded-full ${scoreBg(run.score)}`}
+										/>
+										<div>
+											<p className="text-sm font-medium text-secondary-900 dark:text-white">
+												{run.hosts?.friendly_name ||
+													run.hosts?.hostname ||
+													"Unknown Host"}
 											</p>
-										)}
+											<p className="text-xs text-secondary-500 dark:text-secondary-400">
+												{run.total_directives} directives ·{" "}
+												{timeAgo(run.evaluated_at)}
+											</p>
+										</div>
 									</div>
-									<span className="text-xs text-secondary-400">
-										v{t.version} · {t.total_directives ?? t._count?.cm_directives ?? 0} directives
-									</span>
+									<div className="flex items-center gap-2">
+										<span
+											className={`text-sm font-semibold ${scoreColor(run.score)}`}
+										>
+											{Math.round(run.score)}%
+										</span>
+										<ChevronRight className="h-4 w-4 text-secondary-400" />
+									</div>
 								</Link>
 							))}
 						</div>
 					)}
 				</div>
 
-				{/* Active rules */}
-				<div className="card p-5">
-					<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
-						Active Rules
-					</h2>
-					{(!rules || rules.length === 0) ? (
-						<EmptyState message="No rules defined yet" />
-					) : (
-						<div className="space-y-2">
-							{rules.filter((r) => r.enabled).slice(0, 5).map((r) => (
-								<Link
-									key={r.id}
-									to={`/config-management/rules/${r.id}`}
-									className="flex items-center justify-between p-2 rounded hover:bg-secondary-50 dark:hover:bg-secondary-800"
-								>
-									<p className="text-sm font-medium text-secondary-900 dark:text-white">
-										{r.name}
-									</p>
-									<span className="text-xs text-secondary-400">
-										{r.cm_rule_directives?.length || 0} directives
-										{" · "}
-										{r.cm_rule_groups?.length || 0} groups
-									</span>
-								</Link>
-							))}
-						</div>
-					)}
+				{/* Quick summary */}
+				<div className="space-y-6">
+					{/* Top techniques */}
+					<div className="card p-5">
+						<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
+							Techniques
+						</h2>
+						{!techniques || techniques.length === 0 ? (
+							<EmptyState message="No techniques defined yet" />
+						) : (
+							<div className="space-y-2">
+								{techniques.slice(0, 5).map((t) => (
+									<Link
+										key={t.id}
+										to={`/config-management/techniques/${t.id}`}
+										className="flex items-center justify-between p-2 rounded hover:bg-secondary-50 dark:hover:bg-secondary-800"
+									>
+										<div>
+											<p className="text-sm font-medium text-secondary-900 dark:text-white">
+												{t.name}
+											</p>
+											{t.category && (
+												<p className="text-xs text-secondary-500">
+													{t.category}
+												</p>
+											)}
+										</div>
+										<span className="text-xs text-secondary-400">
+											v{t.version} ·{" "}
+											{t.total_directives ?? t._count?.cm_directives ?? 0}{" "}
+											directives
+										</span>
+									</Link>
+								))}
+							</div>
+						)}
+					</div>
+
+					{/* Active rules */}
+					<div className="card p-5">
+						<h2 className="text-lg font-medium text-secondary-900 dark:text-white mb-4">
+							Active Rules
+						</h2>
+						{!rules || rules.length === 0 ? (
+							<EmptyState message="No rules defined yet" />
+						) : (
+							<div className="space-y-2">
+								{rules
+									.filter((r) => r.enabled)
+									.slice(0, 5)
+									.map((r) => (
+										<Link
+											key={r.id}
+											to={`/config-management/rules/${r.id}`}
+											className="flex items-center justify-between p-2 rounded hover:bg-secondary-50 dark:hover:bg-secondary-800"
+										>
+											<p className="text-sm font-medium text-secondary-900 dark:text-white">
+												{r.name}
+											</p>
+											<span className="text-xs text-secondary-400">
+												{r.cm_rule_directives?.length || 0} directives
+												{" · "}
+												{r.cm_rule_groups?.length || 0} groups
+											</span>
+										</Link>
+									))}
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
-		</div>
 		</div>
 	);
 }
@@ -568,14 +577,18 @@ function DiagnosticsPanel() {
 		mutationFn: (hostId) => configManagementAPI.testRun(hostId),
 		onSuccess: (res) => {
 			const data = res.data;
-			toast.success(`Test run created: ${data.policy_summary?.directives || 0} directives evaluated`);
+			toast.success(
+				`Test run created: ${data.policy_summary?.directives || 0} directives evaluated`,
+			);
 			queryClient.invalidateQueries(["configmgmt", "runs"]);
 			queryClient.invalidateQueries(["configmgmt", "dashboard"]);
 			queryClient.invalidateQueries(["configmgmt", "diagnose"]);
 			setTestRunningHost(null);
 		},
 		onError: (err) => {
-			toast.error(`Test run failed: ${err.response?.data?.error || err.response?.data?.message || err.message}`);
+			toast.error(
+				`Test run failed: ${err.response?.data?.error || err.response?.data?.message || err.message}`,
+			);
 			setTestRunningHost(null);
 		},
 	});
@@ -623,7 +636,9 @@ function DiagnosticsPanel() {
 					disabled={diagFetching}
 					className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-secondary-100 dark:bg-secondary-700 text-secondary-700 dark:text-secondary-300 hover:bg-secondary-200 dark:hover:bg-secondary-600 transition-colors"
 				>
-					<RefreshCw className={`h-3.5 w-3.5 ${diagFetching ? "animate-spin" : ""}`} />
+					<RefreshCw
+						className={`h-3.5 w-3.5 ${diagFetching ? "animate-spin" : ""}`}
+					/>
 					Re-check
 				</button>
 			</div>
@@ -635,15 +650,23 @@ function DiagnosticsPanel() {
 					{ label: "Directives", count: details?.directives?.total ?? 0 },
 					{ label: "Rules", count: details?.rules?.total ?? 0 },
 					{ label: "Enabled Hosts", count: details?.enabled_hosts?.total ?? 0 },
-					{ label: "With Policy", count: details?.host_policies?.filter((h) => h.has_policy).length ?? 0 },
+					{
+						label: "With Policy",
+						count:
+							details?.host_policies?.filter((h) => h.has_policy).length ?? 0,
+					},
 				].map((step, i, arr) => (
 					<div key={step.label} className="flex items-center gap-2">
-						<div className={`flex flex-col items-center px-3 py-2 rounded-lg border ${
-							step.count > 0
-								? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30"
-								: "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30"
-						}`}>
-							<span className={`font-bold text-base ${step.count > 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
+						<div
+							className={`flex flex-col items-center px-3 py-2 rounded-lg border ${
+								step.count > 0
+									? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30"
+									: "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30"
+							}`}
+						>
+							<span
+								className={`font-bold text-base ${step.count > 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}
+							>
 								{step.count}
 							</span>
 							<span className="text-secondary-600 dark:text-secondary-400 whitespace-nowrap">
@@ -661,9 +684,14 @@ function DiagnosticsPanel() {
 			{errors.length > 0 && (
 				<div className="space-y-2 mb-3">
 					{errors.map((issue, i) => (
-						<div key={`err-${i}`} className="flex items-start gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm">
+						<div
+							key={`err-${i}`}
+							className="flex items-start gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm"
+						>
 							<XCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-							<span className="text-red-700 dark:text-red-300">{issue.message}</span>
+							<span className="text-red-700 dark:text-red-300">
+								{issue.message}
+							</span>
 						</div>
 					))}
 				</div>
@@ -671,9 +699,14 @@ function DiagnosticsPanel() {
 			{warnings.length > 0 && (
 				<div className="space-y-2 mb-3">
 					{warnings.map((issue, i) => (
-						<div key={`warn-${i}`} className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-sm">
+						<div
+							key={`warn-${i}`}
+							className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-sm"
+						>
 							<AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-							<span className="text-amber-700 dark:text-amber-300">{issue.message}</span>
+							<span className="text-amber-700 dark:text-amber-300">
+								{issue.message}
+							</span>
 						</div>
 					))}
 				</div>
@@ -689,15 +722,26 @@ function DiagnosticsPanel() {
 						<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700 text-sm">
 							<thead className="bg-secondary-50 dark:bg-secondary-800">
 								<tr>
-									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">Host</th>
-									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">Policy</th>
-									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">Directives</th>
-									<th className="px-3 py-2 text-right text-xs font-medium text-secondary-500 uppercase">Actions</th>
+									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">
+										Host
+									</th>
+									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">
+										Policy
+									</th>
+									<th className="px-3 py-2 text-left text-xs font-medium text-secondary-500 uppercase">
+										Directives
+									</th>
+									<th className="px-3 py-2 text-right text-xs font-medium text-secondary-500 uppercase">
+										Actions
+									</th>
 								</tr>
 							</thead>
 							<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
 								{details.host_policies.map((hp) => (
-									<tr key={hp.host_id} className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50">
+									<tr
+										key={hp.host_id}
+										className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50"
+									>
 										<td className="px-3 py-2 text-secondary-900 dark:text-white font-medium">
 											{hp.host_name}
 										</td>
@@ -728,7 +772,8 @@ function DiagnosticsPanel() {
 													disabled={testRunMutation.isPending}
 													className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 transition-colors disabled:opacity-50"
 												>
-													{testRunMutation.isPending && testRunningHost === hp.host_id ? (
+													{testRunMutation.isPending &&
+													testRunningHost === hp.host_id ? (
 														<Loader2 className="h-3 w-3 animate-spin" />
 													) : (
 														<Play className="h-3 w-3" />
@@ -747,7 +792,8 @@ function DiagnosticsPanel() {
 
 			{issues?.length === 0 && (
 				<p className="text-sm text-green-600 dark:text-green-400 mt-2">
-					Pipeline is fully configured. Agents will evaluate policies on their next report cycle (typically every 60 minutes).
+					Pipeline is fully configured. Agents will evaluate policies on their
+					next report cycle (typically every 60 minutes).
 				</p>
 			)}
 		</div>
@@ -831,9 +877,7 @@ function TechniquesTab({ techniques, search, setSearch, onDelete }) {
 										)}
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{Array.isArray(t.methods)
-											? t.methods.length
-											: "—"}
+										{Array.isArray(t.methods) ? t.methods.length : "—"}
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
 										{t.total_directives ?? t._count?.cm_directives ?? 0}
@@ -930,13 +974,18 @@ function DirectivesTab({ directives, search, setSearch, onDelete }) {
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
 										{d.technique?.name || "—"}
 										{d.technique_version && (
-											<span className={`ml-1 text-xs ${
-												d.technique && d.technique_version !== d.technique.version
-													? "text-amber-500 font-medium"
-													: "text-secondary-400"
-											}`}>
+											<span
+												className={`ml-1 text-xs ${
+													d.technique &&
+													d.technique_version !== d.technique.version
+														? "text-amber-500 font-medium"
+														: "text-secondary-400"
+												}`}
+											>
 												v{d.technique_version}
-												{d.technique && d.technique_version !== d.technique.version && " ⚠"}
+												{d.technique &&
+													d.technique_version !== d.technique.version &&
+													" ⚠"}
 											</span>
 										)}
 									</td>
@@ -1061,7 +1110,11 @@ function RulesTab({ rules, search, setSearch, onDelete }) {
 										{r.cm_rule_groups?.length || 0}
 									</td>
 									<td className="px-4 py-3">
-										{schedBadge(r.run_schedule, r.schedule_interval, r.schedule_cron)}
+										{schedBadge(
+											r.run_schedule,
+											r.schedule_interval,
+											r.schedule_cron,
+										)}
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
 										{r.priority}
@@ -1118,7 +1171,7 @@ function RunsTab({ runs, total }) {
 				</p>
 			</div>
 
-			{(!runs || runs.length === 0) ? (
+			{!runs || runs.length === 0 ? (
 				<EmptyState message="No policy runs recorded yet" />
 			) : (
 				<div className="card overflow-hidden">
@@ -1157,9 +1210,7 @@ function RunsTab({ runs, total }) {
 											run.hosts?.hostname ||
 											"Unknown"}
 									</td>
-									<td className="px-4 py-3">
-										{modeBadge(run.global_mode)}
-									</td>
+									<td className="px-4 py-3">{modeBadge(run.global_mode)}</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
 										{run.total_directives}
 									</td>

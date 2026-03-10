@@ -767,9 +767,13 @@ const Hosts = () => {
 				case "integrations": {
 					// Sort by integration count
 					const aScore =
-						(a.docker_enabled ? 1 : 0) + (a.compliance_enabled ? 1 : 0) + (a.configmanagement_enabled ? 1 : 0);
+						(a.docker_enabled ? 1 : 0) +
+						(a.compliance_enabled ? 1 : 0) +
+						(a.configmanagement_enabled ? 1 : 0);
 					const bScore =
-						(b.docker_enabled ? 1 : 0) + (b.compliance_enabled ? 1 : 0) + (b.configmanagement_enabled ? 1 : 0);
+						(b.docker_enabled ? 1 : 0) +
+						(b.compliance_enabled ? 1 : 0) +
+						(b.configmanagement_enabled ? 1 : 0);
 					aValue = aScore;
 					bValue = bScore;
 					break;
@@ -1105,11 +1109,13 @@ const Hosts = () => {
 								<Settings className="h-3 w-3" />
 							</span>
 						)}
-						{!host.docker_enabled && !host.compliance_enabled && !host.configmanagement_enabled && (
-							<span className="text-xs text-secondary-400 dark:text-secondary-500">
-								—
-							</span>
-						)}
+						{!host.docker_enabled &&
+							!host.compliance_enabled &&
+							!host.configmanagement_enabled && (
+								<span className="text-xs text-secondary-400 dark:text-secondary-500">
+									—
+								</span>
+							)}
 					</div>
 				);
 			case "status":

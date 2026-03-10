@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Save, Clock, Loader2, Calendar, Globe } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Calendar, Clock, Globe, Loader2, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "../../contexts/ToastContext";
 import { patchManagementAPI } from "../../utils/patchManagementApi";
 
@@ -50,7 +50,8 @@ export default function WindowDetail() {
 	// Load policies for the selector
 	const { data: policiesData } = useQuery({
 		queryKey: ["patchmgmt", "policies"],
-		queryFn: () => patchManagementAPI.listPolicies().then((r) => r.data?.policies || []),
+		queryFn: () =>
+			patchManagementAPI.listPolicies().then((r) => r.data?.policies || []),
 	});
 	const policies = policiesData || [];
 
@@ -85,10 +86,13 @@ export default function WindowDetail() {
 			queryClient.invalidateQueries(["patchmgmt"]);
 			toast.success(isNew ? "Window created" : "Window updated");
 			if (isNew && res.data?.window?.id) {
-				navigate(`/patch-management/windows/${res.data.window.id}`, { replace: true });
+				navigate(`/patch-management/windows/${res.data.window.id}`, {
+					replace: true,
+				});
 			}
 		},
-		onError: (err) => toast.error(`Save failed: ${err.response?.data?.error || err.message}`),
+		onError: (err) =>
+			toast.error(`Save failed: ${err.response?.data?.error || err.message}`),
 	});
 
 	function handleSave() {
@@ -137,10 +141,14 @@ export default function WindowDetail() {
 					</Link>
 					<div>
 						<h1 className="text-xl font-bold text-secondary-900 dark:text-white">
-							{isNew ? "New Maintenance Window" : `Edit: ${window_?.name || ""}`}
+							{isNew
+								? "New Maintenance Window"
+								: `Edit: ${window_?.name || ""}`}
 						</h1>
 						<p className="text-sm text-secondary-500 dark:text-secondary-400">
-							{isNew ? "Schedule when patching can occur" : "Modify window schedule"}
+							{isNew
+								? "Schedule when patching can occur"
+								: "Modify window schedule"}
 						</p>
 					</div>
 				</div>
@@ -149,7 +157,11 @@ export default function WindowDetail() {
 					disabled={saveMutation.isPending}
 					className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
 				>
-					{saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+					{saveMutation.isPending ? (
+						<Loader2 className="h-4 w-4 animate-spin" />
+					) : (
+						<Save className="h-4 w-4" />
+					)}
 					{isNew ? "Create" : "Save"}
 				</button>
 			</div>
@@ -210,7 +222,9 @@ export default function WindowDetail() {
 									onChange={(e) => setEnabled(e.target.checked)}
 									className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
 								/>
-								<span className="text-sm text-secondary-700 dark:text-secondary-300">Enabled</span>
+								<span className="text-sm text-secondary-700 dark:text-secondary-300">
+									Enabled
+								</span>
 							</label>
 						</div>
 					</div>
@@ -243,7 +257,9 @@ export default function WindowDetail() {
 									min={15}
 									max={1440}
 									value={durationMinutes}
-									onChange={(e) => setDurationMinutes(parseInt(e.target.value, 10) || 120)}
+									onChange={(e) =>
+										setDurationMinutes(parseInt(e.target.value, 10) || 120)
+									}
 									className="w-full px-3 py-2 text-sm border border-secondary-300 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-900 text-secondary-900 dark:text-white"
 								/>
 							</div>
@@ -266,7 +282,9 @@ export default function WindowDetail() {
 						</div>
 
 						<div>
-							<p className="text-xs font-medium text-secondary-600 dark:text-secondary-400 mb-1.5">Presets</p>
+							<p className="text-xs font-medium text-secondary-600 dark:text-secondary-400 mb-1.5">
+								Presets
+							</p>
 							<div className="flex flex-wrap gap-1.5">
 								{CRON_PRESETS.map((p) => (
 									<button
@@ -308,10 +326,14 @@ export default function WindowDetail() {
 				<div className="space-y-6">
 					{!isNew && window_ && (
 						<div className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-5 space-y-3">
-							<h3 className="text-sm font-semibold text-secondary-900 dark:text-white">Schedule Info</h3>
+							<h3 className="text-sm font-semibold text-secondary-900 dark:text-white">
+								Schedule Info
+							</h3>
 							<dl className="space-y-2 text-sm">
 								<div>
-									<dt className="text-secondary-500 dark:text-secondary-400">Next Run</dt>
+									<dt className="text-secondary-500 dark:text-secondary-400">
+										Next Run
+									</dt>
 									<dd className="text-secondary-900 dark:text-white font-medium">
 										{window_.next_run_at
 											? new Date(window_.next_run_at).toLocaleString()
@@ -319,7 +341,9 @@ export default function WindowDetail() {
 									</dd>
 								</div>
 								<div>
-									<dt className="text-secondary-500 dark:text-secondary-400">Policy</dt>
+									<dt className="text-secondary-500 dark:text-secondary-400">
+										Policy
+									</dt>
 									<dd>
 										{window_.patch_policy ? (
 											<Link
@@ -334,7 +358,9 @@ export default function WindowDetail() {
 									</dd>
 								</div>
 								<div>
-									<dt className="text-secondary-500 dark:text-secondary-400">Created</dt>
+									<dt className="text-secondary-500 dark:text-secondary-400">
+										Created
+									</dt>
 									<dd className="text-secondary-900 dark:text-white">
 										{new Date(window_.created_at).toLocaleString()}
 									</dd>
