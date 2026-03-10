@@ -558,6 +558,15 @@ function OverviewTab({ dashboard, techniques, directives, rules, runs }) {
 
 // ─── Pipeline Diagnostics panel ─────────────────────────────────────────────
 function DiagnosticsPanel() {
+	const showDiagnostics =
+		localStorage.getItem("patchmon_show_diagnostics") !== "false";
+
+	if (!showDiagnostics) return null;
+
+	return <DiagnosticsPanelInner />;
+}
+
+function DiagnosticsPanelInner() {
 	const toast = useToast();
 	const queryClient = useQueryClient();
 	const [testRunningHost, setTestRunningHost] = useState(null);
