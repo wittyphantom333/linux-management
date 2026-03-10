@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"patchmon-agent/internal/config"
+	"patchmon-agent/internal/logbuffer"
 	"patchmon-agent/internal/utils"
 	"patchmon-agent/pkg/models"
 
@@ -480,4 +481,36 @@ func (c *Client) SendPatchStatus(ctx context.Context, update *models.PatchStatus
 	}
 
 	return result, nil
+}
+
+// SendAgentLogs ships buffered log entries to the server for remote viewing.
+func (c *Client) SendAgentLogs(ctx context.Context, entries []logbuffer.Entry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	url := fmt.Sprintf("%s/api/%s/agent-logs/ingest", c.config.PatchmonServer, c.config.APIVersion)
+
+	body := map[string]interface{}{
+		"entries": entries,
+	}
+
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("X-API-ID", c.credentials.APIID).
+		SetHeader("X-API-KEY", c.credentials.APIKey).
+		SetBody(body).
+		Post(url)
+
+	if err != nil {
+		return fmt.Errorf("agent log shipping failed: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return fmt.Errorf("agent log shipping failed with status %d: %s", resp.StatusCode(), truncateResponse(resp.String(), 200))
+	}
+
+	c.logger.WithField("entries", len(entries)).Debug("Agent logs shipped to server")
+	return nil
 }

@@ -309,6 +309,9 @@ func sendReport(outputJSON bool) error {
 	// This ensures failures in integrations don't affect core system reporting
 	sendIntegrationData()
 
+	// Ship buffered log entries to the server so they appear in the UI
+	shipAgentLogs()
+
 	logger.Debug("Report process completed")
 	return nil
 }
@@ -548,4 +551,24 @@ func sendConfigMgmtData(httpClient *client.Client, integrationData *models.Integ
 		"directives_applied": response.DirectivesApplied,
 		"message":            response.Message,
 	}).Info("Config management data sent successfully")
+}
+
+// shipAgentLogs drains the log buffer and sends entries to the server.
+func shipAgentLogs() {
+	if logHook == nil {
+		return
+	}
+
+	entries := logHook.Drain()
+	if len(entries) == 0 {
+		return
+	}
+
+	httpClient := client.New(cfgManager, logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := httpClient.SendAgentLogs(ctx, entries); err != nil {
+		logger.WithError(err).Warn("Failed to ship agent logs to server (entries lost)")
+	}
 }

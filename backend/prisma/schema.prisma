@@ -147,6 +147,7 @@ model hosts {
   compliance_scans         compliance_scans[]
   cm_policy_runs           cm_policy_runs[]
   patch_job_hosts          patch_job_hosts[]
+  agent_logs               agent_logs[]
 
   @@index([machine_id])
   @@index([friendly_name])
@@ -991,4 +992,28 @@ model patch_job_packages {
 
   @@index([job_host_id])
   @@index([status])
+}
+
+// ============================================================================
+// AGENT LOGS
+// ============================================================================
+
+/// Stores log entries shipped from agents to the server for UI viewing.
+model agent_logs {
+  id          String   @id @default(uuid())
+  host_id     String
+  timestamp   DateTime                // When the log entry was generated on the agent
+  level       String                  // "debug", "info", "warn", "error"
+  source      String   @default("") // Module/component that produced the log (e.g. "configmanagement", "patchmanagement")
+  message     String   @db.Text       // The log message
+  metadata    Json?                    // Optional structured metadata (fields from logrus)
+  received_at DateTime @default(now()) // When the server received this entry
+
+  hosts hosts @relation(fields: [host_id], references: [id], onDelete: Cascade)
+
+  @@index([host_id])
+  @@index([host_id, timestamp])
+  @@index([level])
+  @@index([source])
+  @@index([received_at])
 }

@@ -68,6 +68,7 @@ const doc = {
 		{ name: "WebSocket", description: "WebSocket status and streaming endpoints" },
 		{ name: "Integrations", description: "Third-party integrations (GetHomepage, Discord, OIDC, etc.)" },
 		{ name: "Scoped API - Hosts", description: "Scoped API endpoints for host data (Basic Auth)" },
+		{ name: "Agent Logs", description: "Agent log shipping, retrieval, and management" },
 		{ name: "System", description: "Health checks, settings, and system-level endpoints" },
 	],
 };
@@ -131,6 +132,7 @@ swaggerAutogen(outputFile, endpointsFiles, doc).then(() => {
 			"health": "System",
 			"settings": "System",
 			"patch-management": "Patch Management - Agent",
+			"agent-logs": "Agent Logs",
 		};
 
 		for (const [pathKey, methods] of Object.entries(swaggerDoc.paths)) {

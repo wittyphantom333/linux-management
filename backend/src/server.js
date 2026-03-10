@@ -107,6 +107,7 @@ const patchManagementRoutes = require("./routes/patchManagementRoutes");
 const { initializeOIDC } = require("./auth/oidc");
 const aiRoutes = require("./routes/aiRoutes");
 const alertRoutes = require("./routes/alertRoutes");
+const agentLogsRoutes = require("./routes/agentLogsRoutes");
 const { initSettings } = require("./services/settingsService");
 const { queueManager } = require("./services/automation");
 const {
@@ -436,6 +437,7 @@ app.use(`/api/${apiVersion}/configmanagement`, configManagementRoutes);
 app.use(`/api/${apiVersion}/patch-management`, patchManagementRoutes);
 app.use(`/api/${apiVersion}/ai`, aiRoutes);
 app.use(`/api/${apiVersion}/alerts`, alertRoutes);
+app.use(`/api/${apiVersion}/agent-logs`, agentLogsRoutes);
 
 // Bull Board - will be populated after queue manager initializes
 let bullBoardRouter = null;
@@ -1027,6 +1029,17 @@ async function startServer() {
 				logger.info(`Environment: ${process.env.NODE_ENV}`);
 			}
 		});
+
+		// Purge old agent logs on startup and then every 6 hours
+		try {
+			const { purgeOldLogs } = require("./routes/agentLogsRoutes");
+			const retentionDays = Number.parseInt(process.env.AGENT_LOG_RETENTION_DAYS, 10) || 7;
+			await purgeOldLogs(retentionDays);
+			setInterval(() => purgeOldLogs(retentionDays), 6 * 60 * 60 * 1000);
+			console.log(`✅ Agent log cleanup active (${retentionDays}d retention)`);
+		} catch (err) {
+			logger.error(`[AgentLogs] Failed to start log cleanup: ${err.message}`);
+		}
 	} catch (error) {
 		console.error("❌ Failed to start server:", error.message);
 		process.exit(1);

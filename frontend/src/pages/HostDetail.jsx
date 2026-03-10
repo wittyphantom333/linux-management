@@ -48,6 +48,7 @@ import {
 } from "../utils/api";
 import { complianceAPI } from "../utils/complianceApi";
 import { OSIcon } from "../utils/osIcons.jsx";
+import AgentLogsTab from "./hostdetail/AgentLogsTab";
 import AgentQueueTab from "./hostdetail/AgentQueueTab";
 import CredentialsModal from "./hostdetail/CredentialsModal";
 import DeleteConfirmationModal from "./hostdetail/DeleteConfirmationModal";
@@ -2436,6 +2437,17 @@ const HostDetail = () => {
 						)}
 						<button
 							type="button"
+							onClick={() => handleTabChange("logs")}
+							className={`px-4 py-2 text-sm font-medium ${
+								activeTab === "logs"
+									? "text-primary-600 dark:text-primary-400 border-b-2 border-primary-500"
+									: "text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300"
+							}`}
+						>
+							Agent Logs
+						</button>
+						<button
+							type="button"
 							onClick={() => handleTabChange("terminal")}
 							className={`px-4 py-2 text-sm font-medium ${
 								activeTab === "terminal"
@@ -3459,6 +3471,9 @@ const HostDetail = () => {
 
 						{/* Agent Queue */}
 						{activeTab === "queue" && <AgentQueueTab hostId={hostId} />}
+
+						{/* Agent Logs */}
+						{activeTab === "logs" && <AgentLogsTab hostId={hostId} />}
 
 						{/* Integrations */}
 						{activeTab === "integrations" && (

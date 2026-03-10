@@ -480,4 +480,13 @@ export const alertsAPI = {
 	bulkDeleteAlerts: (alertIds) => api.post("/alerts/bulk-delete", { alertIds }),
 };
 
+export const agentLogsAPI = {
+	getLogs: (hostId, params = {}) =>
+		api.get(`/agent-logs/${hostId}`, { params }),
+	getSources: (hostId) => api.get(`/agent-logs/${hostId}/sources`),
+	getStats: (hostId) => api.get(`/agent-logs/${hostId}/stats`),
+	clearLogs: (hostId, params = {}) =>
+		api.delete(`/agent-logs/${hostId}`, { params }),
+};
+
 export default api;

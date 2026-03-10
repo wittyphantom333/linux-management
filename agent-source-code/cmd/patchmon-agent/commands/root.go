@@ -7,6 +7,7 @@ import (
 
 	"patchmon-agent/internal/config"
 	"patchmon-agent/internal/constants"
+	"patchmon-agent/internal/logbuffer"
 	"patchmon-agent/internal/pkgversion"
 	"patchmon-agent/internal/utils"
 
@@ -18,6 +19,7 @@ import (
 var (
 	cfgManager *config.Manager
 	logger     *logrus.Logger
+	logHook    *logbuffer.Hook // Captures recent log entries for shipping to server
 	configFile string
 	logLevel   string
 )
@@ -91,6 +93,10 @@ func initialiseAgent() {
 	// SECURITY: Use 0750 for log directory (no world access)
 	_ = os.MkdirAll(filepath.Dir(logFile), 0750)
 	logger.SetOutput(&lumberjack.Logger{Filename: logFile, MaxSize: 10, MaxBackups: 5, MaxAge: 14, Compress: true})
+
+	// Attach log buffer hook — captures entries for shipping to the server
+	logHook = logbuffer.New(2000, logrus.InfoLevel)
+	logger.AddHook(logHook)
 }
 
 // updateLogLevel sets the logger level based on the flag value
