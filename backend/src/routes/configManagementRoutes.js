@@ -259,14 +259,25 @@ router.put("/techniques/:id", authenticateToken, async (req, res) => {
 				},
 			});
 
+			// Auto-upgrade all directives that reference the old version to the new one.
+			// Without this, directives stay pinned to the old row (fewer methods, stale config).
+			const upgraded = await prisma.cm_directives.updateMany({
+				where: { technique_id: existing.id },
+				data: {
+					technique_id: newTechnique.id,
+					technique_version: version,
+				},
+			});
+
 			logger.info(
-				`[ConfigMgmt] Technique new version created: ${newTechnique.name} v${version} (prev v${existing.version})`,
+				`[ConfigMgmt] Technique new version created: ${newTechnique.name} v${version} (prev v${existing.version}), auto-upgraded ${upgraded.count} directive(s)`,
 			);
 			return res.json({
 				success: true,
 				technique: newTechnique,
 				new_version: true,
 				previous_id: existing.id,
+				directives_upgraded: upgraded.count,
 			});
 		}
 

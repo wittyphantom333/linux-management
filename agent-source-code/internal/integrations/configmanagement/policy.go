@@ -167,6 +167,14 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 					"method":    method.Name,
 					"condition": method.Condition,
 				}).Debug("Method condition not met, skipping")
+				// Record a visible "skipped" result so the method isn't silently invisible
+				methodResults = append(methodResults, models.ConfigMethodResult{
+					MethodID:   method.ID,
+					MethodName: method.Name,
+					MethodType: method.Type,
+					Status:     "skipped",
+					Message:    fmt.Sprintf("Condition not met: %s", method.Condition),
+				})
 				continue
 			}
 

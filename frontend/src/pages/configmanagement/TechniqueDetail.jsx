@@ -159,13 +159,11 @@ export default function TechniqueDetail() {
 				: configManagementAPI.updateTechnique(id, data),
 		onSuccess: (res) => {
 			queryClient.invalidateQueries(["configmgmt"]);
-			toast.success(
-				isNew
-					? "Technique created"
-					: res.data?.new_version
-						? "New version created"
-						: "Technique updated",
-			);
+			const upgraded = res.data?.directives_upgraded || 0;
+			const versionMsg = res.data?.new_version
+				? `New version created${upgraded > 0 ? ` — ${upgraded} directive(s) auto-upgraded` : ""}`
+				: "Technique updated";
+			toast.success(isNew ? "Technique created" : versionMsg);
 			const newId = res.data?.technique?.id;
 			if (newId && (isNew || res.data?.new_version)) {
 				navigate(`/config-management/techniques/${newId}`, { replace: true });
