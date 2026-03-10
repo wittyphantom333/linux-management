@@ -189,7 +189,7 @@ type ConfigDirectiveResult struct {
 	DirectiveName string               `json:"directive_name"`
 	TechniqueID   string               `json:"technique_id"`
 	PolicyMode    string               `json:"policy_mode"`            // "audit" or "enforce"
-	Status        string               `json:"status"`                 // "compliant", "non_compliant", "error", "not_applicable", "repaired", "skipped"
+	Status        string               `json:"status"`                 // "compliant", "non_compliant", "error", "not_applicable", "repaired", "skipped", "audited"
 	Message       string               `json:"message,omitempty"`      // Human-readable message (e.g. schedule skip reason)
 	Methods       []ConfigMethodResult `json:"methods"`
 	StartedAt     time.Time            `json:"started_at"`
@@ -208,6 +208,7 @@ type ConfigComplianceReport struct {
 	Errors           int                     `json:"errors"`
 	Repaired         int                     `json:"repaired"`
 	NotApplicable    int                     `json:"not_applicable"`
+	Audited          int                     `json:"audited"`
 	Score            float64                 `json:"score"` // 0-100%
 	DirectiveResults []ConfigDirectiveResult `json:"directive_results"`
 }

@@ -30,6 +30,14 @@ function statusIcon(status) {
 			return <XCircle className="h-4 w-4 text-red-500" />;
 		case "error":
 			return <AlertTriangle className="h-4 w-4 text-orange-500" />;
+		case "audited":
+			return <Eye className="h-4 w-4 text-indigo-500" />;
+		case "audit_compliant":
+			return <Eye className="h-4 w-4 text-indigo-400" />;
+		case "audit_non_compliant":
+			return <Eye className="h-4 w-4 text-indigo-400" />;
+		case "audit_error":
+			return <AlertTriangle className="h-4 w-4 text-orange-500" />;
 		case "not_applicable":
 			return <MinusCircle className="h-4 w-4 text-secondary-400" />;
 		case "skipped":
@@ -48,7 +56,14 @@ function statusLabel(status) {
 		case "non_compliant":
 			return "Non-Compliant";
 		case "error":
+		case "audit_error":
 			return "Error";
+		case "audited":
+			return "Audited";
+		case "audit_compliant":
+			return "State OK";
+		case "audit_non_compliant":
+			return "Drift Detected";
 		case "not_applicable":
 			return "N/A";
 		case "skipped":
@@ -106,12 +121,13 @@ export default function RunDetail() {
 			</div>
 
 			{/* Summary cards */}
-			<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+			<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
 				<SummaryCard label="Score" value={`${Math.round(run.score)}%`} color={scoreColor(run.score)} />
 				<SummaryCard label="Total" value={run.total_directives} color="text-secondary-500" />
 				<SummaryCard label="Compliant" value={run.compliant} color="text-green-500" />
 				<SummaryCard label="Repaired" value={run.repaired} color="text-blue-500" />
 				<SummaryCard label="Non-Compliant" value={run.non_compliant} color="text-red-500" />
+				<SummaryCard label="Audited" value={run.audited || 0} color="text-indigo-500" />
 				<SummaryCard label="Errors" value={run.errors} color="text-orange-500" />
 			</div>
 
@@ -152,6 +168,7 @@ export default function RunDetail() {
 										dr.status === "repaired" ? "text-blue-600" :
 										dr.status === "non_compliant" ? "text-red-600" :
 										dr.status === "error" ? "text-orange-600" :
+										dr.status === "audited" ? "text-indigo-600" :
 										dr.status === "skipped" ? "text-secondary-400 italic" :
 										"text-secondary-400"
 									}`}>
@@ -186,7 +203,8 @@ export default function RunDetail() {
 														mr.status === "compliant" ? "text-green-600" :
 														mr.status === "repaired" ? "text-blue-600" :
 														mr.status === "non_compliant" ? "text-red-600" :
-														mr.status === "error" ? "text-orange-600" :
+														mr.status === "error" || mr.status === "audit_error" ? "text-orange-600" :
+														mr.status === "audit_compliant" || mr.status === "audit_non_compliant" ? "text-indigo-500" :
 														"text-secondary-400"
 													}`}
 												>

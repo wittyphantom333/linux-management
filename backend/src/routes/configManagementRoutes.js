@@ -996,6 +996,7 @@ router.post("/agent/report", async (req, res) => {
 				repaired: 0,
 				not_applicable: 0,
 				score: 100,
+				audited: 0,
 				directive_results: []
 			},
 			current_hash: 'sha256-hash',
@@ -1041,6 +1042,7 @@ router.post("/agent/report", async (req, res) => {
 					errors: report.errors || 0,
 					repaired: report.repaired || 0,
 					not_applicable: report.not_applicable || 0,
+					audited: report.audited || 0,
 					score: report.score || 0,
 					directive_results: report.directive_results || null,
 					created_at: new Date(),
@@ -1381,6 +1383,7 @@ router.post("/test-run/:hostId", authenticateToken, async (req, res) => {
 				errors: 0,
 				repaired: 0,
 				not_applicable: totalDirectives,
+				audited: 0,
 				score: 0,
 				directive_results: directiveResults,
 				created_at: new Date(),

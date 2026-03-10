@@ -220,6 +220,12 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 			dirStatus = worstStatus(dirStatus, result.Status)
 		}
 
+		// In audit mode, coalesce non-error directive status to "audited" — audit
+		// checks are informational only and should not show as pass/fail.
+		if effectiveMode == "audit" && dirStatus != "error" && dirStatus != "audit_error" {
+			dirStatus = "audited"
+		}
+
 		dirEnd := time.Now()
 		directiveResults = append(directiveResults, models.ConfigDirectiveResult{
 			DirectiveID:   dir.ID,
@@ -239,6 +245,8 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 
 		// Update report counters
 		switch dirStatus {
+		case "audited":
+			report.Audited++
 		case "compliant", "success", "audit_compliant":
 			report.Compliant++
 		case "non_compliant", "audit_non_compliant":
@@ -255,11 +263,16 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 	}
 
 	report.DirectiveResults = directiveResults
-	report.TotalDirectives = report.Compliant + report.NonCompliant + report.Errors + report.Repaired + report.NotApplicable
+	report.TotalDirectives = report.Compliant + report.NonCompliant + report.Errors + report.Repaired + report.NotApplicable + report.Audited
 
-	// Compute score (compliant + repaired = good)
-	if report.TotalDirectives > 0 {
-		report.Score = float64(report.Compliant+report.Repaired) / float64(report.TotalDirectives) * 100
+	// Compute score — audited directives are informational and don't count toward
+	// pass/fail. They are excluded from both numerator and denominator.
+	enforceDenom := report.Compliant + report.NonCompliant + report.Errors + report.Repaired
+	if enforceDenom > 0 {
+		report.Score = float64(report.Compliant+report.Repaired) / float64(enforceDenom) * 100
+	} else if report.Audited > 0 {
+		// All directives are audit-only — score is not applicable, show 100%
+		report.Score = 100
 	}
 
 	return report

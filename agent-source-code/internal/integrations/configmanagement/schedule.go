@@ -60,7 +60,7 @@ func entryKey(item models.ConfigPolicyItem) string {
 // isSuccessStatus returns true for statuses that count as a successful completion.
 func isSuccessStatus(status string) bool {
 	switch status {
-	case "compliant", "success", "repaired", "audit_compliant":
+	case "compliant", "success", "repaired", "audit_compliant", "audited":
 		return true
 	}
 	return false

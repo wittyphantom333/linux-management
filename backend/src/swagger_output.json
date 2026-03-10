@@ -10907,6 +10907,10 @@
                       "type": "number",
                       "example": 100
                     },
+                    "audited": {
+                      "type": "number",
+                      "example": 0
+                    },
                     "directive_results": {
                       "type": "array",
                       "example": [],

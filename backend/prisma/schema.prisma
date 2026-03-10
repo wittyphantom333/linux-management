@@ -829,6 +829,7 @@ model cm_policy_runs {
   errors            Int       @default(0)
   repaired          Int       @default(0)
   not_applicable    Int       @default(0)
+  audited           Int       @default(0)
   score             Float     @default(0)
   directive_results Json?     // Full array of ConfigDirectiveResult
   created_at        DateTime  @default(now())
