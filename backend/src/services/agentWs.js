@@ -623,9 +623,11 @@ function broadcastSettingsUpdate(newInterval) {
 	}
 }
 
-function pushReportNow(apiId) {
+function pushReportNow(apiId, { forceCM = false } = {}) {
 	const ws = apiIdToSocket.get(apiId);
-	safeSend(ws, JSON.stringify({ type: "report_now" }));
+	const payload = { type: "report_now" };
+	if (forceCM) payload.force_cm = true;
+	safeSend(ws, JSON.stringify(payload));
 }
 
 function pushSettingsUpdate(apiId, newInterval) {

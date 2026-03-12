@@ -60,7 +60,9 @@ func (pe *PolicyExecutor) registerBuiltinMethods() {
 
 // Evaluate walks through all directives in the policy and evaluates each method.
 // schedState may be nil — if so, all directives are treated as "always" schedule.
-func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPolicy, schedState *ScheduleState) *models.ConfigComplianceReport {
+// When forceCM is true, once-scheduled directives are re-evaluated regardless of prior success.
+func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPolicy, schedState *ScheduleState, forceCM ...bool) *models.ConfigComplianceReport {
+	force := len(forceCM) > 0 && forceCM[0]
 	report := &models.ConfigComplianceReport{
 		PolicyID:    policy.PolicyID,
 		HostID:      policy.HostID,
@@ -109,7 +111,8 @@ func (pe *PolicyExecutor) Evaluate(ctx context.Context, policy *models.ConfigPol
 		effectiveMode := policyItem.EffectiveMode
 
 		// Check schedule — skip directives that aren't due to run yet
-		if schedState != nil && !schedState.ShouldRun(policyItem) {
+		// When force is true ("Run Now"), bypass schedule checks entirely
+		if schedState != nil && !force && !schedState.ShouldRun(policyItem) {
 			pe.logger.WithFields(logrus.Fields{
 				"directive": dir.Name,
 				"schedule":  policyItem.Schedule.RunSchedule,

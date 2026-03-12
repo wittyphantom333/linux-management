@@ -302,7 +302,7 @@ func runService() error {
 					logger.WithField("new_interval", m.interval).Info("interval updated, no report sent")
 				}
 			case "report_now":
-				if err := sendReport(false); err != nil {
+				if err := sendReport(false, m.forceCM); err != nil {
 					logger.WithError(err).Warn("report_now failed")
 				}
 				drainBurst()
@@ -977,6 +977,7 @@ type wsMsg struct {
 	scanAllImages          bool   // For docker_image_scan: scan all images on system
 	complianceOnDemandOnly bool   // For set_compliance_on_demand_only (legacy)
 	complianceMode         string // For set_compliance_mode: "disabled", "on-demand", or "enabled"
+	forceCM                bool   // For report_now: force config management re-evaluation (bypass once-schedule)
 	// SSH proxy fields
 	sshProxySessionID  string // Unique session ID for SSH proxy
 	sshProxyHost       string // SSH target host
@@ -1319,6 +1320,7 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 			ScanAllImages        bool   `json:"scan_all_images"`        // For docker_image_scan: scan all images
 			OnDemandOnly         bool   `json:"on_demand_only"`         // For set_compliance_on_demand_only (legacy)
 			Mode                 string `json:"mode"`                   // For set_compliance_mode: "disabled", "on-demand", or "enabled"
+			ForceCM              bool   `json:"force_cm"`                // For report_now: force config management re-evaluation
 			// SSH proxy fields
 			SessionID  string `json:"session_id"`  // SSH proxy session ID
 			Host       string `json:"host"`        // SSH proxy target host
@@ -1342,8 +1344,8 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 			logger.WithField("interval", payload.UpdateInterval).Info("settings_update received")
 			out <- wsMsg{kind: "settings_update", interval: payload.UpdateInterval}
 		case "report_now":
-			logger.Info("report_now received")
-			out <- wsMsg{kind: "report_now"}
+			logger.WithField("force_cm", payload.ForceCM).Info("report_now received")
+			out <- wsMsg{kind: "report_now", forceCM: payload.ForceCM}
 		case "update_agent":
 			logger.Info("update_agent received")
 			out <- wsMsg{kind: "update_agent"}

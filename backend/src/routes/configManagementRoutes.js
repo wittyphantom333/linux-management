@@ -1173,7 +1173,7 @@ router.post(
 			const notifiedHostIds = [];
 			for (const host of hosts) {
 				if (isConnected(host.api_id)) {
-					pushReportNow(host.api_id);
+					pushReportNow(host.api_id, { forceCM: true });
 					notifiedHostIds.push(host.id);
 					notified++;
 				}
@@ -1680,8 +1680,16 @@ router.post("/agent/report", async (req, res) => {
 		}
 
 		// Store the run — skip if no directives actually ran (e.g. all skipped by schedule)
+		// BUT always store when there's an active job so the run links to the job.
 		let runId = null;
-		if (report && (report.total_directives || 0) > 0) {
+		const hasPendingJob = await prisma.cm_job_hosts.findFirst({
+			where: {
+				host_id: host.id,
+				status: { in: ["pending", "running"] },
+			},
+			select: { id: true },
+		});
+		if (report && ((report.total_directives || 0) > 0 || hasPendingJob)) {
 			runId = uuidv4();
 			await prisma.cm_policy_runs.create({
 				data: {

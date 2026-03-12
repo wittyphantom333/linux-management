@@ -39,6 +39,7 @@ type Integration struct {
 	policyHash    string
 	executor      *PolicyExecutor
 	scheduleState *ScheduleState
+	forceCM       bool // bypass once-schedule checks (set by "Run Now")
 }
 
 // New creates a new ConfigManagement integration.
@@ -54,6 +55,12 @@ func New(logger *logrus.Logger) *Integration {
 // Must be called before Collect().
 func (cm *Integration) SetClient(c *client.Client) {
 	cm.httpClient = c
+}
+
+// SetForceCM enables force mode which bypasses once-schedule checks.
+// Used when the server sends a "Run Now" request.
+func (cm *Integration) SetForceCM(force bool) {
+	cm.forceCM = force
 }
 
 // Name returns the integration name.
@@ -173,8 +180,8 @@ func (cm *Integration) Collect(ctx context.Context) (*models.IntegrationData, er
 		}, nil
 	}
 
-	// Evaluate all directives (respecting schedules)
-	report := cm.executor.Evaluate(ctx, currentPolicy, cm.scheduleState)
+	// Evaluate all directives (respecting schedules, unless forceCM bypasses once-checks)
+	report := cm.executor.Evaluate(ctx, currentPolicy, cm.scheduleState, cm.forceCM)
 
 	data := &models.ConfigManagementData{
 		Report:      report,

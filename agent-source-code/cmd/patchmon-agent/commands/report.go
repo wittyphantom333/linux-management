@@ -61,7 +61,7 @@ func init() {
 	reportCmd.Flags().BoolVar(&reportJSON, "json", false, "Output the JSON report payload to stdout instead of sending to server")
 }
 
-func sendReport(outputJSON bool) error {
+func sendReport(outputJSON bool, forceCM ...bool) error {
 	// Start tracking execution time
 	startTime := time.Now()
 	logger.Debug("Starting report process")
@@ -321,7 +321,8 @@ func sendReport(outputJSON bool) error {
 
 	// Collect and send integration data (Docker, etc.) separately
 	// This ensures failures in integrations don't affect core system reporting
-	sendIntegrationData()
+	force := len(forceCM) > 0 && forceCM[0]
+	sendIntegrationData(force)
 
 	// Ship buffered log entries to the server so they appear in the UI
 	shipAgentLogs()
@@ -331,7 +332,7 @@ func sendReport(outputJSON bool) error {
 }
 
 // sendIntegrationData collects and sends data from integrations (Docker, etc.)
-func sendIntegrationData() {
+func sendIntegrationData(forceCM ...bool) {
 	logger.Debug("Starting integration data collection")
 
 	// Create integration manager
@@ -354,6 +355,10 @@ func sendIntegrationData() {
 		cmIntegration := configmanagement.New(logger)
 		// Provide the HTTP client so the integration can fetch its policy from the server
 		cmIntegration.SetClient(client.New(cfgManager, logger))
+		// When forceCM is true (from "Run Now"), bypass once-schedule checks
+		if len(forceCM) > 0 && forceCM[0] {
+			cmIntegration.SetForceCM(true)
+		}
 		integrationMgr.Register(cmIntegration)
 		logger.Debug("Config management integration registered")
 	} else {
