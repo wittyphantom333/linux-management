@@ -1235,6 +1235,60 @@ router.get(
 	},
 );
 
+// GET /api/v1/configmanagement/jobs/active - Active (pending/running) CM jobs for sidebar badge
+router.get(
+	"/jobs/active",
+	authenticateToken,
+	requireViewConfigManagement,
+	async (_req, res) => {
+		/* #swagger.tags = ['Config Management - Jobs'] */
+		/* #swagger.summary = 'List active config management jobs' */
+		try {
+			const jobs = await prisma.cm_jobs.findMany({
+				where: { status: { in: ["pending", "running"] } },
+				include: {
+					cm_job_hosts: {
+						select: { id: true, host_id: true, status: true },
+						include: {
+							host: {
+								select: { id: true, friendly_name: true, hostname: true },
+							},
+						},
+					},
+				},
+				orderBy: { created_at: "desc" },
+			});
+
+			const results = jobs.map((job) => {
+				const hosts = job.cm_job_hosts || [];
+				return {
+					id: job.id,
+					status: job.status,
+					rule_name: job.rule_name,
+					triggered_by: job.triggered_by,
+					triggered_by_user: job.triggered_by_user,
+					total_hosts: job.total_hosts,
+					completed_hosts: job.completed_hosts,
+					failed_hosts: job.failed_hosts,
+					created_at: job.created_at,
+					started_at: job.started_at,
+					host_statuses: {
+						pending: hosts.filter((h) => h.status === "pending").length,
+						running: hosts.filter((h) => h.status === "running").length,
+						completed: hosts.filter((h) => h.status === "completed").length,
+						failed: hosts.filter((h) => h.status === "failed").length,
+					},
+				};
+			});
+
+			return res.json({ success: true, jobs: results, total: results.length });
+		} catch (error) {
+			logger.error(`[ConfigMgmt] Failed to list active jobs: ${error.message}`);
+			return res.status(500).json({ error: "Failed to list active jobs" });
+		}
+	},
+);
+
 // GET /api/v1/configmanagement/jobs/:id - Get a specific job with host details
 router.get(
 	"/jobs/:id",

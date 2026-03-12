@@ -35,8 +35,10 @@ import { useUpdateNotification } from "../contexts/UpdateNotificationContext";
 import { alertsAPI, dashboardAPI, settingsAPI, versionAPI } from "../utils/api";
 import { patchManagementAPI } from "../utils/patchManagementApi";
 import { complianceAPI } from "../utils/complianceApi";
+import { configManagementAPI } from "../utils/configManagementApi";
 import ActiveJobsPanel from "./ActiveJobsPanel";
 import ActiveCompliancePanel from "./ActiveCompliancePanel";
+import ActiveCMJobsPanel from "./ActiveCMJobsPanel";
 import DiscordIcon from "./DiscordIcon";
 import GlobalSearch from "./GlobalSearch";
 import Logo from "./Logo";
@@ -56,6 +58,7 @@ const Layout = ({ children }) => {
 	const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 	const [activeJobsPanelOpen, setActiveJobsPanelOpen] = useState(false);
 	const [compliancePanelOpen, setCompliancePanelOpen] = useState(false);
+	const [cmJobsPanelOpen, setCmJobsPanelOpen] = useState(false);
 	const location = useLocation();
 	const navigate = useNavigate();
 	const {
@@ -137,6 +140,15 @@ const Layout = ({ children }) => {
 		staleTime: 0,
 	});
 	const activeScanCount = activeScansData?.count || 0;
+
+	// Fetch active config management job count for sidebar badge
+	const { data: activeCmJobsData } = useQuery({
+		queryKey: ["configmgmt-active-count"],
+		queryFn: () => configManagementAPI.getActiveJobs().then((r) => r.data),
+		refetchInterval: 15000,
+		staleTime: 0,
+	});
+	const activeCmJobCount = activeCmJobsData?.total || 0;
 
 	// Track WebSocket status for hosts
 	const [wsStatusMap, setWsStatusMap] = useState({});
@@ -801,6 +813,24 @@ const Layout = ({ children }) => {
 																					)}
 																				</div>
 																			)}
+																		{subItem.name === "Config Mgmt" &&
+																			activeCmJobCount > 0 && (
+																				<button
+																					type="button"
+																					onClick={(e) => {
+																						e.preventDefault();
+																						e.stopPropagation();
+																						setCmJobsPanelOpen(true);
+																					}}
+																					className="ml-2 relative inline-flex items-center justify-center px-1.5 py-0.5 text-xs rounded bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-200 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
+																				>
+																					<span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+																						<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+																						<span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500" />
+																					</span>
+																					{activeCmJobCount}
+																				</button>
+																			)}
 																		{subItem.name === "Patch Mgmt" &&
 																			activeJobCount > 0 && (
 																				<button
@@ -1275,6 +1305,24 @@ const Layout = ({ children }) => {
 																							)}
 																						</div>
 																					)}
+																				{subItem.name === "Config Mgmt" &&
+																					activeCmJobCount > 0 && (
+																						<button
+																							type="button"
+																							onClick={(e) => {
+																								e.preventDefault();
+																								e.stopPropagation();
+																								setCmJobsPanelOpen(true);
+																							}}
+																							className="ml-2 relative inline-flex items-center justify-center px-1.5 py-0.5 text-xs rounded bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-200 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
+																						>
+																							<span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+																								<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+																								<span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500" />
+																							</span>
+																							{activeCmJobCount}
+																						</button>
+																					)}
 																				{subItem.name === "Patch Mgmt" &&
 																					activeJobCount > 0 && (
 																						<button
@@ -1721,6 +1769,12 @@ const Layout = ({ children }) => {
 				<ActiveCompliancePanel
 					open={compliancePanelOpen}
 					onClose={() => setCompliancePanelOpen(false)}
+				/>
+
+				{/* Active Config Management Jobs Panel */}
+				<ActiveCMJobsPanel
+					open={cmJobsPanelOpen}
+					onClose={() => setCmJobsPanelOpen(false)}
 				/>
 			</div>
 		</SidebarContext.Provider>
