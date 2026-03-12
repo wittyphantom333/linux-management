@@ -98,12 +98,15 @@ export default function RuleDetail() {
 	const runMutation = useMutation({
 		mutationFn: () => configManagementAPI.runRule(id),
 		onSuccess: (res) => {
-			const { notified, total } = res.data;
+			const { notified, total, job } = res.data;
 			toast.success(
 				notified > 0
 					? `Run triggered — ${notified} of ${total} agent(s) notified`
 					: `No connected agents to notify (${total} host(s) in groups)`,
 			);
+			if (job?.id) {
+				navigate(`/config-management/jobs/${job.id}`);
+			}
 		},
 		onError: (err) =>
 			toast.error(`Run failed: ${err.response?.data?.error || err.message}`),

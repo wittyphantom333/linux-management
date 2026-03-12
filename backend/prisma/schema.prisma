@@ -146,6 +146,7 @@ model hosts {
   docker_networks          docker_networks[]
   compliance_scans         compliance_scans[]
   cm_policy_runs           cm_policy_runs[]
+  cm_job_hosts             cm_job_hosts[]
   patch_job_hosts          patch_job_hosts[]
   agent_logs               agent_logs[]
 
@@ -809,6 +810,7 @@ model cm_rules {
 
   cm_rule_directives cm_rule_directives[]
   cm_rule_groups     cm_rule_groups[]
+  cm_jobs            cm_jobs[]
 
   @@index([enabled])
 }
@@ -861,6 +863,48 @@ model cm_policy_runs {
   @@index([evaluated_at])
   @@index([host_id, evaluated_at])
   @@index([score])
+}
+
+/// A triggered config management job (groups multiple hosts under one action).
+model cm_jobs {
+  id                String    @id @default(uuid())
+  rule_id           String
+  rule_name         String    @default("")
+  status            String    @default("pending") // "pending" | "running" | "completed" | "completed_with_errors" | "failed"
+  triggered_by      String    @default("manual")  // "schedule" | "manual"
+  triggered_by_user String?
+  total_hosts       Int       @default(0)
+  completed_hosts   Int       @default(0)
+  failed_hosts      Int       @default(0)
+  started_at        DateTime?
+  completed_at      DateTime?
+  created_at        DateTime  @default(now())
+
+  rule          cm_rules       @relation(fields: [rule_id], references: [id], onDelete: Cascade)
+  cm_job_hosts  cm_job_hosts[]
+
+  @@index([rule_id])
+  @@index([status])
+  @@index([created_at])
+}
+
+/// Per-host status within a config management job.
+model cm_job_hosts {
+  id           String    @id @default(uuid())
+  job_id       String
+  host_id      String
+  status       String    @default("pending") // "pending" | "running" | "completed" | "failed"
+  run_id       String?   // FK to cm_policy_runs once the agent reports in
+  started_at   DateTime?
+  completed_at DateTime?
+
+  job  cm_jobs @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  host hosts   @relation(fields: [host_id], references: [id], onDelete: Cascade)
+
+  @@unique([job_id, host_id])
+  @@index([job_id])
+  @@index([host_id])
+  @@index([status])
 }
 
 // ============================================================================

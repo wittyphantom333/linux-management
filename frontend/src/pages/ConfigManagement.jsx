@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	AlertTriangle,
 	BarChart3,
+	Briefcase,
 	CalendarClock,
 	CheckCircle2,
 	ChevronRight,
@@ -53,6 +54,7 @@ const TABS = [
 	{ id: "techniques", label: "Techniques", icon: FileCode2 },
 	{ id: "directives", label: "Directives", icon: ListChecks },
 	{ id: "rules", label: "Rules", icon: Network },
+	{ id: "jobs", label: "Jobs", icon: Briefcase },
 	{ id: "runs", label: "Run History", icon: History },
 ];
 
@@ -216,6 +218,15 @@ export default function ConfigManagement() {
 		enabled: activeTab === "runs" || activeTab === "overview",
 	});
 
+	const { data: jobsData } = useQuery({
+		queryKey: ["configmgmt", "jobs"],
+		queryFn: () =>
+			configManagementAPI.listJobs({ limit: 50 }).then((r) => r.data),
+		staleTime: 10_000,
+		refetchInterval: activeTab === "jobs" ? 5_000 : false,
+		enabled: activeTab === "jobs" || activeTab === "overview",
+	});
+
 	// ─── Delete mutations ─────────────────────────────────────────────
 	const deleteTechnique = useMutation({
 		mutationFn: (id) => configManagementAPI.deleteTechnique(id),
@@ -250,12 +261,16 @@ export default function ConfigManagement() {
 	const runRule = useMutation({
 		mutationFn: (id) => configManagementAPI.runRule(id),
 		onSuccess: (res) => {
-			const { notified, total } = res.data;
+			const { notified, total, job } = res.data;
+			queryClient.invalidateQueries({ queryKey: ["configmgmt", "jobs"] });
 			toast.success(
 				notified > 0
 					? `Run triggered — ${notified} of ${total} agent(s) notified`
 					: `No connected agents to notify (${total} host(s) in groups)`,
 			);
+			if (job?.id) {
+				setActiveTab("jobs");
+			}
 		},
 		onError: (err) =>
 			toast.error(`Run failed: ${err.response?.data?.error || err.message}`),
@@ -414,6 +429,9 @@ export default function ConfigManagement() {
 						}
 					}}
 				/>
+			)}
+			{activeTab === "jobs" && (
+				<JobsTab jobs={jobsData?.jobs} total={jobsData?.total} />
 			)}
 			{activeTab === "runs" && (
 				<RunsTab runs={runsData?.runs} total={runsData?.total} />
@@ -1620,6 +1638,153 @@ function RulesTab({ rules, search, setSearch, onRun, onDelete }) {
 									</td>
 								</tr>
 							))}
+						</tbody>
+					</table>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ─── Jobs tab ───────────────────────────────────────────────────────────────
+
+function jobStatusBadge(status) {
+	const map = {
+		pending: {
+			bg: "bg-yellow-100 dark:bg-yellow-900/40",
+			text: "text-yellow-700 dark:text-yellow-300",
+			icon: Clock,
+			label: "Pending",
+		},
+		running: {
+			bg: "bg-blue-100 dark:bg-blue-900/40",
+			text: "text-blue-700 dark:text-blue-300",
+			icon: RefreshCw,
+			label: "Running",
+		},
+		completed: {
+			bg: "bg-green-100 dark:bg-green-900/40",
+			text: "text-green-700 dark:text-green-300",
+			icon: CheckCircle2,
+			label: "Completed",
+		},
+		completed_with_errors: {
+			bg: "bg-orange-100 dark:bg-orange-900/40",
+			text: "text-orange-700 dark:text-orange-300",
+			icon: AlertTriangle,
+			label: "Errors",
+		},
+		failed: {
+			bg: "bg-red-100 dark:bg-red-900/40",
+			text: "text-red-700 dark:text-red-300",
+			icon: XCircle,
+			label: "Failed",
+		},
+	};
+	const s = map[status] || map.pending;
+	const Icon = s.icon;
+	return (
+		<span
+			className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${s.bg} ${s.text}`}
+		>
+			<Icon className={`h-3 w-3 ${status === "running" ? "animate-spin" : ""}`} />
+			{s.label}
+		</span>
+	);
+}
+
+function JobsTab({ jobs, total }) {
+	return (
+		<div className="space-y-4">
+			<div className="flex items-center justify-between">
+				<p className="text-sm text-secondary-500 dark:text-secondary-400">
+					{total != null ? `${total} total jobs` : ""}
+				</p>
+			</div>
+
+			{!jobs || jobs.length === 0 ? (
+				<EmptyState message="No config management jobs yet. Click 'Run Now' on a rule to trigger one." />
+			) : (
+				<div className="card overflow-hidden">
+					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
+						<thead className="bg-secondary-50 dark:bg-secondary-800">
+							<tr>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
+									Rule
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
+									Status
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
+									Progress
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
+									Triggered By
+								</th>
+								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
+									When
+								</th>
+								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider" />
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
+							{jobs.map((job) => {
+								const done = job.completed_hosts + job.failed_hosts;
+								const pct =
+									job.total_hosts > 0
+										? Math.round((done / job.total_hosts) * 100)
+										: 0;
+								return (
+									<tr
+										key={job.id}
+										className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors"
+									>
+										<td className="px-4 py-3 text-sm font-medium text-secondary-900 dark:text-secondary-100">
+											{job.rule_name || "Unknown Rule"}
+										</td>
+										<td className="px-4 py-3 text-sm">
+											{jobStatusBadge(job.status)}
+										</td>
+										<td className="px-4 py-3 text-sm">
+											<div className="flex items-center gap-2">
+												<div className="flex-1 h-2 bg-secondary-200 dark:bg-secondary-700 rounded-full overflow-hidden max-w-[120px]">
+													<div
+														className={`h-full rounded-full transition-all duration-500 ${
+															job.failed_hosts > 0
+																? "bg-orange-500"
+																: "bg-green-500"
+														}`}
+														style={{ width: `${pct}%` }}
+													/>
+												</div>
+												<span className="text-xs text-secondary-500 dark:text-secondary-400 whitespace-nowrap">
+													{done}/{job.total_hosts}
+												</span>
+											</div>
+										</td>
+										<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
+											<span className="capitalize">{job.triggered_by}</span>
+											{job.triggered_by_user && (
+												<span className="text-xs text-secondary-400 ml-1">
+													({job.triggered_by_user})
+												</span>
+											)}
+										</td>
+										<td className="px-4 py-3 text-sm text-secondary-500 dark:text-secondary-400">
+											{timeAgo(job.created_at)}
+										</td>
+										<td className="px-4 py-3 text-right">
+											<Link
+												to={`/config-management/jobs/${job.id}`}
+												className="inline-flex items-center justify-center p-1 rounded hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors"
+												title="View details"
+											>
+												<ChevronRight className="h-4 w-4 text-secondary-400" />
+											</Link>
+										</td>
+									</tr>
+								);
+							})}
 						</tbody>
 					</table>
 				</div>

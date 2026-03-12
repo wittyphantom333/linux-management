@@ -47,6 +47,9 @@ const ConfigMgmtRuleDetail = lazy(
 const ConfigMgmtRunDetail = lazy(
 	() => import("./pages/configmanagement/RunDetail"),
 );
+const ConfigMgmtJobDetail = lazy(
+	() => import("./pages/configmanagement/JobDetail"),
+);
 const PatchManagementPage = lazy(() => import("./pages/PatchManagement"));
 const PatchMgmtPolicyDetail = lazy(
 	() => import("./pages/patchmanagement/PolicyDetail"),
@@ -287,6 +290,16 @@ function AppRoutes() {
 						<ProtectedRoute requirePermission="can_view_hosts">
 							<Layout>
 								<ConfigMgmtRunDetail />
+							</Layout>
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path="/config-management/jobs/:id"
+					element={
+						<ProtectedRoute requirePermission="can_view_hosts">
+							<Layout>
+								<ConfigMgmtJobDetail />
 							</Layout>
 						</ProtectedRoute>
 					}

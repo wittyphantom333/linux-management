@@ -45,6 +45,10 @@ export const configManagementAPI = {
 	getRun: (id) => api.get(`/configmanagement/runs/${id}`),
 	getRecentRuns: () => api.get("/configmanagement/runs/recent"),
 
+	// ── Jobs ────────────────────────────────────────────────────────────
+	listJobs: (params = {}) => api.get("/configmanagement/jobs", { params }),
+	getJob: (id) => api.get(`/configmanagement/jobs/${id}`),
+
 	// ── Diagnostics ────────────────────────────────────────────────────
 	diagnose: () => api.get("/configmanagement/diagnose"),
 	testRun: (hostId) => api.post(`/configmanagement/test-run/${hostId}`),

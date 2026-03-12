@@ -1108,7 +1108,7 @@ router.post(
 	async (req, res) => {
 		/* #swagger.tags = ['Config Management - Rules'] */
 		/* #swagger.summary = 'Run a rule now' */
-		/* #swagger.description = 'Push report_now to all connected agents in the rule host groups, causing them to immediately re-evaluate their config management policy. Requires JWT auth.' */
+		/* #swagger.description = 'Creates a config management job, then pushes report_now to all connected agents in the rule host groups. Returns the new job. Requires JWT auth.' */
 		/* #swagger.security = [{ "bearerAuth": [] }] */
 		try {
 			const rule = await prisma.cm_rules.findUnique({
@@ -1132,9 +1132,43 @@ router.post(
 
 			const hosts = await prisma.hosts.findMany({
 				where: { id: { in: hostIds }, status: "active" },
-				select: { api_id: true },
+				select: { id: true, api_id: true },
 			});
 
+			// Create the job + per-host rows in a transaction
+			const jobId = uuidv4();
+			const job = await prisma.$transaction(async (tx) => {
+				const j = await tx.cm_jobs.create({
+					data: {
+						id: jobId,
+						rule_id: rule.id,
+						rule_name: rule.name,
+						status: hosts.length > 0 ? "running" : "completed",
+						triggered_by: "manual",
+						triggered_by_user: req.user?.username || null,
+						total_hosts: hosts.length,
+						completed_hosts: 0,
+						failed_hosts: 0,
+						started_at: new Date(),
+						completed_at: hosts.length === 0 ? new Date() : null,
+					},
+				});
+
+				if (hosts.length > 0) {
+					await tx.cm_job_hosts.createMany({
+						data: hosts.map((h) => ({
+							id: uuidv4(),
+							job_id: jobId,
+							host_id: h.id,
+							status: "pending",
+						})),
+					});
+				}
+
+				return j;
+			});
+
+			// Push report_now to connected agents
 			let notified = 0;
 			for (const host of hosts) {
 				if (isConnected(host.api_id)) {
@@ -1144,18 +1178,95 @@ router.post(
 			}
 
 			logger.info(
-				`[ConfigMgmt] Rule "${rule.name}" run triggered by ${req.user?.username}: ${notified}/${hosts.length} agents notified`,
+				`[ConfigMgmt] Rule "${rule.name}" run triggered by ${req.user?.username}: job ${jobId}, ${notified}/${hosts.length} agents notified`,
 			);
 
 			return res.json({
 				success: true,
-				message: `Triggered ${notified} of ${hosts.length} agent(s)`,
+				job,
 				notified,
 				total: hosts.length,
 			});
 		} catch (error) {
 			logger.error(`[ConfigMgmt] Failed to run rule: ${error.message}`);
 			return res.status(500).json({ error: "Failed to run rule" });
+		}
+	},
+);
+
+// ============================================================================
+// JOBS (config management job tracking)
+// ============================================================================
+
+// GET /api/v1/configmanagement/jobs - List config management jobs
+router.get(
+	"/jobs",
+	authenticateToken,
+	requireViewConfigManagement,
+	async (req, res) => {
+		/* #swagger.tags = ['Config Management - Jobs'] */
+		/* #swagger.summary = 'List config management jobs' */
+		try {
+			const { limit = 50, offset = 0, status, rule_id } = req.query;
+			const where = {};
+			if (status) where.status = status;
+			if (rule_id) where.rule_id = rule_id;
+
+			const [jobs, total] = await Promise.all([
+				prisma.cm_jobs.findMany({
+					where,
+					orderBy: { created_at: "desc" },
+					take: Math.min(Number.parseInt(limit, 10), 200),
+					skip: Number.parseInt(offset, 10),
+					include: {
+						cm_job_hosts: {
+							select: { id: true, host_id: true, status: true },
+						},
+					},
+				}),
+				prisma.cm_jobs.count({ where }),
+			]);
+
+			return res.json({ success: true, jobs, total });
+		} catch (error) {
+			logger.error(`[ConfigMgmt] Failed to list jobs: ${error.message}`);
+			return res.status(500).json({ error: "Failed to list jobs" });
+		}
+	},
+);
+
+// GET /api/v1/configmanagement/jobs/:id - Get a specific job with host details
+router.get(
+	"/jobs/:id",
+	authenticateToken,
+	requireViewConfigManagement,
+	async (req, res) => {
+		/* #swagger.tags = ['Config Management - Jobs'] */
+		/* #swagger.summary = 'Get a config management job by ID' */
+		try {
+			const job = await prisma.cm_jobs.findUnique({
+				where: { id: req.params.id },
+				include: {
+					rule: { select: { id: true, name: true } },
+					cm_job_hosts: {
+						include: {
+							host: {
+								select: { id: true, friendly_name: true, hostname: true },
+							},
+						},
+						orderBy: { status: "asc" },
+					},
+				},
+			});
+
+			if (!job) {
+				return res.status(404).json({ error: "Job not found" });
+			}
+
+			return res.json({ success: true, job });
+		} catch (error) {
+			logger.error(`[ConfigMgmt] Failed to get job: ${error.message}`);
+			return res.status(500).json({ error: "Failed to get job" });
 		}
 	},
 );
@@ -1496,10 +1607,12 @@ router.post("/agent/report", async (req, res) => {
 		}
 
 		// Store the run — skip if no directives actually ran (e.g. all skipped by schedule)
+		let runId = null;
 		if (report && (report.total_directives || 0) > 0) {
+			runId = uuidv4();
 			await prisma.cm_policy_runs.create({
 				data: {
-					id: uuidv4(),
+					id: runId,
 					host_id: host.id,
 					policy_id: report.policy_id || null,
 					global_mode: report.global_mode || "audit",
@@ -1518,6 +1631,67 @@ router.post("/agent/report", async (req, res) => {
 					created_at: new Date(),
 				},
 			});
+		}
+
+		// Link to any pending/running cm_job_hosts for this host
+		try {
+			const pendingJobHost = await prisma.cm_job_hosts.findFirst({
+				where: {
+					host_id: host.id,
+					status: { in: ["pending", "running"] },
+				},
+				orderBy: { job_id: "desc" },
+				include: { job: true },
+			});
+
+			if (pendingJobHost) {
+				const hasErrors = (report?.errors || 0) > 0;
+				await prisma.cm_job_hosts.update({
+					where: { id: pendingJobHost.id },
+					data: {
+						status: hasErrors ? "failed" : "completed",
+						run_id: runId,
+						completed_at: new Date(),
+					},
+				});
+
+				// Update parent job counters and possibly status
+				const jobId = pendingJobHost.job_id;
+				const allJobHosts = await prisma.cm_job_hosts.findMany({
+					where: { job_id: jobId },
+					select: { status: true },
+				});
+
+				const completedCount = allJobHosts.filter(
+					(jh) => jh.status === "completed" || jh.status === "failed",
+				).length;
+				const failedCount = allJobHosts.filter(
+					(jh) => jh.status === "failed",
+				).length;
+				const allDone = completedCount === allJobHosts.length;
+
+				let jobStatus = "running";
+				if (allDone) {
+					jobStatus =
+						failedCount > 0 ? "completed_with_errors" : "completed";
+				}
+
+				await prisma.cm_jobs.update({
+					where: { id: jobId },
+					data: {
+						completed_hosts: completedCount - failedCount,
+						failed_hosts: failedCount,
+						status: jobStatus,
+						...(allDone ? { completed_at: new Date() } : {}),
+					},
+				});
+
+				logger.info(
+					`[ConfigMgmt] Job ${jobId}: host ${host.friendly_name || host.hostname} → ${hasErrors ? "failed" : "completed"} (${completedCount}/${allJobHosts.length})`,
+				);
+			}
+		} catch (jobErr) {
+			logger.warn(`[ConfigMgmt] Failed to update job tracking: ${jobErr.message}`);
 		}
 
 		return res.json({
