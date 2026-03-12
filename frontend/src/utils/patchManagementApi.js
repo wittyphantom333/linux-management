@@ -22,6 +22,7 @@ export const patchManagementAPI = {
 
 	// Jobs
 	listJobs: (params = {}) => api.get("/patch-management/jobs", { params }),
+	getActiveJobs: () => api.get("/patch-management/jobs/active"),
 	getJob: (id) => api.get(`/patch-management/jobs/${id}`),
 	triggerJob: (data) => api.post("/patch-management/jobs/trigger", data),
 	cancelJob: (id) => api.post(`/patch-management/jobs/${id}/cancel`),

@@ -707,6 +707,63 @@ router.delete(
 // JOBS
 // ============================================================================
 
+// GET /api/v1/patch-management/jobs/active - List currently running and pending jobs
+router.get(
+	"/jobs/active",
+	authenticateToken,
+	requireViewPatchManagement,
+	async (req, res) => {
+		/* #swagger.tags = ['Patch Management - Jobs'] */
+		/* #swagger.summary = 'List active (running/pending) patch jobs' */
+		/* #swagger.description = 'Returns all jobs with status pending or running, ordered by creation date. Includes per-host progress counts. Requires JWT auth.' */
+		/* #swagger.security = [{ "bearerAuth": [] }] */
+		try {
+			const jobs = await prisma.patch_jobs.findMany({
+				where: { status: { in: ["pending", "running"] } },
+				include: {
+					policy: { select: { id: true, name: true } },
+					window: { select: { id: true, name: true } },
+					patch_job_hosts: {
+						select: { status: true },
+					},
+				},
+				orderBy: { created_at: "desc" },
+			});
+
+			const results = jobs.map((job) => {
+				const hosts = job.patch_job_hosts || [];
+				return {
+					id: job.id,
+					status: job.status,
+					triggered_by: job.triggered_by,
+					total_hosts: job.total_hosts,
+					completed_hosts: job.completed_hosts,
+					failed_hosts: job.failed_hosts,
+					skipped_hosts: job.skipped_hosts,
+					created_at: job.created_at,
+					started_at: job.started_at,
+					policy: job.policy,
+					window: job.window,
+					host_statuses: {
+						pending: hosts.filter((h) => h.status === "pending").length,
+						downloading: hosts.filter((h) => h.status === "downloading").length,
+						installing: hosts.filter((h) => h.status === "installing").length,
+						rebooting: hosts.filter((h) => h.status === "rebooting").length,
+						completed: hosts.filter((h) => h.status === "completed").length,
+						failed: hosts.filter((h) => h.status === "failed").length,
+						skipped: hosts.filter((h) => h.status === "skipped").length,
+					},
+				};
+			});
+
+			return res.json({ success: true, jobs: results, total: results.length });
+		} catch (error) {
+			logger.error(`[PatchMgmt] Failed to list active jobs: ${error.message}`);
+			return res.status(500).json({ error: "Failed to list active jobs" });
+		}
+	},
+);
+
 // GET /api/v1/patch-management/jobs - List jobs (with filtering)
 router.get(
 	"/jobs",
