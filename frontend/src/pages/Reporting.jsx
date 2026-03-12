@@ -21,6 +21,7 @@ import { adminUsersAPI, alertsAPI, formatRelativeTime } from "../utils/api";
 /** Human-readable labels for alert types */
 const ALERT_TYPE_LABELS = {
 	host_down: "Host Down",
+	host_up: "Host Back Up",
 	server_update: "Server Update",
 	agent_update: "Agent Update",
 	disk_space_warning: "Disk Space",
@@ -264,6 +265,8 @@ const Reporting = () => {
 			agent_update:
 				"bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
 			host_down: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+			host_up:
+				"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
 			disk_space_warning:
 				"bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
 			high_load_average:

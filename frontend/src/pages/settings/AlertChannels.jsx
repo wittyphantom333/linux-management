@@ -76,6 +76,7 @@ const SEVERITIES = ["critical", "warning", "informational", "low"];
 
 const ALERT_TYPES = [
 	{ value: "host_down", label: "Host Down" },
+	{ value: "host_up", label: "Host Back Up" },
 	{ value: "server_update", label: "Server Update" },
 	{ value: "agent_update", label: "Agent Update" },
 	{ value: "disk_space_warning", label: "Disk Space" },

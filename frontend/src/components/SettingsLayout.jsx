@@ -94,18 +94,18 @@ const SettingsLayout = ({ children }) => {
 						icon: Bell,
 						comingSoon: false,
 					},
-					{
+					/*{
 						name: "Notifications",
 						href: "/settings/notifications",
 						icon: Bell,
 						comingSoon: true,
-					},
+					},*/
 				],
 			});
 		}
 
 		// Patch Management
-		if (canManageSettings()) {
+		/*if (canManageSettings()) {
 			nav.push({
 				section: "Patch Management",
 				items: [
@@ -117,7 +117,7 @@ const SettingsLayout = ({ children }) => {
 					},
 				],
 			});
-		}
+		}*/
 
 		// Server Config
 		if (canManageSettings()) {

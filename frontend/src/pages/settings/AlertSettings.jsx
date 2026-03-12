@@ -391,6 +391,7 @@ const AlertTypeTableRow = ({ config, onUpdate, isSaving, usersData }) => {
 
 	const ALERT_TYPE_LABELS = {
 		host_down: "Host Down",
+		host_up: "Host Back Up",
 		server_update: "Server Update",
 		agent_update: "Agent Update",
 		disk_space_warning: "Disk Space",
@@ -401,7 +402,8 @@ const AlertTypeTableRow = ({ config, onUpdate, isSaving, usersData }) => {
 	};
 
 	const ALERT_TYPE_DESCRIPTIONS = {
-		host_down: "Alerts when a host stops reporting",
+		host_down: "Alerts when a host stops reporting (10s grace period)",
+		host_up: "Alerts when a previously offline host reconnects",
 		server_update: "Alerts when a new PatchMon server version is available",
 		agent_update: "Alerts when a new agent version is available",
 		disk_space_warning:
