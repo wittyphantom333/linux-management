@@ -17,6 +17,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { patchManagementAPI } from "../utils/patchManagementApi";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
 
 const HOST_STATUS_CONFIG = {
 	pending: { icon: Clock, color: "text-yellow-500", label: "Pending" },
@@ -39,6 +40,7 @@ const HOST_STATUS_CONFIG = {
 export default function ActiveJobsPanel({ open, onClose }) {
 	const queryClient = useQueryClient();
 	const { canManagePatchManagement } = useAuth();
+	const toast = useToast();
 	const panelRef = useRef(null);
 
 	const { data, isLoading } = useQuery({
@@ -53,8 +55,12 @@ export default function ActiveJobsPanel({ open, onClose }) {
 	const cancelMutation = useMutation({
 		mutationFn: (jobId) => patchManagementAPI.cancelJob(jobId),
 		onSuccess: () => {
+			toast.success("Job cancelled");
 			queryClient.invalidateQueries(["patchmgmt", "active-jobs"]);
 			queryClient.invalidateQueries(["patchmgmt-active-count"]);
+		},
+		onError: () => {
+			toast.error("Failed to cancel job");
 		},
 	});
 

@@ -2110,19 +2110,45 @@ router.post("/cancel/:hostId", async (req, res) => {
 			return res.status(404).json({ error: "Host not found" });
 		}
 
-		if (!agentWs.isConnected(host.api_id)) {
-			return res.status(400).json({ error: "Host is not connected" });
-		}
+		// Try to notify the agent (best-effort; may be disconnected)
+		const success = agentWs.isConnected(host.api_id)
+			? agentWs.pushComplianceScanCancel(host.api_id)
+			: false;
 
-		const success = agentWs.pushComplianceScanCancel(host.api_id);
+		// Mark any running scans for this host as failed/cancelled in the DB
+		// so they don't stay "running" forever even after the agent stops
+		const cancelledScans = await prisma.compliance_scans.updateMany({
+			where: {
+				host_id: hostId,
+				status: "running",
+			},
+			data: {
+				status: "failed",
+				completed_at: new Date(),
+				error_message: "Cancelled by user",
+			},
+		});
+
+		if (cancelledScans.count > 0) {
+			logger.info(
+				`[Compliance] Marked ${cancelledScans.count} running scan(s) as cancelled for host ${hostId}`,
+			);
+		}
 
 		if (success) {
 			res.json({
 				message: "Cancel scan request sent",
 				host_id: hostId,
+				scans_cancelled: cancelledScans.count,
 			});
 		} else {
-			res.status(400).json({ error: "Failed to send cancel request" });
+			// Even if the WebSocket push failed (agent disconnected),
+			// the DB records are already cleaned up above
+			res.json({
+				message: "Scan records cancelled (agent not reachable)",
+				host_id: hostId,
+				scans_cancelled: cancelledScans.count,
+			});
 		}
 	} catch (error) {
 		logger.error("[Compliance] Error sending cancel scan:", error);

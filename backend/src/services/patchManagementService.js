@@ -693,14 +693,17 @@ async function processAgentPatchReport(hostId, report) {
 
 	// Check if job is finished
 	if (pendingHosts === 0) {
-		if (failedHosts > 0 && completedHosts > 0) {
-			jobUpdate.status = "completed_with_errors";
-		} else if (failedHosts > 0 && completedHosts === 0) {
-			jobUpdate.status = "failed";
-		} else {
-			jobUpdate.status = "completed";
+		// Don't overwrite "cancelled" status if the job was already cancelled by user
+		if (jobHost.job.status !== "cancelled") {
+			if (failedHosts > 0 && completedHosts > 0) {
+				jobUpdate.status = "completed_with_errors";
+			} else if (failedHosts > 0 && completedHosts === 0) {
+				jobUpdate.status = "failed";
+			} else {
+				jobUpdate.status = "completed";
+			}
+			jobUpdate.completed_at = new Date();
 		}
-		jobUpdate.completed_at = new Date();
 	} else if (jobHost.job.status === "pending") {
 		// First host started reporting — mark job as running
 		jobUpdate.status = "running";
