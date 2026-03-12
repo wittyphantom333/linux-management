@@ -1129,34 +1129,70 @@ const HostDetail = () => {
 				</div>
 				<div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
 					<div className="flex-1 min-w-0">
-						<button
-							type="button"
-							onClick={() => fetchReportMutation.mutate()}
-							disabled={fetchReportMutation.isPending || !wsStatus?.connected}
-							className="btn-outline flex items-center gap-2 text-sm whitespace-nowrap w-full"
-							title={
-								!wsStatus?.connected
-									? "Agent is not connected"
-									: "Fetch package data from agent"
-							}
-						>
-							<Download
-								className={`h-4 w-4 ${
-									fetchReportMutation.isPending ? "animate-spin" : ""
-								}`}
-							/>
-							<span className="hidden sm:inline">Fetch Report</span>
-							<span className="sm:hidden">Fetch</span>
-						</button>
-						{reportMessage.text && (
-							<p className="text-xs mt-1.5 text-secondary-600 dark:text-secondary-400">
-								{reportMessage.text}
-								{reportMessage.jobId && (
-									<span className="ml-1 font-mono text-secondary-500">
-										(Job #{reportMessage.jobId})
-									</span>
+						<div className="flex items-center gap-2">
+							<button
+								type="button"
+								onClick={() => fetchReportMutation.mutate()}
+								disabled={fetchReportMutation.isPending || !wsStatus?.connected}
+								className="btn-outline flex items-center gap-2 text-sm whitespace-nowrap"
+								title={
+									!wsStatus?.connected
+										? "Agent is not connected"
+										: "Fetch package data from agent"
+								}
+							>
+								<Download
+									className={`h-4 w-4 ${
+										fetchReportMutation.isPending ? "animate-spin" : ""
+									}`}
+								/>
+								<span className="hidden sm:inline">Fetch Report</span>
+								<span className="sm:hidden">Fetch</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => setShowRebootConfirm(true)}
+								disabled={
+									rebootHostMutation.isPending ||
+									!wsStatus?.connected
+								}
+								title={
+									!wsStatus?.connected
+										? "Agent is not connected"
+										: "Reboot this host (1 minute delay)"
+								}
+								className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+							>
+								<Power className="h-4 w-4" />
+								<span className="hidden sm:inline">
+									{rebootHostMutation.isPending
+										? "Sending..."
+										: "Reboot"}
+								</span>
+							</button>
+						</div>
+						{(reportMessage.text || rebootMessage.text) && (
+							<div className="text-xs mt-1.5">
+								{reportMessage.text && (
+									<p className="text-secondary-600 dark:text-secondary-400">
+										{reportMessage.text}
+										{reportMessage.jobId && (
+											<span className="ml-1 font-mono text-secondary-500">
+												(Job #{reportMessage.jobId})
+											</span>
+										)}
+									</p>
 								)}
-							</p>
+								{rebootMessage.text && (
+									<p
+										className={rebootMessage.isError
+											? "text-red-600 dark:text-red-400"
+											: "text-green-600 dark:text-green-400"}
+									>
+										{rebootMessage.text}
+									</p>
+								)}
+							</div>
 						)}
 					</div>
 					<div className="flex items-center gap-2 flex-shrink-0">
@@ -1195,6 +1231,38 @@ const HostDetail = () => {
 					</div>
 				</div>
 			</div>
+
+			{/* Reboot Confirmation Banner */}
+			{showRebootConfirm && (
+				<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+					<p className="text-sm text-red-800 dark:text-red-200 mb-3">
+						Are you sure you want to reboot{" "}
+						<span className="font-semibold">
+							{host.friendly_name || host.hostname || host.ip}
+						</span>
+						? The system will reboot in approximately 1 minute.
+					</p>
+					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							onClick={() => rebootHostMutation.mutate()}
+							disabled={rebootHostMutation.isPending}
+							className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-md transition-colors"
+						>
+							{rebootHostMutation.isPending
+								? "Sending..."
+								: "Confirm Reboot"}
+						</button>
+						<button
+							type="button"
+							onClick={() => setShowRebootConfirm(false)}
+							className="px-3 py-1.5 text-xs font-medium text-secondary-700 dark:text-secondary-300 bg-secondary-100 dark:bg-secondary-700 hover:bg-secondary-200 dark:hover:bg-secondary-600 rounded-md transition-colors"
+						>
+							Cancel
+						</button>
+					</div>
+				</div>
+			)}
 
 			{/* Package Statistics Cards */}
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -2056,81 +2124,6 @@ const HostDetail = () => {
 									</button>
 								</div>
 							</div>
-						</div>
-					</div>
-
-					{/* Host Actions Card (Reboot) */}
-					<div className="card p-4">
-						<h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4 flex items-center gap-2">
-							<Power className="h-5 w-5 text-primary-600" />
-							Host Actions
-						</h3>
-						<div className="space-y-3">
-							<div className="flex items-center gap-3">
-								<button
-									type="button"
-									onClick={() => setShowRebootConfirm(true)}
-									disabled={
-										rebootHostMutation.isPending ||
-										!wsStatus?.connected
-									}
-									title={
-										!wsStatus?.connected
-											? "Agent is not connected"
-											: "Reboot this host (1 minute delay)"
-									}
-									className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-								>
-									<Power className="h-3 w-3" />
-									{rebootHostMutation.isPending
-										? "Sending..."
-										: wsStatus?.connected
-											? "Reboot Host"
-											: "Offline"}
-								</button>
-								{rebootMessage.text && (
-									<p
-										className={`text-xs ${
-											rebootMessage.isError
-												? "text-red-600 dark:text-red-400"
-												: "text-green-600 dark:text-green-400"
-										}`}
-									>
-										{rebootMessage.text}
-									</p>
-								)}
-							</div>
-
-							{showRebootConfirm && (
-								<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-									<p className="text-sm text-red-800 dark:text-red-200 mb-3">
-										Are you sure you want to reboot{" "}
-										<span className="font-semibold">
-											{host.friendly_name || host.hostname || host.ip}
-										</span>
-										? The system will reboot in approximately 1 minute.
-									</p>
-									<div className="flex items-center gap-2">
-										<button
-											type="button"
-											onClick={() => rebootHostMutation.mutate()}
-											disabled={rebootHostMutation.isPending}
-											className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-md transition-colors"
-										>
-											{rebootHostMutation.isPending
-												? "Sending..."
-												: "Confirm Reboot"}
-										</button>
-										<button
-											type="button"
-											onClick={() => setShowRebootConfirm(false)}
-											className="px-3 py-1.5 text-xs font-medium text-secondary-700 dark:text-secondary-300 bg-secondary-100 dark:bg-secondary-700 hover:bg-secondary-200 dark:hover:bg-secondary-600 rounded-md transition-colors"
-										>
-											Cancel
-										</button>
-									</div>
-								</div>
-							)}
 						</div>
 					</div>
 
@@ -3081,80 +3074,6 @@ const HostDetail = () => {
 											</button>
 										</div>
 									</div>
-								</div>
-
-								{/* Reboot Host */}
-								<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
-									<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-										<Power className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-										Host Actions
-									</h4>
-									<div className="flex items-center gap-3">
-										<button
-											type="button"
-											onClick={() => setShowRebootConfirm(true)}
-											disabled={
-												rebootHostMutation.isPending ||
-												!wsStatus?.connected
-											}
-											title={
-												!wsStatus?.connected
-													? "Agent is not connected"
-													: "Reboot this host (1 minute delay)"
-											}
-											className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											<Power className="h-3 w-3" />
-											{rebootHostMutation.isPending
-												? "Sending..."
-												: wsStatus?.connected
-													? "Reboot Host"
-													: "Offline"}
-										</button>
-										{rebootMessage.text && (
-											<p
-												className={`text-xs ${
-													rebootMessage.isError
-														? "text-red-600 dark:text-red-400"
-														: "text-green-600 dark:text-green-400"
-												}`}
-											>
-												{rebootMessage.text}
-											</p>
-										)}
-									</div>
-
-									{/* Reboot Confirmation Dialog */}
-									{showRebootConfirm && (
-										<div className="mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-											<p className="text-sm text-red-800 dark:text-red-200 mb-3">
-												Are you sure you want to reboot{" "}
-												<span className="font-semibold">
-													{host.friendly_name || host.hostname || host.ip}
-												</span>
-												? The system will reboot in approximately 1 minute.
-											</p>
-											<div className="flex items-center gap-2">
-												<button
-													type="button"
-													onClick={() => rebootHostMutation.mutate()}
-													disabled={rebootHostMutation.isPending}
-													className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-md transition-colors"
-												>
-													{rebootHostMutation.isPending
-														? "Sending..."
-														: "Confirm Reboot"}
-												</button>
-												<button
-													type="button"
-													onClick={() => setShowRebootConfirm(false)}
-													className="px-3 py-1.5 text-xs font-medium text-secondary-700 dark:text-secondary-300 bg-secondary-100 dark:bg-secondary-700 hover:bg-secondary-200 dark:hover:bg-secondary-600 rounded-md transition-colors"
-												>
-													Cancel
-												</button>
-											</div>
-										</div>
-									)}
 								</div>
 							</div>
 						)}
