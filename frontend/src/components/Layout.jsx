@@ -276,14 +276,14 @@ const Layout = ({ children }) => {
 				name: "Config Mgmt",
 				href: "/config-management",
 				icon: Settings2,
-				beta: true,
+				beta: false,
 			});
 
 			integrationsItems.push({
 				name: "Patch Mgmt",
 				href: "/patch-management",
 				icon: Shield,
-				beta: true,
+				beta: false,
 			});
 
 			if (integrationsItems.length > 0) {
