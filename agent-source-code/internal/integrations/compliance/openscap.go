@@ -527,25 +527,37 @@ func (s *OpenSCAPScanner) EnsureInstalled() error {
 
 	s.logger.Info("OpenSCAP installed/upgraded successfully")
 
-	// On Debian 12+, if no content file or content doesn't match OS version (e.g. only ssg-debian11 on Debian 13), try GitHub SSG
-	if s.osInfo.Family == "debian" && s.osInfo.Name == "debian" {
-		ver := s.osInfo.Version
-		major := strings.Split(ver, ".")[0]
-		if ver >= "12" || strings.HasPrefix(ver, "13") {
-			contentFile := s.getContentFile()
-			needGitHub := contentFile == ""
-			if contentFile != "" && major != "" {
-				base := filepath.Base(contentFile)
-				needGitHub = !strings.Contains(base, "debian"+major)
-			}
-			if needGitHub {
-				s.logger.Info("Debian SCAP content missing or version mismatch, attempting download from ComplianceAsCode GitHub...")
-				if err := s.UpgradeSSGContent(); err != nil {
-					s.logger.WithError(err).Warn("Failed to install SSG content from GitHub; ensure ssg-debian package is available for your Debian version")
-				} else {
-					s.logger.Info("SSG content installed from GitHub successfully")
-				}
-			}
+	// If SCAP content files are still missing after package install (or the
+	// installed content doesn't match the OS version), fall back to downloading
+	// the ComplianceAsCode SSG release from GitHub.  This covers Ubuntu, Debian,
+	// RHEL-family, SUSE, and any other supported OS where the distro packages
+	// are unavailable or out-of-date.
+	contentFile := s.getContentFile()
+	needGitHub := contentFile == ""
+
+	// Also check for version mismatch on Debian-family systems (e.g. only
+	// ssg-debian11 installed on Debian 13, or ssg-ubuntu2004 on Ubuntu 22.04)
+	if !needGitHub && s.osInfo.Family == "debian" {
+		contentOSName := s.getContentOSName()
+		major := strings.Split(s.osInfo.Version, ".")[0]
+		osVersion := strings.ReplaceAll(s.osInfo.Version, ".", "")
+		base := filepath.Base(contentFile)
+		// Content matches if file contains the full version (e.g. "2204") or the major version (e.g. "debian12")
+		if !strings.Contains(base, osVersion) && !strings.Contains(base, contentOSName+major) {
+			s.logger.WithFields(logrus.Fields{
+				"content_file": base,
+				"os":           fmt.Sprintf("%s %s", contentOSName, s.osInfo.Version),
+			}).Info("Content file version mismatch detected")
+			needGitHub = true
+		}
+	}
+
+	if needGitHub {
+		s.logger.Info("SCAP content missing or version mismatch, attempting download from ComplianceAsCode GitHub...")
+		if err := s.UpgradeSSGContent(); err != nil {
+			s.logger.WithError(err).Warn("Failed to install SSG content from GitHub")
+		} else {
+			s.logger.Info("SSG content installed from GitHub successfully")
 		}
 	}
 
