@@ -263,6 +263,7 @@ export default function ConfigManagement() {
 		onSuccess: (res) => {
 			const { notified, total, job } = res.data;
 			queryClient.invalidateQueries({ queryKey: ["configmgmt", "jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["configmgmt-active-count"] });
 			toast.success(
 				notified > 0
 					? `Run triggered — ${notified} of ${total} agent(s) notified`

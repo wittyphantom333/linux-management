@@ -1137,44 +1137,61 @@ router.post(
 
 			// Create the job + per-host rows in a transaction
 			const jobId = uuidv4();
+			const hostRows = hosts.map((h) => ({
+				id: uuidv4(),
+				job_id: jobId,
+				host_id: h.id,
+				status: "pending",
+			}));
+
 			const job = await prisma.$transaction(async (tx) => {
 				const j = await tx.cm_jobs.create({
 					data: {
 						id: jobId,
 						rule_id: rule.id,
 						rule_name: rule.name,
-						status: hosts.length > 0 ? "running" : "completed",
+						status: hosts.length > 0 ? "pending" : "completed",
 						triggered_by: "manual",
 						triggered_by_user: req.user?.username || null,
 						total_hosts: hosts.length,
 						completed_hosts: 0,
 						failed_hosts: 0,
-						started_at: new Date(),
+						started_at: null,
 						completed_at: hosts.length === 0 ? new Date() : null,
 					},
 				});
 
-				if (hosts.length > 0) {
-					await tx.cm_job_hosts.createMany({
-						data: hosts.map((h) => ({
-							id: uuidv4(),
-							job_id: jobId,
-							host_id: h.id,
-							status: "pending",
-						})),
-					});
+				if (hostRows.length > 0) {
+					await tx.cm_job_hosts.createMany({ data: hostRows });
 				}
 
 				return j;
 			});
 
-			// Push report_now to connected agents
+			// Push report_now to connected agents and mark their hosts "running"
 			let notified = 0;
+			const notifiedHostIds = [];
 			for (const host of hosts) {
 				if (isConnected(host.api_id)) {
 					pushReportNow(host.api_id);
+					notifiedHostIds.push(host.id);
 					notified++;
 				}
+			}
+
+			// Mark notified hosts as "running" and advance the job status
+			if (notifiedHostIds.length > 0) {
+				await prisma.cm_job_hosts.updateMany({
+					where: { job_id: jobId, host_id: { in: notifiedHostIds } },
+					data: { status: "running", started_at: new Date() },
+				});
+				await prisma.cm_jobs.update({
+					where: { id: jobId },
+					data: { status: "running", started_at: new Date() },
+				});
+				// Re-read so the response reflects the updated status
+				job.status = "running";
+				job.started_at = new Date();
 			}
 
 			logger.info(

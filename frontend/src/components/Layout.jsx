@@ -145,7 +145,7 @@ const Layout = ({ children }) => {
 	const { data: activeCmJobsData } = useQuery({
 		queryKey: ["configmgmt-active-count"],
 		queryFn: () => configManagementAPI.getActiveJobs().then((r) => r.data),
-		refetchInterval: 15000,
+		refetchInterval: 5000,
 		staleTime: 0,
 	});
 	const activeCmJobCount = activeCmJobsData?.total || 0;
