@@ -34,7 +34,11 @@ import SidebarContext from "../contexts/SidebarContext";
 import { useUpdateNotification } from "../contexts/UpdateNotificationContext";
 import { alertsAPI, dashboardAPI, settingsAPI, versionAPI } from "../utils/api";
 import { patchManagementAPI } from "../utils/patchManagementApi";
+import { complianceAPI } from "../utils/complianceApi";
+import { configManagementAPI } from "../utils/configManagementApi";
 import ActiveJobsPanel from "./ActiveJobsPanel";
+import ActiveCompliancePanel from "./ActiveCompliancePanel";
+import ActiveConfigRunsPanel from "./ActiveConfigRunsPanel";
 import DiscordIcon from "./DiscordIcon";
 import GlobalSearch from "./GlobalSearch";
 import Logo from "./Logo";
@@ -53,6 +57,8 @@ const Layout = ({ children }) => {
 	const [mobileLinksOpen, setMobileLinksOpen] = useState(false);
 	const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 	const [activeJobsPanelOpen, setActiveJobsPanelOpen] = useState(false);
+	const [compliancePanelOpen, setCompliancePanelOpen] = useState(false);
+	const [configRunsPanelOpen, setConfigRunsPanelOpen] = useState(false);
 	const location = useLocation();
 	const navigate = useNavigate();
 	const {
@@ -125,6 +131,24 @@ const Layout = ({ children }) => {
 		staleTime: 0,
 	});
 	const activeJobCount = activeJobsData?.total || 0;
+
+	// Fetch active compliance scan count for sidebar badge
+	const { data: activeScansData } = useQuery({
+		queryKey: ["compliance-active-count"],
+		queryFn: () => complianceAPI.getActiveScans().then((r) => r.data),
+		refetchInterval: 15000,
+		staleTime: 0,
+	});
+	const activeScanCount = activeScansData?.count || 0;
+
+	// Fetch recent config management run count for sidebar badge
+	const { data: recentConfigData } = useQuery({
+		queryKey: ["configmgmt-recent-count"],
+		queryFn: () => configManagementAPI.getRecentRuns().then((r) => r.data),
+		refetchInterval: 30000,
+		staleTime: 0,
+	});
+	const recentConfigCount = recentConfigData?.count || 0;
 
 	// Track WebSocket status for hosts
 	const [wsStatusMap, setWsStatusMap] = useState({});
@@ -1281,6 +1305,38 @@ const Layout = ({ children }) => {
 																							{activeJobCount}
 																						</button>
 																					)}
+																				{subItem.name === "Compliance" &&
+																					activeScanCount > 0 && (
+																						<button
+																							type="button"
+																							onClick={(e) => {
+																								e.preventDefault();
+																								e.stopPropagation();
+																								setCompliancePanelOpen(true);
+																							}}
+																							className="ml-2 relative inline-flex items-center justify-center px-1.5 py-0.5 text-xs rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors"
+																						>
+																							<span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+																								<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+																								<span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+																							</span>
+																							{activeScanCount}
+																						</button>
+																					)}
+																				{subItem.name === "Config Mgmt" &&
+																					recentConfigCount > 0 && (
+																						<button
+																							type="button"
+																							onClick={(e) => {
+																								e.preventDefault();
+																								e.stopPropagation();
+																								setConfigRunsPanelOpen(true);
+																							}}
+																							className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs rounded bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-200 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
+																						>
+																							{recentConfigCount}
+																						</button>
+																					)}
 																				{/* {subItem.name === "Packages" &&
 																			stats?.cards?.totalOutdatedPackages !==
 																				undefined && (
@@ -1685,6 +1741,18 @@ const Layout = ({ children }) => {
 				<ActiveJobsPanel
 					open={activeJobsPanelOpen}
 					onClose={() => setActiveJobsPanelOpen(false)}
+				/>
+
+				{/* Active Compliance Scans Panel */}
+				<ActiveCompliancePanel
+					open={compliancePanelOpen}
+					onClose={() => setCompliancePanelOpen(false)}
+				/>
+
+				{/* Recent Config Management Runs Panel */}
+				<ActiveConfigRunsPanel
+					open={configRunsPanelOpen}
+					onClose={() => setConfigRunsPanelOpen(false)}
 				/>
 			</div>
 		</SidebarContext.Provider>

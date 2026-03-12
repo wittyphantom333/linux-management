@@ -42,6 +42,7 @@ export const configManagementAPI = {
 	// ── Compliance runs ────────────────────────────────────────────────
 	listRuns: (params = {}) => api.get("/configmanagement/runs", { params }),
 	getRun: (id) => api.get(`/configmanagement/runs/${id}`),
+	getRecentRuns: () => api.get("/configmanagement/runs/recent"),
 
 	// ── Diagnostics ────────────────────────────────────────────────────
 	diagnose: () => api.get("/configmanagement/diagnose"),

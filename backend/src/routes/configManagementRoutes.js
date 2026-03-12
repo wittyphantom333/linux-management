@@ -1400,6 +1400,51 @@ router.post("/agent/report", async (req, res) => {
 // COMPLIANCE RUNS (UI queries)
 // ============================================================================
 
+// GET /api/v1/configmanagement/runs/recent - Recent activity (runs in last hour)
+router.get(
+	"/runs/recent",
+	authenticateToken,
+	requireViewConfigManagement,
+	async (_req, res) => {
+		try {
+			const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+			const runs = await prisma.cm_policy_runs.findMany({
+				where: {
+					evaluated_at: { gte: oneHourAgo },
+				},
+				orderBy: { evaluated_at: "desc" },
+				take: 50,
+				include: {
+					hosts: {
+						select: { id: true, friendly_name: true, hostname: true },
+					},
+				},
+			});
+
+			return res.json({
+				runs: runs.map((r) => ({
+					id: r.id,
+					hostId: r.host_id,
+					hostName: r.hosts?.friendly_name || r.hosts?.hostname || "Unknown",
+					globalMode: r.global_mode,
+					evaluatedAt: r.evaluated_at,
+					totalDirectives: r.total_directives,
+					compliant: r.compliant,
+					nonCompliant: r.non_compliant,
+					errors: r.errors,
+					repaired: r.repaired,
+					score: r.score,
+				})),
+				count: runs.length,
+			});
+		} catch (error) {
+			logger.error(`[ConfigMgmt] Failed to fetch recent runs: ${error.message}`);
+			return res.status(500).json({ error: "Failed to fetch recent runs" });
+		}
+	},
+);
+
 // GET /api/v1/configmanagement/runs - List recent policy runs
 router.get(
 	"/runs",
