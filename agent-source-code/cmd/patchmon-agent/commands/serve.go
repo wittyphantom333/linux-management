@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -342,6 +343,22 @@ func runService() error {
 				} else {
 					logger.Debug("Compliance scan cancel requested but no scan is running")
 				}
+			case "reboot_host":
+				logger.Warn("Reboot requested by user via PatchMon UI")
+				go func() {
+					var cmd *exec.Cmd
+					switch runtime.GOOS {
+					case "freebsd":
+						cmd = exec.Command("shutdown", "-r", "+1")
+					default:
+						cmd = exec.Command("shutdown", "-r", "+1", "PatchMon: reboot requested by user")
+					}
+					if err := cmd.Start(); err != nil {
+						logger.WithError(err).Error("Failed to schedule reboot")
+					} else {
+						logger.Warn("System reboot scheduled in 1 minute")
+					}
+				}()
 			case "upgrade_ssg":
 				logger.Info("Upgrading SSG content packages...")
 				go func() {
@@ -1344,6 +1361,9 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 		case "compliance_scan_cancel":
 			logger.Info("compliance_scan_cancel received")
 			out <- wsMsg{kind: "compliance_scan_cancel"}
+		case "reboot_host":
+			logger.Warn("reboot_host received")
+			out <- wsMsg{kind: "reboot_host"}
 		case "upgrade_ssg":
 			logger.Info("upgrade_ssg received from WebSocket")
 			out <- wsMsg{kind: "upgrade_ssg"}

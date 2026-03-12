@@ -21,6 +21,7 @@ const {
 	pushSetComplianceMode,
 	pushSetComplianceOnDemandOnly: _pushSetComplianceOnDemandOnly, // Legacy - kept for backward compatibility
 	isConnected,
+	pushRebootHost,
 } = require("../services/agentWs");
 const { compareVersions } = require("../services/automation/shared/utils");
 const { redis } = require("../services/automation/shared/redis");
@@ -2217,6 +2218,52 @@ router.post(
 			logger.error("Force agent update error:", error);
 			res.status(500).json({
 				error: "Failed to queue agent update",
+				details: error.message || "Unknown error occurred",
+			});
+		}
+	},
+);
+
+// Reboot host - sends reboot command to connected agent
+router.post(
+	"/:hostId/reboot",
+	authenticateToken,
+	requireManageHosts,
+	async (req, res) => {
+		try {
+			const { hostId } = req.params;
+
+			const host = await prisma.hosts.findUnique({
+				where: { id: hostId },
+			});
+
+			if (!host) {
+				return res.status(404).json({ error: "Host not found" });
+			}
+
+			if (!isConnected(host.api_id)) {
+				return res.status(400).json({ error: "Agent is not connected" });
+			}
+
+			const sent = pushRebootHost(host.api_id);
+			if (!sent) {
+				return res
+					.status(500)
+					.json({ error: "Failed to send reboot command to agent" });
+			}
+
+			logger.warn(
+				`Reboot command sent to host ${host.friendly_name || host.hostname} (${host.id}) by user ${req.user?.username || "unknown"}`,
+			);
+
+			res.json({
+				success: true,
+				message: "Reboot command sent. The host will reboot in approximately 1 minute.",
+			});
+		} catch (error) {
+			logger.error("Reboot host error:", error);
+			res.status(500).json({
+				error: "Failed to send reboot command",
 				details: error.message || "Unknown error occurred",
 			});
 		}

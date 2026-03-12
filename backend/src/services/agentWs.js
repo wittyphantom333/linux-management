@@ -773,6 +773,16 @@ function pushComplianceScanCancel(apiId) {
 	return false;
 }
 
+function pushRebootHost(apiId) {
+	const ws = apiIdToSocket.get(apiId);
+	if (ws && ws.readyState === WebSocket.OPEN) {
+		safeSend(ws, JSON.stringify({ type: "reboot_host" }));
+		logger.info(`[agent-ws] Sent reboot command for ${apiId}`);
+		return true;
+	}
+	return false;
+}
+
 function pushUpgradeSSG(apiId) {
 	logger.info(`[agent-ws] pushUpgradeSSG called for api_id=${apiId}`);
 	const ws = apiIdToSocket.get(apiId);
@@ -1110,6 +1120,7 @@ module.exports = {
 	pushUpdateNotificationToAll,
 	pushComplianceScan,
 	pushComplianceScanCancel,
+	pushRebootHost,
 	pushUpgradeSSG,
 	pushInstallScanner,
 	pushRemediateRule,

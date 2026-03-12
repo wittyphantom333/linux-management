@@ -12,6 +12,7 @@ import {
 	Database,
 	Download,
 	ExternalLink,
+	FileText,
 	HardDrive,
 	Key,
 	Loader2,
@@ -20,6 +21,7 @@ import {
 	Monitor,
 	Package,
 	Play,
+	Power,
 	RefreshCw,
 	RotateCcw,
 	Server,
@@ -109,6 +111,10 @@ const HostDetail = () => {
 
 	// State for auto-update confirmation dialog
 	const [autoUpdateDialog, setAutoUpdateDialog] = useState(false);
+
+	// Reboot confirmation dialog and message
+	const [showRebootConfirm, setShowRebootConfirm] = useState(false);
+	const [rebootMessage, setRebootMessage] = useState({ text: "", isError: false });
 
 	// Ref to track component mount state for setTimeout cleanup
 	const isMountedRef = useRef(true);
@@ -250,10 +256,8 @@ const HostDetail = () => {
 			[
 				"host",
 				"network",
-				"system",
 				"history",
 				"queue",
-				"notes",
 				"integrations",
 				"reporting",
 				"docker",
@@ -372,6 +376,33 @@ const HostDetail = () => {
 			});
 			safeSetTimeout(
 				() => setUpdateMessage({ text: "", jobId: "", isError: false }),
+				5000,
+			);
+		},
+	});
+
+	// Reboot host mutation
+	const rebootHostMutation = useMutation({
+		mutationFn: () =>
+			adminHostsAPI.rebootHost(hostId).then((res) => res.data),
+		onSuccess: (data) => {
+			setRebootMessage({
+				text: data?.message || "Reboot command sent successfully",
+				isError: false,
+			});
+			setShowRebootConfirm(false);
+			safeSetTimeout(
+				() => setRebootMessage({ text: "", isError: false }),
+				8000,
+			);
+		},
+		onError: (error) => {
+			const errorMsg =
+				error.response?.data?.error || "Failed to send reboot command";
+			setRebootMessage({ text: errorMsg, isError: true });
+			setShowRebootConfirm(false);
+			safeSetTimeout(
+				() => setRebootMessage({ text: "", isError: false }),
 				5000,
 			);
 		},
@@ -2028,6 +2059,81 @@ const HostDetail = () => {
 						</div>
 					</div>
 
+					{/* Host Actions Card (Reboot) */}
+					<div className="card p-4">
+						<h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4 flex items-center gap-2">
+							<Power className="h-5 w-5 text-primary-600" />
+							Host Actions
+						</h3>
+						<div className="space-y-3">
+							<div className="flex items-center gap-3">
+								<button
+									type="button"
+									onClick={() => setShowRebootConfirm(true)}
+									disabled={
+										rebootHostMutation.isPending ||
+										!wsStatus?.connected
+									}
+									title={
+										!wsStatus?.connected
+											? "Agent is not connected"
+											: "Reboot this host (1 minute delay)"
+									}
+									className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									<Power className="h-3 w-3" />
+									{rebootHostMutation.isPending
+										? "Sending..."
+										: wsStatus?.connected
+											? "Reboot Host"
+											: "Offline"}
+								</button>
+								{rebootMessage.text && (
+									<p
+										className={`text-xs ${
+											rebootMessage.isError
+												? "text-red-600 dark:text-red-400"
+												: "text-green-600 dark:text-green-400"
+										}`}
+									>
+										{rebootMessage.text}
+									</p>
+								)}
+							</div>
+
+							{showRebootConfirm && (
+								<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+									<p className="text-sm text-red-800 dark:text-red-200 mb-3">
+										Are you sure you want to reboot{" "}
+										<span className="font-semibold">
+											{host.friendly_name || host.hostname || host.ip}
+										</span>
+										? The system will reboot in approximately 1 minute.
+									</p>
+									<div className="flex items-center gap-2">
+										<button
+											type="button"
+											onClick={() => rebootHostMutation.mutate()}
+											disabled={rebootHostMutation.isPending}
+											className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-md transition-colors"
+										>
+											{rebootHostMutation.isPending
+												? "Sending..."
+												: "Confirm Reboot"}
+										</button>
+										<button
+											type="button"
+											onClick={() => setShowRebootConfirm(false)}
+											className="px-3 py-1.5 text-xs font-medium text-secondary-700 dark:text-secondary-300 bg-secondary-100 dark:bg-secondary-700 hover:bg-secondary-200 dark:hover:bg-secondary-600 rounded-md transition-colors"
+										>
+											Cancel
+										</button>
+									</div>
+								</div>
+							)}
+						</div>
+					</div>
+
 					{/* Agent Queue Card */}
 					<div className="card p-4">
 						<h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4 flex items-center gap-2">
@@ -2349,17 +2455,6 @@ const HostDetail = () => {
 						</button>
 						<button
 							type="button"
-							onClick={() => handleTabChange("system")}
-							className={`px-4 py-2 text-sm font-medium ${
-								activeTab === "system"
-									? "text-primary-600 dark:text-primary-400 border-b-2 border-primary-500"
-									: "text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300"
-							}`}
-						>
-							System
-						</button>
-						<button
-							type="button"
 							onClick={() => handleTabChange("history")}
 							className={`px-4 py-2 text-sm font-medium ${
 								activeTab === "history"
@@ -2379,17 +2474,6 @@ const HostDetail = () => {
 							}`}
 						>
 							Agent Queue
-						</button>
-						<button
-							type="button"
-							onClick={() => handleTabChange("notes")}
-							className={`px-4 py-2 text-sm font-medium ${
-								activeTab === "notes"
-									? "text-primary-600 dark:text-primary-400 border-b-2 border-primary-500"
-									: "text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300"
-							}`}
-						>
-							Notes
 						</button>
 						<button
 							type="button"
@@ -2703,6 +2787,375 @@ const HostDetail = () => {
 										)}
 									</div>
 								</div>
+
+								{/* System Information (merged from System tab) */}
+								{(host.kernel_version ||
+									host.selinux_status ||
+									host.architecture) && (
+									<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
+										<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
+											<Terminal className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+											System Information
+										</h4>
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											{host.architecture && (
+												<div>
+													<p className="text-xs text-secondary-500 dark:text-secondary-300">
+														Architecture
+													</p>
+													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+														{host.architecture}
+													</p>
+												</div>
+											)}
+											{host.kernel_version && (
+												<div>
+													<p className="text-xs text-secondary-500 dark:text-secondary-300">
+														Running Kernel
+													</p>
+													<p className="font-medium text-secondary-900 dark:text-white font-mono text-sm break-all">
+														{host.kernel_version}
+													</p>
+												</div>
+											)}
+											{host.installed_kernel_version && (
+												<div>
+													<p className="text-xs text-secondary-500 dark:text-secondary-300">
+														Installed Kernel
+													</p>
+													<p className="font-medium text-secondary-900 dark:text-white font-mono text-sm break-all">
+														{host.installed_kernel_version}
+													</p>
+												</div>
+											)}
+											{host.selinux_status && (
+												<div>
+													<p className="text-xs text-secondary-500 dark:text-secondary-300">
+														SELinux Status
+													</p>
+													<span
+														className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+															host.selinux_status === "enabled"
+																? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+																: host.selinux_status === "permissive"
+																	? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+																	: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+														}`}
+													>
+														{host.selinux_status}
+													</span>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* Resource Information */}
+								{(host.system_uptime ||
+									host.cpu_model ||
+									host.cpu_cores ||
+									host.ram_installed ||
+									host.swap_size !== undefined ||
+									(host.load_average &&
+										Array.isArray(host.load_average) &&
+										host.load_average.length > 0 &&
+										host.load_average.some((load) => load != null)) ||
+									(host.disk_details &&
+										Array.isArray(host.disk_details) &&
+										host.disk_details.length > 0)) && (
+									<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
+										<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
+											<Monitor className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+											Resource Information
+										</h4>
+										<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+											{host.system_uptime && (
+												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
+													<div className="flex items-center gap-2 mb-2">
+														<Clock className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+														<p className="text-xs text-secondary-500 dark:text-secondary-300">
+															System Uptime
+														</p>
+													</div>
+													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+														{host.system_uptime}
+													</p>
+												</div>
+											)}
+											{host.cpu_model && (
+												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
+													<div className="flex items-center gap-2 mb-2">
+														<Cpu className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+														<p className="text-xs text-secondary-500 dark:text-secondary-300">
+															CPU Model
+														</p>
+													</div>
+													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+														{host.cpu_model}
+													</p>
+												</div>
+											)}
+											{host.cpu_cores && (
+												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
+													<div className="flex items-center gap-2 mb-2">
+														<Cpu className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+														<p className="text-xs text-secondary-500 dark:text-secondary-300">
+															CPU Cores
+														</p>
+													</div>
+													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+														{host.cpu_cores}
+													</p>
+												</div>
+											)}
+											{host.ram_installed != null && (
+												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
+													<div className="flex items-center gap-2 mb-2">
+														<MemoryStick className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+														<p className="text-xs text-secondary-500 dark:text-secondary-300">
+															RAM Installed
+														</p>
+													</div>
+													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+														{format_memory_gib(host.ram_installed)}
+													</p>
+												</div>
+											)}
+											{host.swap_size !== undefined &&
+												host.swap_size !== null && (
+													<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
+														<div className="flex items-center gap-2 mb-2">
+															<MemoryStick className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+															<p className="text-xs text-secondary-500 dark:text-secondary-300">
+																Swap Size
+															</p>
+														</div>
+														<p className="font-medium text-secondary-900 dark:text-white text-sm">
+															{format_memory_gib(host.swap_size)}
+														</p>
+													</div>
+												)}
+											{host.load_average &&
+												Array.isArray(host.load_average) &&
+												host.load_average.length > 0 &&
+												host.load_average.some((load) => load != null) && (
+													<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
+														<div className="flex items-center gap-2 mb-2">
+															<Activity className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+															<p className="text-xs text-secondary-500 dark:text-secondary-300">
+																Load Average
+															</p>
+														</div>
+														<p className="font-medium text-secondary-900 dark:text-white text-sm">
+															{host.load_average
+																.filter((load) => load != null)
+																.map((load, index) => (
+																	<span key={`load-${index}-${load}`}>
+																		{typeof load === "number"
+																			? load.toFixed(2)
+																			: String(load)}
+																		{index <
+																			host.load_average.filter(
+																				(load) => load != null,
+																			).length -
+																				1 && ", "}
+																	</span>
+																))}
+														</p>
+													</div>
+												)}
+										</div>
+										{host.disk_details &&
+											Array.isArray(host.disk_details) &&
+											host.disk_details.length > 0 && (
+												<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
+													<h5 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
+														<HardDrive className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+														Disk Usage
+													</h5>
+													<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-2">
+														{host.disk_details.map((disk, index) => (
+															<div
+																key={disk.name || `disk-${index}`}
+																className="bg-secondary-50 dark:bg-secondary-700 p-3 rounded-lg"
+															>
+																<div className="flex items-center gap-2 mb-2">
+																	<HardDrive className="h-4 w-4 text-secondary-500" />
+																	<span className="font-medium text-secondary-900 dark:text-white text-sm">
+																		{disk.name || `Disk ${index + 1}`}
+																	</span>
+																</div>
+																{disk.size && (
+																	<p className="text-xs text-secondary-600 dark:text-secondary-300 mb-1">
+																		Size: {disk.size}
+																	</p>
+																)}
+																{disk.mountpoint && (
+																	<p className="text-xs text-secondary-600 dark:text-secondary-300 mb-1">
+																		Mount: {disk.mountpoint}
+																	</p>
+																)}
+																{disk.usage &&
+																	typeof disk.usage === "number" && (
+																		<div className="mt-2">
+																			<div className="flex justify-between text-xs text-secondary-600 dark:text-secondary-300 mb-1">
+																				<span>Usage</span>
+																				<span>{disk.usage}%</span>
+																			</div>
+																			<div className="w-full bg-secondary-200 dark:bg-secondary-600 rounded-full h-2">
+																				<div
+																					className="bg-primary-600 dark:bg-primary-400 h-2 rounded-full transition-all duration-300"
+																					style={{
+																						width: `${Math.min(Math.max(disk.usage, 0), 100)}%`,
+																					}}
+																				></div>
+																			</div>
+																		</div>
+																	)}
+															</div>
+														))}
+													</div>
+												</div>
+											)}
+									</div>
+								)}
+
+								{/* Notes (merged from Notes tab) */}
+								<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
+									<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
+										<FileText className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+										Notes
+									</h4>
+									{notesMessage.text && (
+										<div
+											className={`rounded-md p-3 mb-3 ${
+												notesMessage.type === "success"
+													? "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700"
+													: "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700"
+											}`}
+										>
+											<div className="flex">
+												{notesMessage.type === "success" ? (
+													<CheckCircle className="h-4 w-4 text-green-400 dark:text-green-300" />
+												) : (
+													<AlertCircle className="h-4 w-4 text-red-400 dark:text-red-300" />
+												)}
+												<p
+													className={`ml-2 text-sm ${
+														notesMessage.type === "success"
+															? "text-green-800 dark:text-green-200"
+															: "text-red-800 dark:text-red-200"
+													}`}
+												>
+													{notesMessage.text}
+												</p>
+											</div>
+										</div>
+									)}
+									<div className="bg-secondary-50 dark:bg-secondary-700 rounded-lg p-4">
+										<textarea
+											value={notes}
+											onChange={(e) => setNotes(e.target.value)}
+											placeholder="Add notes about this host... (e.g., purpose, special configurations, maintenance notes)"
+											className="w-full h-24 p-3 border border-secondary-200 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-800 text-secondary-900 dark:text-white placeholder-secondary-500 dark:placeholder-secondary-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-sm"
+											maxLength={1000}
+										/>
+										<div className="flex justify-between items-center mt-2">
+											<span className="text-xs text-secondary-400 dark:text-secondary-500">
+												{notes.length}/1000
+											</span>
+											<button
+												type="button"
+												onClick={() => {
+													updateNotesMutation.mutate({
+														hostId: host.id,
+														notes: notes,
+													});
+												}}
+												disabled={updateNotesMutation.isPending}
+												className="px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 rounded-md transition-colors"
+											>
+												{updateNotesMutation.isPending
+													? "Saving..."
+													: "Save Notes"}
+											</button>
+										</div>
+									</div>
+								</div>
+
+								{/* Reboot Host */}
+								<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
+									<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
+										<Power className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+										Host Actions
+									</h4>
+									<div className="flex items-center gap-3">
+										<button
+											type="button"
+											onClick={() => setShowRebootConfirm(true)}
+											disabled={
+												rebootHostMutation.isPending ||
+												!wsStatus?.connected
+											}
+											title={
+												!wsStatus?.connected
+													? "Agent is not connected"
+													: "Reboot this host (1 minute delay)"
+											}
+											className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										>
+											<Power className="h-3 w-3" />
+											{rebootHostMutation.isPending
+												? "Sending..."
+												: wsStatus?.connected
+													? "Reboot Host"
+													: "Offline"}
+										</button>
+										{rebootMessage.text && (
+											<p
+												className={`text-xs ${
+													rebootMessage.isError
+														? "text-red-600 dark:text-red-400"
+														: "text-green-600 dark:text-green-400"
+												}`}
+											>
+												{rebootMessage.text}
+											</p>
+										)}
+									</div>
+
+									{/* Reboot Confirmation Dialog */}
+									{showRebootConfirm && (
+										<div className="mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+											<p className="text-sm text-red-800 dark:text-red-200 mb-3">
+												Are you sure you want to reboot{" "}
+												<span className="font-semibold">
+													{host.friendly_name || host.hostname || host.ip}
+												</span>
+												? The system will reboot in approximately 1 minute.
+											</p>
+											<div className="flex items-center gap-2">
+												<button
+													type="button"
+													onClick={() => rebootHostMutation.mutate()}
+													disabled={rebootHostMutation.isPending}
+													className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-md transition-colors"
+												>
+													{rebootHostMutation.isPending
+														? "Sending..."
+														: "Confirm Reboot"}
+												</button>
+												<button
+													type="button"
+													onClick={() => setShowRebootConfirm(false)}
+													className="px-3 py-1.5 text-xs font-medium text-secondary-700 dark:text-secondary-300 bg-secondary-100 dark:bg-secondary-700 hover:bg-secondary-200 dark:hover:bg-secondary-600 rounded-md transition-colors"
+												>
+													Cancel
+												</button>
+											</div>
+										</div>
+									)}
+								</div>
 							</div>
 						)}
 
@@ -2865,289 +3318,6 @@ const HostDetail = () => {
 										)}
 								</div>
 							)}
-
-						{/* System Information */}
-						{activeTab === "system" && (
-							<div className="space-y-6">
-								{/* Basic System Information */}
-								{(host.kernel_version ||
-									host.selinux_status ||
-									host.architecture) && (
-									<div>
-										<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-											<Terminal className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-											System Information
-										</h4>
-										<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-											{host.architecture && (
-												<div>
-													<p className="text-xs text-secondary-500 dark:text-secondary-300">
-														Architecture
-													</p>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
-														{host.architecture}
-													</p>
-												</div>
-											)}
-
-											{host.kernel_version && (
-												<div>
-													<p className="text-xs text-secondary-500 dark:text-secondary-300">
-														Running Kernel
-													</p>
-													<p className="font-medium text-secondary-900 dark:text-white font-mono text-sm break-all">
-														{host.kernel_version}
-													</p>
-												</div>
-											)}
-
-											{host.installed_kernel_version && (
-												<div>
-													<p className="text-xs text-secondary-500 dark:text-secondary-300">
-														Installed Kernel
-													</p>
-													<p className="font-medium text-secondary-900 dark:text-white font-mono text-sm break-all">
-														{host.installed_kernel_version}
-													</p>
-												</div>
-											)}
-
-											{host.selinux_status && (
-												<div>
-													<p className="text-xs text-secondary-500 dark:text-secondary-300">
-														SELinux Status
-													</p>
-													<span
-														className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-															host.selinux_status === "enabled"
-																? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-																: host.selinux_status === "permissive"
-																	? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-																	: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-														}`}
-													>
-														{host.selinux_status}
-													</span>
-												</div>
-											)}
-										</div>
-									</div>
-								)}
-
-								{/* Resource Information */}
-								{(host.system_uptime ||
-									host.cpu_model ||
-									host.cpu_cores ||
-									host.ram_installed ||
-									host.swap_size !== undefined ||
-									(host.load_average &&
-										Array.isArray(host.load_average) &&
-										host.load_average.length > 0 &&
-										host.load_average.some((load) => load != null)) ||
-									(host.disk_details &&
-										Array.isArray(host.disk_details) &&
-										host.disk_details.length > 0)) && (
-									<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
-										<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-											<Monitor className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-											Resource Information
-										</h4>
-
-										{/* System Overview */}
-										<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-											{/* System Uptime */}
-											{host.system_uptime && (
-												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-													<div className="flex items-center gap-2 mb-2">
-														<Clock className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														<p className="text-xs text-secondary-500 dark:text-secondary-300">
-															System Uptime
-														</p>
-													</div>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
-														{host.system_uptime}
-													</p>
-												</div>
-											)}
-
-											{/* CPU Model */}
-											{host.cpu_model && (
-												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-													<div className="flex items-center gap-2 mb-2">
-														<Cpu className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														<p className="text-xs text-secondary-500 dark:text-secondary-300">
-															CPU Model
-														</p>
-													</div>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
-														{host.cpu_model}
-													</p>
-												</div>
-											)}
-
-											{/* CPU Cores */}
-											{host.cpu_cores && (
-												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-													<div className="flex items-center gap-2 mb-2">
-														<Cpu className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														<p className="text-xs text-secondary-500 dark:text-secondary-300">
-															CPU Cores
-														</p>
-													</div>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
-														{host.cpu_cores}
-													</p>
-												</div>
-											)}
-
-											{/* RAM Installed */}
-											{host.ram_installed != null && (
-												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-													<div className="flex items-center gap-2 mb-2">
-														<MemoryStick className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														<p className="text-xs text-secondary-500 dark:text-secondary-300">
-															RAM Installed
-														</p>
-													</div>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
-														{format_memory_gib(host.ram_installed)}
-													</p>
-												</div>
-											)}
-
-											{/* Swap Size */}
-											{host.swap_size !== undefined &&
-												host.swap_size !== null && (
-													<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-														<div className="flex items-center gap-2 mb-2">
-															<MemoryStick className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-															<p className="text-xs text-secondary-500 dark:text-secondary-300">
-																Swap Size
-															</p>
-														</div>
-														<p className="font-medium text-secondary-900 dark:text-white text-sm">
-															{format_memory_gib(host.swap_size)}
-														</p>
-													</div>
-												)}
-
-											{/* Load Average */}
-											{host.load_average &&
-												Array.isArray(host.load_average) &&
-												host.load_average.length > 0 &&
-												host.load_average.some((load) => load != null) && (
-													<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-														<div className="flex items-center gap-2 mb-2">
-															<Activity className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-															<p className="text-xs text-secondary-500 dark:text-secondary-300">
-																Load Average
-															</p>
-														</div>
-														<p className="font-medium text-secondary-900 dark:text-white text-sm">
-															{host.load_average
-																.filter((load) => load != null)
-																.map((load, index) => (
-																	<span key={`load-${index}-${load}`}>
-																		{typeof load === "number"
-																			? load.toFixed(2)
-																			: String(load)}
-																		{index <
-																			host.load_average.filter(
-																				(load) => load != null,
-																			).length -
-																				1 && ", "}
-																	</span>
-																))}
-														</p>
-													</div>
-												)}
-										</div>
-
-										{/* Disk Information */}
-										{host.disk_details &&
-											Array.isArray(host.disk_details) &&
-											host.disk_details.length > 0 && (
-												<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
-													<h5 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-														<HardDrive className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														Disk Usage
-													</h5>
-													<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-2">
-														{host.disk_details.map((disk, index) => (
-															<div
-																key={disk.name || `disk-${index}`}
-																className="bg-secondary-50 dark:bg-secondary-700 p-3 rounded-lg"
-															>
-																<div className="flex items-center gap-2 mb-2">
-																	<HardDrive className="h-4 w-4 text-secondary-500" />
-																	<span className="font-medium text-secondary-900 dark:text-white text-sm">
-																		{disk.name || `Disk ${index + 1}`}
-																	</span>
-																</div>
-																{disk.size && (
-																	<p className="text-xs text-secondary-600 dark:text-secondary-300 mb-1">
-																		Size: {disk.size}
-																	</p>
-																)}
-																{disk.mountpoint && (
-																	<p className="text-xs text-secondary-600 dark:text-secondary-300 mb-1">
-																		Mount: {disk.mountpoint}
-																	</p>
-																)}
-																{disk.usage &&
-																	typeof disk.usage === "number" && (
-																		<div className="mt-2">
-																			<div className="flex justify-between text-xs text-secondary-600 dark:text-secondary-300 mb-1">
-																				<span>Usage</span>
-																				<span>{disk.usage}%</span>
-																			</div>
-																			<div className="w-full bg-secondary-200 dark:bg-secondary-600 rounded-full h-2">
-																				<div
-																					className="bg-primary-600 dark:bg-primary-400 h-2 rounded-full transition-all duration-300"
-																					style={{
-																						width: `${Math.min(Math.max(disk.usage, 0), 100)}%`,
-																					}}
-																				></div>
-																			</div>
-																		</div>
-																	)}
-															</div>
-														))}
-													</div>
-												</div>
-											)}
-									</div>
-								)}
-
-								{/* No Data State */}
-								{!host.kernel_version &&
-									!host.selinux_status &&
-									!host.architecture &&
-									!host.system_uptime &&
-									!host.cpu_model &&
-									!host.cpu_cores &&
-									!host.ram_installed &&
-									host.swap_size === undefined &&
-									(!host.load_average ||
-										!Array.isArray(host.load_average) ||
-										host.load_average.length === 0 ||
-										!host.load_average.some((load) => load != null)) &&
-									(!host.disk_details ||
-										!Array.isArray(host.disk_details) ||
-										host.disk_details.length === 0) && (
-										<div className="text-center py-8">
-											<Terminal className="h-8 w-8 text-secondary-400 mx-auto mb-2" />
-											<p className="text-sm text-secondary-500 dark:text-secondary-300">
-												No system information available
-											</p>
-											<p className="text-xs text-secondary-400 dark:text-secondary-400 mt-1">
-												System information will appear once the agent collects
-												data from this host
-											</p>
-										</div>
-									)}
-							</div>
-						)}
 
 						{activeTab === "network" &&
 							!(
@@ -3408,83 +3578,6 @@ const HostDetail = () => {
 									onClose={() => handleTabChange("host")}
 									embedded={true}
 								/>
-							</div>
-						)}
-
-						{/* Notes */}
-						{activeTab === "notes" && (
-							<div className="space-y-4">
-								<div className="flex items-center justify-between">
-									<h3 className="text-lg font-medium text-secondary-900 dark:text-white">
-										Host Notes
-									</h3>
-								</div>
-
-								{/* Success/Error Message */}
-								{notesMessage.text && (
-									<div
-										className={`rounded-md p-4 ${
-											notesMessage.type === "success"
-												? "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700"
-												: "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700"
-										}`}
-									>
-										<div className="flex">
-											{notesMessage.type === "success" ? (
-												<CheckCircle className="h-5 w-5 text-green-400 dark:text-green-300" />
-											) : (
-												<AlertCircle className="h-5 w-5 text-red-400 dark:text-red-300" />
-											)}
-											<div className="ml-3">
-												<p
-													className={`text-sm font-medium ${
-														notesMessage.type === "success"
-															? "text-green-800 dark:text-green-200"
-															: "text-red-800 dark:text-red-200"
-													}`}
-												>
-													{notesMessage.text}
-												</p>
-											</div>
-										</div>
-									</div>
-								)}
-
-								<div className="bg-secondary-50 dark:bg-secondary-700 rounded-lg p-4">
-									<textarea
-										value={notes}
-										onChange={(e) => setNotes(e.target.value)}
-										placeholder="Add notes about this host... (e.g., purpose, special configurations, maintenance notes)"
-										className="w-full h-32 p-3 border border-secondary-200 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-800 text-secondary-900 dark:text-white placeholder-secondary-500 dark:placeholder-secondary-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-										maxLength={1000}
-									/>
-									<div className="flex justify-between items-center mt-3">
-										<p className="text-xs text-secondary-500 dark:text-secondary-400">
-											Use this space to add important information about this
-											host for your team
-										</p>
-										<div className="flex items-center gap-2">
-											<span className="text-xs text-secondary-400 dark:text-secondary-500">
-												{notes.length}/1000
-											</span>
-											<button
-												type="button"
-												onClick={() => {
-													updateNotesMutation.mutate({
-														hostId: host.id,
-														notes: notes,
-													});
-												}}
-												disabled={updateNotesMutation.isPending}
-												className="px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 rounded-md transition-colors"
-											>
-												{updateNotesMutation.isPending
-													? "Saving..."
-													: "Save Notes"}
-											</button>
-										</div>
-									</div>
-								</div>
 							</div>
 						)}
 
