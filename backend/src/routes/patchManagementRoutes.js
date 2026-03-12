@@ -20,7 +20,8 @@ const { v4: uuidv4 } = require("uuid");
 const { verifyApiKey } = require("../utils/apiKeyUtils");
 const {
 	createPatchJob,
-	createPatchJobForHost,
+	getPoliciesForHost,
+	createPatchJobsForHost,
 	computeSnapshotDiff,
 	computeNextRun,
 	getPendingJobForHost,
@@ -1414,8 +1415,30 @@ router.get(
 	},
 );
 
+// GET /api/v1/patch-management/hosts/:hostId/applicable-policies
+// List all enabled patch policies that apply to a host
+router.get(
+	"/hosts/:hostId/applicable-policies",
+	authenticateToken,
+	requireViewPatchManagement,
+	async (req, res) => {
+		/* #swagger.tags = ['Patch Management - Jobs'] */
+		/* #swagger.summary = 'List applicable policies for a host' */
+		/* #swagger.description = 'Returns all enabled patch policies targeting this host with matching package counts.' */
+		/* #swagger.security = [{ "bearerAuth": [] }] */
+		try {
+			const { hostId } = req.params;
+			const policies = await getPoliciesForHost(hostId);
+			return res.json({ success: true, policies });
+		} catch (error) {
+			logger.error(`[PatchMgmt] Failed to get applicable policies: ${error.message}`);
+			return res.status(400).json({ error: error.message });
+		}
+	},
+);
+
 // POST /api/v1/patch-management/hosts/:hostId/run-patches
-// Trigger a patch job scoped to a single host
+// Trigger patch jobs for a single host using selected policies
 router.post(
 	"/hosts/:hostId/run-patches",
 	authenticateToken,
@@ -1423,21 +1446,28 @@ router.post(
 	async (req, res) => {
 		/* #swagger.tags = ['Patch Management - Jobs'] */
 		/* #swagger.summary = 'Trigger patches for a single host' */
-		/* #swagger.description = 'Creates a single-host patch job using the best matching policy. Requires JWT auth.' */
+		/* #swagger.description = 'Creates single-host patch jobs for the selected policies. Requires JWT auth.' */
 		/* #swagger.security = [{ "bearerAuth": [] }] */
 		try {
 			const { hostId } = req.params;
+			const { policyIds } = req.body;
 
-			const result = await createPatchJobForHost(hostId, {
+			if (!Array.isArray(policyIds) || policyIds.length === 0) {
+				return res.status(400).json({ error: "policyIds must be a non-empty array" });
+			}
+
+			const results = await createPatchJobsForHost(hostId, policyIds, {
 				triggeredBy: "manual",
 				triggeredByUser: req.user?.id,
 			});
 
 			return res.status(201).json({
 				success: true,
-				job: result.job,
-				policy: result.policy,
-				packages_count: result.packagesCount,
+				jobs: results.map((r) => ({
+					job: r.job,
+					policy: r.policy,
+					packages_count: r.packagesCount,
+				})),
 			});
 		} catch (error) {
 			logger.error(

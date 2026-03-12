@@ -2192,7 +2192,7 @@ const HostDetail = () => {
 						<div className="card p-4">
 							<h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4 flex items-center gap-2">
 								<AlertTriangle className="h-5 w-5 text-primary-600" />
-								Reporting
+								Alerts
 							</h3>
 							<div className="space-y-4">
 								<p className="text-xs text-secondary-600 dark:text-secondary-300">

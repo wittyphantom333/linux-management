@@ -68,6 +68,8 @@ export default function PatchResultsTab({ hostId }) {
 	const [diffData, setDiffData] = useState({});
 	const [statusFilter, setStatusFilter] = useState("");
 	const [triggerMsg, setTriggerMsg] = useState(null);
+	const [showPolicyPicker, setShowPolicyPicker] = useState(false);
+	const [selectedPolicies, setSelectedPolicies] = useState(new Set());
 
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ["patchmgmt", "host-results", hostId, page, statusFilter],
@@ -82,27 +84,49 @@ export default function PatchResultsTab({ hostId }) {
 		keepPreviousData: true,
 	});
 
+	// Fetch applicable policies when picker is open
+	const {
+		data: policiesData,
+		isLoading: policiesLoading,
+	} = useQuery({
+		queryKey: ["patchmgmt", "host-applicable-policies", hostId],
+		queryFn: () =>
+			patchManagementAPI
+				.getHostApplicablePolicies(hostId)
+				.then((r) => r.data),
+		enabled: showPolicyPicker,
+	});
+	const applicablePolicies = policiesData?.policies || [];
+
 	const results = data?.results || [];
 	const total = data?.total || 0;
 	const summary = data?.summary || {};
 	const totalPages = Math.ceil(total / PAGE_SIZE);
 
-	// Run patches mutation
+	// Run patches mutation — now sends selected policyIds
 	const runPatchesMutation = useMutation({
-		mutationFn: () =>
-			patchManagementAPI.triggerHostPatches(hostId).then((r) => r.data),
+		mutationFn: (policyIds) =>
+			patchManagementAPI
+				.triggerHostPatches(hostId, policyIds)
+				.then((r) => r.data),
 		onSuccess: (resp) => {
 			queryClient.invalidateQueries([
 				"patchmgmt",
 				"host-results",
 				hostId,
 			]);
-			const pkgs = resp.packages_count ?? "?";
-			const policy = resp.policy?.name ?? "policy";
+			const jobs = resp.jobs || [];
+			const totalPkgs = jobs.reduce(
+				(sum, j) => sum + (j.packages_count ?? 0),
+				0,
+			);
+			const names = jobs.map((j) => j.policy?.name).filter(Boolean);
 			setTriggerMsg({
 				type: "success",
-				text: `Patch job created — ${pkgs} package(s) via "${policy}"`,
+				text: `${jobs.length} job(s) created — ${totalPkgs} package(s) via ${names.length ? `"${names.join('", "')}"` : "selected policies"}`,
 			});
+			setShowPolicyPicker(false);
+			setSelectedPolicies(new Set());
 			setTimeout(() => setTriggerMsg(null), 6000);
 		},
 		onError: (err) => {
@@ -115,6 +139,20 @@ export default function PatchResultsTab({ hostId }) {
 			setTimeout(() => setTriggerMsg(null), 6000);
 		},
 	});
+
+	function openPolicyPicker() {
+		setSelectedPolicies(new Set());
+		setShowPolicyPicker(true);
+	}
+
+	function togglePolicySelection(policyId) {
+		setSelectedPolicies((prev) => {
+			const next = new Set(prev);
+			if (next.has(policyId)) next.delete(policyId);
+			else next.add(policyId);
+			return next;
+		});
+	}
 
 	function toggleRow(id) {
 		setExpandedRows((prev) => {
@@ -194,18 +232,11 @@ export default function PatchResultsTab({ hostId }) {
 					{canManagePatchManagement && (
 						<button
 							type="button"
-							onClick={() => runPatchesMutation.mutate()}
-							disabled={runPatchesMutation.isPending}
-							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+							onClick={openPolicyPicker}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors"
 						>
-							{runPatchesMutation.isPending ? (
-								<Loader2 className="h-3 w-3 animate-spin" />
-							) : (
-								<Play className="h-3 w-3" />
-							)}
-							{runPatchesMutation.isPending
-								? "Creating job..."
-								: "Run Patches"}
+							<Play className="h-3 w-3" />
+							Run Patches
 						</button>
 					)}
 					<select
@@ -225,6 +256,113 @@ export default function PatchResultsTab({ hostId }) {
 					</select>
 				</div>
 			</div>
+
+			{/* Policy picker modal */}
+			{showPolicyPicker && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+					<div className="bg-white dark:bg-secondary-800 rounded-lg shadow-xl border border-secondary-200 dark:border-secondary-700 w-full max-w-md mx-4">
+						<div className="flex items-center justify-between px-4 py-3 border-b border-secondary-200 dark:border-secondary-700">
+							<h3 className="text-sm font-semibold text-secondary-900 dark:text-white">
+								Select Policies to Run
+							</h3>
+							<button
+								type="button"
+								onClick={() => setShowPolicyPicker(false)}
+								className="text-secondary-400 hover:text-secondary-600 dark:hover:text-secondary-300"
+							>
+								<XCircle className="h-4 w-4" />
+							</button>
+						</div>
+						<div className="px-4 py-3 max-h-64 overflow-y-auto">
+							{policiesLoading ? (
+								<div className="flex items-center justify-center py-6">
+									<Loader2 className="h-5 w-5 animate-spin text-primary-600" />
+								</div>
+							) : applicablePolicies.length === 0 ? (
+								<p className="text-xs text-secondary-500 dark:text-secondary-400 text-center py-4">
+									No applicable policies found for this host
+								</p>
+							) : (
+								<div className="space-y-2">
+									{applicablePolicies.map((policy) => (
+										<label
+											key={policy.id}
+											className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-secondary-50 dark:hover:bg-secondary-700/50 cursor-pointer transition-colors"
+										>
+											<input
+												type="checkbox"
+												checked={selectedPolicies.has(policy.id)}
+												onChange={() => togglePolicySelection(policy.id)}
+												className="h-4 w-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+											/>
+											<div className="flex-1 min-w-0">
+												<p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+													{policy.name}
+												</p>
+												{policy.description && (
+													<p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
+														{policy.description}
+													</p>
+												)}
+											</div>
+											<span className="text-xs font-medium text-secondary-500 dark:text-secondary-400 shrink-0">
+												{policy.packages_count} pkg{policy.packages_count !== 1 ? "s" : ""}
+											</span>
+										</label>
+									))}
+								</div>
+							)}
+						</div>
+						<div className="flex items-center justify-between px-4 py-3 border-t border-secondary-200 dark:border-secondary-700">
+							<button
+								type="button"
+								onClick={() => {
+									if (selectedPolicies.size === applicablePolicies.length) {
+										setSelectedPolicies(new Set());
+									} else {
+										setSelectedPolicies(new Set(applicablePolicies.map((p) => p.id)));
+									}
+								}}
+								disabled={applicablePolicies.length === 0}
+								className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium disabled:opacity-50"
+							>
+								{selectedPolicies.size === applicablePolicies.length && applicablePolicies.length > 0
+									? "Deselect All"
+									: "Select All"}
+							</button>
+							<div className="flex items-center gap-2">
+								<button
+									type="button"
+									onClick={() => setShowPolicyPicker(false)}
+									className="px-3 py-1.5 text-xs font-medium rounded-md border border-secondary-300 dark:border-secondary-600 text-secondary-700 dark:text-secondary-300 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors"
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									onClick={() =>
+										runPatchesMutation.mutate([...selectedPolicies])
+									}
+									disabled={
+										selectedPolicies.size === 0 ||
+										runPatchesMutation.isPending
+									}
+									className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+								>
+									{runPatchesMutation.isPending ? (
+										<Loader2 className="h-3 w-3 animate-spin" />
+									) : (
+										<Play className="h-3 w-3" />
+									)}
+									{runPatchesMutation.isPending
+										? "Creating..."
+										: `Run ${selectedPolicies.size} ${selectedPolicies.size === 1 ? "Policy" : "Policies"}`}
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Trigger feedback */}
 			{triggerMsg && (

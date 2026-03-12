@@ -33,9 +33,13 @@ export const patchManagementAPI = {
 	getHostPatchResults: (hostId, params = {}) =>
 		api.get(`/patch-management/hosts/${hostId}/results`, { params }),
 
-	// Trigger patches for a single host
-	triggerHostPatches: (hostId) =>
-		api.post(`/patch-management/hosts/${hostId}/run-patches`),
+	// Applicable policies for a host (for run-patches multi-select)
+	getHostApplicablePolicies: (hostId) =>
+		api.get(`/patch-management/hosts/${hostId}/applicable-policies`),
+
+	// Trigger patches for a single host with selected policy IDs
+	triggerHostPatches: (hostId, policyIds) =>
+		api.post(`/patch-management/hosts/${hostId}/run-patches`, { policyIds }),
 
 	// Diffs
 	getJobHostDiff: (jobId, jobHostId) =>
