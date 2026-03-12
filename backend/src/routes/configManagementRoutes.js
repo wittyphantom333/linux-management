@@ -1265,10 +1265,7 @@ router.get(
 				where: { status: { in: ["pending", "running"] } },
 				include: {
 					cm_job_hosts: {
-						select: {
-							id: true,
-							host_id: true,
-							status: true,
+						include: {
 							host: {
 								select: { id: true, friendly_name: true, hostname: true },
 							},
