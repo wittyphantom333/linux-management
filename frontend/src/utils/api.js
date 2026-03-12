@@ -478,6 +478,14 @@ export const alertsAPI = {
 	triggerCleanup: () => api.post("/alerts/cleanup"),
 	deleteAlert: (id) => api.delete(`/alerts/${id}`),
 	bulkDeleteAlerts: (alertIds) => api.post("/alerts/bulk-delete", { alertIds }),
+
+	// Alert Channels
+	getChannels: () => api.get("/alerts/channels"),
+	createChannel: (data) => api.post("/alerts/channels", data),
+	updateChannel: (id, data) => api.put(`/alerts/channels/${id}`, data),
+	deleteChannel: (id) => api.delete(`/alerts/channels/${id}`),
+	testChannel: (id) => api.post(`/alerts/channels/${id}/test`),
+	testUnsavedChannel: (data) => api.post("/alerts/channels/test", data),
 };
 
 export const agentLogsAPI = {

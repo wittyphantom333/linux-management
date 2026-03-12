@@ -1,6 +1,7 @@
 const { prisma } = require("./automation/shared/prisma");
 const logger = require("../utils/logger");
 const { v4: uuidv4 } = require("uuid");
+const { dispatchAlert } = require("./notificationService");
 
 /**
  * Alert Service
@@ -54,6 +55,9 @@ class AlertService {
 			await this.recordAlertHistory(alert.id, null, "created", {
 				system_action: true,
 			});
+
+			// Fire-and-forget: dispatch notifications to all matching channels
+			dispatchAlert(alert).catch(() => {});
 
 			logger.info(`✅ Created alert: ${alert.id} (${type})`);
 			return alert;

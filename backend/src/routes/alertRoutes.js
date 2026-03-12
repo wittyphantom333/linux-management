@@ -2,11 +2,15 @@ const express = require("express");
 const logger = require("../utils/logger");
 const alertService = require("../services/alertService");
 const alertConfigService = require("../services/alertConfigService");
+const notificationService = require("../services/notificationService");
 const { authenticateToken } = require("../middleware/auth");
 const {
 	requireViewReports,
 	requireManageSettings,
 } = require("../middleware/permissions");
+
+const { prisma } = require("../services/automation/shared/prisma");
+const { v4: uuidv4 } = require("uuid");
 
 const router = express.Router();
 
@@ -266,6 +270,246 @@ router.post(
 				success: false,
 				error: "Failed to trigger cleanup",
 				details: error.message,
+			});
+		}
+	},
+);
+
+// ============================================================================
+// Alert Channel Routes (Discord, Webhook, Teams)
+// ============================================================================
+
+// List all channels
+router.get(
+	"/channels",
+	authenticateToken,
+	requireManageSettings,
+	async (_req, res) => {
+		try {
+			const channels = await prisma.alert_channels.findMany({
+				orderBy: { created_at: "desc" },
+			});
+
+			// Mask webhook URLs for security (show first 40 chars)
+			const masked = channels.map((ch) => ({
+				...ch,
+				webhook_url_preview: ch.webhook_url
+					? `${ch.webhook_url.substring(0, 40)}…`
+					: "",
+			}));
+
+			res.json({ success: true, data: masked });
+		} catch (error) {
+			logger.error("Error fetching alert channels:", error);
+			res
+				.status(500)
+				.json({ success: false, error: "Failed to fetch channels" });
+		}
+	},
+);
+
+// Create channel
+router.post(
+	"/channels",
+	authenticateToken,
+	requireManageSettings,
+	async (req, res) => {
+		try {
+			const {
+				name,
+				channel_type,
+				webhook_url,
+				enabled,
+				severity_filter,
+				type_filter,
+				config,
+			} = req.body;
+
+			if (!name || !channel_type || !webhook_url) {
+				return res.status(400).json({
+					success: false,
+					error: "name, channel_type, and webhook_url are required",
+				});
+			}
+
+			const validTypes = ["discord", "webhook", "teams"];
+			if (!validTypes.includes(channel_type)) {
+				return res.status(400).json({
+					success: false,
+					error: `channel_type must be one of: ${validTypes.join(", ")}`,
+				});
+			}
+
+			const channel = await prisma.alert_channels.create({
+				data: {
+					id: uuidv4(),
+					name,
+					channel_type,
+					webhook_url,
+					enabled: enabled !== false,
+					severity_filter: severity_filter || null,
+					type_filter: type_filter || null,
+					config: config || null,
+					created_by: req.user.id,
+				},
+			});
+
+			logger.info(`✅ Created alert channel: ${channel.id} (${channel_type})`);
+			res.json({ success: true, data: channel });
+		} catch (error) {
+			logger.error("Error creating alert channel:", error);
+			res
+				.status(500)
+				.json({ success: false, error: "Failed to create channel" });
+		}
+	},
+);
+
+// Test channel with unsaved data (no channelId required) — MUST be before /channels/:channelId
+router.post(
+	"/channels/test",
+	authenticateToken,
+	requireManageSettings,
+	async (req, res) => {
+		try {
+			const { channel_type, webhook_url, config } = req.body;
+
+			if (!channel_type || !webhook_url) {
+				return res.status(400).json({
+					success: false,
+					error: "channel_type and webhook_url are required",
+				});
+			}
+
+			await notificationService.sendTestNotification({
+				id: "unsaved",
+				name: "Test",
+				channel_type,
+				webhook_url,
+				config: config || null,
+			});
+
+			res.json({
+				success: true,
+				message: "Test notification sent successfully",
+			});
+		} catch (error) {
+			logger.error("Error testing unsaved channel:", error);
+			res.status(500).json({
+				success: false,
+				error: `Test failed: ${error.message}`,
+			});
+		}
+	},
+);
+
+// Update channel
+router.put(
+	"/channels/:channelId",
+	authenticateToken,
+	requireManageSettings,
+	async (req, res) => {
+		try {
+			const { channelId } = req.params;
+			const {
+				name,
+				channel_type,
+				webhook_url,
+				enabled,
+				severity_filter,
+				type_filter,
+				config,
+			} = req.body;
+
+			const existing = await prisma.alert_channels.findUnique({
+				where: { id: channelId },
+			});
+			if (!existing) {
+				return res
+					.status(404)
+					.json({ success: false, error: "Channel not found" });
+			}
+
+			const channel = await prisma.alert_channels.update({
+				where: { id: channelId },
+				data: {
+					...(name !== undefined && { name }),
+					...(channel_type !== undefined && { channel_type }),
+					...(webhook_url !== undefined && { webhook_url }),
+					...(enabled !== undefined && { enabled }),
+					...(severity_filter !== undefined && {
+						severity_filter: severity_filter || null,
+					}),
+					...(type_filter !== undefined && {
+						type_filter: type_filter || null,
+					}),
+					...(config !== undefined && { config: config || null }),
+					updated_at: new Date(),
+				},
+			});
+
+			logger.info(`✅ Updated alert channel: ${channelId}`);
+			res.json({ success: true, data: channel });
+		} catch (error) {
+			logger.error("Error updating alert channel:", error);
+			res
+				.status(500)
+				.json({ success: false, error: "Failed to update channel" });
+		}
+	},
+);
+
+// Delete channel
+router.delete(
+	"/channels/:channelId",
+	authenticateToken,
+	requireManageSettings,
+	async (req, res) => {
+		try {
+			const { channelId } = req.params;
+
+			await prisma.alert_channels.delete({ where: { id: channelId } });
+
+			logger.info(`✅ Deleted alert channel: ${channelId}`);
+			res.json({ success: true, message: "Channel deleted" });
+		} catch (error) {
+			logger.error("Error deleting alert channel:", error);
+			res
+				.status(500)
+				.json({ success: false, error: "Failed to delete channel" });
+		}
+	},
+);
+
+// Test channel — sends a test notification
+router.post(
+	"/channels/:channelId/test",
+	authenticateToken,
+	requireManageSettings,
+	async (req, res) => {
+		try {
+			const { channelId } = req.params;
+
+			const channel = await prisma.alert_channels.findUnique({
+				where: { id: channelId },
+			});
+			if (!channel) {
+				return res
+					.status(404)
+					.json({ success: false, error: "Channel not found" });
+			}
+
+			await notificationService.sendTestNotification(channel);
+
+			res.json({
+				success: true,
+				message: "Test notification sent successfully",
+			});
+		} catch (error) {
+			logger.error("Error testing alert channel:", error);
+			res.status(500).json({
+				success: false,
+				error: `Test failed: ${error.message}`,
 			});
 		}
 	},

@@ -718,6 +718,23 @@ model alert_config {
   @@index([auto_assign_enabled])
 }
 
+model alert_channels {
+  id              String   @id @default(uuid())
+  name            String   // User-defined label, e.g. "Ops Discord"
+  channel_type    String   // "discord", "webhook", "teams"
+  webhook_url     String   @db.Text
+  enabled         Boolean  @default(true)
+  severity_filter Json?    // e.g. ["critical","warning"] — null = all
+  type_filter     Json?    // e.g. ["host_down","security_updates"] — null = all
+  config          Json?    // per-type extras (e.g. username, avatar_url, headers)
+  created_by      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([channel_type])
+  @@index([enabled])
+}
+
 // ============================================================================
 // Configuration Management (Rudder-inspired)
 // ============================================================================
