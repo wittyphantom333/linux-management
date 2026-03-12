@@ -1530,10 +1530,6 @@ server {
         
         # Preserve original client IP
         proxy_set_header X-Original-Forwarded-For \$http_x_forwarded_for;
-        
-        if (\$request_method = 'OPTIONS') {
-            return 204;
-        }
     }
     
     # API proxy
@@ -1552,10 +1548,6 @@ server {
         
         # Preserve original client IP
         proxy_set_header X-Original-Forwarded-For \$http_x_forwarded_for;
-        
-        if (\$request_method = 'OPTIONS') {
-            return 204;
-        }
     }
     
     # Static assets caching (exclude Bull Board and API assets like Swagger UI)
@@ -1614,10 +1606,6 @@ server {
         
         # Preserve original client IP
         proxy_set_header X-Original-Forwarded-For \$http_x_forwarded_for;
-        
-        if (\$request_method = 'OPTIONS') {
-            return 204;
-        }
     }
     
     # API proxy
@@ -1636,10 +1624,6 @@ server {
         
         # Preserve original client IP
         proxy_set_header X-Original-Forwarded-For \$http_x_forwarded_for;
-        
-        if (\$request_method = 'OPTIONS') {
-            return 204;
-        }
     }
     
     # Static assets caching (exclude Bull Board and API assets like Swagger UI)
