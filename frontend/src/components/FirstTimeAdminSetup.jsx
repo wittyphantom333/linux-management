@@ -46,7 +46,7 @@ const password_strength = (password, policy = DEFAULT_PASSWORD_POLICY) => {
 };
 
 const FirstTimeAdminSetup = () => {
-	const { login, setAuthState } = useAuth();
+	const { login, setAuthState, retrySetupCheck } = useAuth();
 	const navigate = useNavigate();
 	const firstNameId = useId();
 	const lastNameId = useId();
@@ -298,6 +298,17 @@ const FirstTimeAdminSetup = () => {
 			} else {
 				// Handle HTTP error responses (like 500 CORS errors)
 				devLog("HTTP error response:", response.status, data);
+
+				// If admin was already created (e.g. previous attempt succeeded
+				// but response failed), exit setup and go straight to login
+				if (
+					data.error?.includes("Admin users already exist") ||
+					data.error?.includes("only for first-time setup")
+				) {
+					devLog("Admin already exists — switching to login screen");
+					retrySetupCheck();
+					return;
+				}
 
 				if (
 					data.message?.includes("Not allowed by CORS") ||
