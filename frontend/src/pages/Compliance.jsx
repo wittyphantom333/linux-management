@@ -34,6 +34,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import ComplianceJobsTab from "../components/compliance/ComplianceJobsTab";
 import ScanHistoryTab from "../components/compliance/ScanHistoryTab";
 import ScanResultsTab from "../components/compliance/ScanResultsTab";
 import {
@@ -108,6 +109,7 @@ const CustomTooltip = ({ active, payload, label, type }) => {
 const COMPLIANCE_TABS = [
 	{ id: "overview", label: "Overview", icon: BarChart3 },
 	{ id: "hosts", label: "Hosts", icon: Users },
+	{ id: "jobs", label: "Jobs", icon: Play },
 	{ id: "scan-results", label: "Scan Results", icon: ListChecks },
 	{ id: "history", label: "History", icon: History },
 ];
@@ -1944,6 +1946,11 @@ const Compliance = () => {
 						</>
 					)}
 				</>
+			)}
+
+			{/* ==================== JOBS TAB ==================== */}
+			{activeTab === "jobs" && (
+				<ComplianceJobsTab scannedHosts={hosts_with_latest_scan} />
 			)}
 
 			{/* ==================== SCAN RESULTS TAB ==================== */}
