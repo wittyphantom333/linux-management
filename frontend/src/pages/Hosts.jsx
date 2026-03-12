@@ -15,8 +15,8 @@ import {
 	Eye as EyeIcon,
 	EyeOff as EyeOffIcon,
 	Filter,
-	FolderPlus,
 	GripVertical,
+	Pencil,
 	Plus,
 	RefreshCw,
 	RotateCcw,
@@ -1464,9 +1464,9 @@ const Hosts = () => {
 									onClick={() => setShowBulkAssignModal(true)}
 									className="btn-outline flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 min-h-[44px] text-xs sm:text-sm"
 								>
-									<FolderPlus className="h-4 w-4 flex-shrink-0" />
-									<span className="hidden sm:inline">Assign to Group</span>
-									<span className="sm:hidden">Assign</span>
+									<Pencil className="h-4 w-4 flex-shrink-0" />
+									<span className="hidden sm:inline">Edit Groups</span>
+									<span className="sm:hidden">Groups</span>
 								</button>
 								<button
 									type="button"
@@ -2229,17 +2229,33 @@ const BulkAssignModal = ({
 	onAssign,
 	isLoading,
 }) => {
-	const [selectedGroupIds, setSelectedGroupIds] = useState([]);
-
 	// Fetch host groups for selection
 	const { data: hostGroups } = useQuery({
 		queryKey: ["hostGroups"],
 		queryFn: () => hostGroupsAPI.list().then((res) => res.data),
 	});
 
-	const selectedHostNames = hosts
-		.filter((host) => selectedHosts.includes(host.id))
-		.map((host) => host.friendly_name);
+	const selectedHostObjects = hosts.filter((host) =>
+		selectedHosts.includes(host.id),
+	);
+	const selectedHostNames = selectedHostObjects.map(
+		(host) => host.friendly_name,
+	);
+
+	// Compute the intersection of group memberships across all selected hosts
+	// so existing common groups are pre-checked
+	const initialGroupIds = useMemo(() => {
+		if (selectedHostObjects.length === 0) return [];
+		const perHost = selectedHostObjects.map((host) => {
+			const memberships = host.host_group_memberships || [];
+			return new Set(memberships.map((m) => m.host_groups?.id).filter(Boolean));
+		});
+		// Intersection: keep only groups present in every selected host
+		const first = perHost[0];
+		return [...first].filter((gid) => perHost.every((s) => s.has(gid)));
+	}, [selectedHostObjects]);
+
+	const [selectedGroupIds, setSelectedGroupIds] = useState(initialGroupIds);
 
 	const handleSubmit = (e) => {
 		e.preventDefault();
@@ -2261,7 +2277,7 @@ const BulkAssignModal = ({
 			<div className="bg-white dark:bg-secondary-800 rounded-lg p-6 w-full max-w-md">
 				<div className="flex justify-between items-center mb-4">
 					<h3 className="text-lg font-semibold text-secondary-900 dark:text-white">
-						Assign to Host Groups
+						Edit Host Groups
 					</h3>
 					<button
 						type="button"
@@ -2326,8 +2342,8 @@ const BulkAssignModal = ({
 							))}
 						</div>
 						<p className="mt-2 text-sm text-secondary-500 dark:text-secondary-400">
-							Select one or more groups to assign these hosts to, or leave
-							ungrouped.
+							Select the groups these hosts should belong to, or deselect all to
+							remove from groups.
 						</p>
 					</div>
 
@@ -2341,7 +2357,7 @@ const BulkAssignModal = ({
 							Cancel
 						</button>
 						<button type="submit" className="btn-primary" disabled={isLoading}>
-							{isLoading ? "Assigning..." : "Assign to Groups"}
+							{isLoading ? "Saving..." : "Save Groups"}
 						</button>
 					</div>
 				</form>
