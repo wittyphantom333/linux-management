@@ -397,7 +397,16 @@ function methodTypeIcon(type) {
 		case "user_absent":
 			return <User className="h-3.5 w-3.5" />;
 		case "directory_present":
+		case "directory_absent":
 			return <FolderOpen className="h-3.5 w-3.5" />;
+		case "file_absent":
+		case "file_replace_lines":
+			return <FileCode className="h-3.5 w-3.5" />;
+		case "service_enabled":
+		case "service_disabled":
+			return <Activity className="h-3.5 w-3.5" />;
+		case "sysctl_value":
+			return <Settings className="h-3.5 w-3.5" />;
 		default:
 			return <Settings className="h-3.5 w-3.5" />;
 	}
@@ -420,6 +429,12 @@ function methodTypeLabel(type) {
 		user_present: "User Present",
 		user_absent: "User Absent",
 		directory_present: "Directory Present",
+		file_absent: "File Absent",
+		directory_absent: "Directory Absent",
+		service_enabled: "Service Enabled",
+		service_disabled: "Service Disabled",
+		file_replace_lines: "File Replace Lines",
+		sysctl_value: "Sysctl Value",
 	};
 	return labels[type] || type;
 }

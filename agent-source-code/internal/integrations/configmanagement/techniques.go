@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -765,5 +766,279 @@ func (pe *PolicyExecutor) methodSSHKeyPresent(ctx context.Context, params map[st
 	return &models.ConfigMethodResult{
 		Status:  "repaired",
 		Message: fmt.Sprintf("SSH key added to %s for %s (%s)", authKeysPath, username, label),
+	}, nil
+}
+
+// ============================================================================
+// Additional methods
+// ============================================================================
+
+// methodFileAbsent ensures a file does NOT exist.
+// Parameters: "path" (required)
+func (pe *PolicyExecutor) methodFileAbsent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+	path := params["path"]
+	if path == "" {
+		return nil, fmt.Errorf("file_absent requires 'path' parameter")
+	}
+
+	_, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return &models.ConfigMethodResult{
+			Status:  statusCompliant(mode),
+			Message: fmt.Sprintf("File %s does not exist", path),
+		}, nil
+	}
+	if err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to stat %s: %v", path, err)}, nil
+	}
+
+	if mode == "audit" {
+		return &models.ConfigMethodResult{
+			Status:  "audit_non_compliant",
+			Message: fmt.Sprintf("File %s exists but should not", path),
+		}, nil
+	}
+
+	// Enforce: remove the file
+	if err := os.Remove(path); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to remove %s: %v", path, err)}, nil
+	}
+	return &models.ConfigMethodResult{
+		Status:  "repaired",
+		Message: fmt.Sprintf("File %s removed", path),
+	}, nil
+}
+
+// methodDirectoryAbsent ensures a directory does NOT exist.
+// Parameters: "path" (required), "recursive" (optional, "true"|"false", default "false")
+func (pe *PolicyExecutor) methodDirectoryAbsent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+	path := params["path"]
+	if path == "" {
+		return nil, fmt.Errorf("directory_absent requires 'path' parameter")
+	}
+
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return &models.ConfigMethodResult{
+			Status:  statusCompliant(mode),
+			Message: fmt.Sprintf("Directory %s does not exist", path),
+		}, nil
+	}
+	if err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to stat %s: %v", path, err)}, nil
+	}
+	if !info.IsDir() {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("%s exists but is not a directory", path)}, nil
+	}
+
+	if mode == "audit" {
+		return &models.ConfigMethodResult{
+			Status:  "audit_non_compliant",
+			Message: fmt.Sprintf("Directory %s exists but should not", path),
+		}, nil
+	}
+
+	// Enforce: remove
+	recursive := strings.ToLower(params["recursive"]) == "true"
+	if recursive {
+		if err := os.RemoveAll(path); err != nil {
+			return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to remove directory %s: %v", path, err)}, nil
+		}
+	} else {
+		// os.Remove only removes empty directories
+		if err := os.Remove(path); err != nil {
+			return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to remove directory %s (not empty? use recursive=true): %v", path, err)}, nil
+		}
+	}
+
+	return &models.ConfigMethodResult{
+		Status:  "repaired",
+		Message: fmt.Sprintf("Directory %s removed", path),
+	}, nil
+}
+
+// methodServiceEnabled ensures a service is enabled to start at boot.
+// Parameters: "name" (required)
+func (pe *PolicyExecutor) methodServiceEnabled(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+	name := params["name"]
+	if name == "" {
+		return nil, fmt.Errorf("service_enabled requires 'name' parameter")
+	}
+
+	enabled := isServiceEnabled(name)
+	if enabled {
+		return &models.ConfigMethodResult{
+			Status:  statusCompliant(mode),
+			Message: fmt.Sprintf("Service %s is enabled at boot", name),
+		}, nil
+	}
+
+	if mode == "audit" {
+		return &models.ConfigMethodResult{
+			Status:  "audit_non_compliant",
+			Message: fmt.Sprintf("Service %s is not enabled at boot", name),
+		}, nil
+	}
+
+	if err := enableService(name); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to enable %s: %v", name, err)}, nil
+	}
+	return &models.ConfigMethodResult{Status: "repaired", Message: fmt.Sprintf("Service %s enabled at boot", name)}, nil
+}
+
+// methodServiceDisabled ensures a service is disabled (will not start at boot).
+// Parameters: "name" (required)
+func (pe *PolicyExecutor) methodServiceDisabled(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+	name := params["name"]
+	if name == "" {
+		return nil, fmt.Errorf("service_disabled requires 'name' parameter")
+	}
+
+	enabled := isServiceEnabled(name)
+	if !enabled {
+		return &models.ConfigMethodResult{
+			Status:  statusCompliant(mode),
+			Message: fmt.Sprintf("Service %s is disabled at boot", name),
+		}, nil
+	}
+
+	if mode == "audit" {
+		return &models.ConfigMethodResult{
+			Status:  "audit_non_compliant",
+			Message: fmt.Sprintf("Service %s is enabled at boot but should be disabled", name),
+		}, nil
+	}
+
+	if err := disableService(name); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to disable %s: %v", name, err)}, nil
+	}
+	return &models.ConfigMethodResult{Status: "repaired", Message: fmt.Sprintf("Service %s disabled at boot", name)}, nil
+}
+
+// methodFileReplaceLines performs regex find/replace across all lines of a file.
+// Parameters: "path" (required), "pattern" (required — regex), "replacement" (required)
+func (pe *PolicyExecutor) methodFileReplaceLines(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+	path := params["path"]
+	pattern := params["pattern"]
+	replacement := params["replacement"]
+	if path == "" || pattern == "" {
+		return nil, fmt.Errorf("file_replace_lines requires 'path' and 'pattern' parameters")
+	}
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("invalid regex %q: %v", pattern, err)}, nil
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to read %s: %v", path, err)}, nil
+	}
+
+	original := string(content)
+	replaced := re.ReplaceAllString(original, replacement)
+
+	if original == replaced {
+		return &models.ConfigMethodResult{
+			Status:  statusCompliant(mode),
+			Message: fmt.Sprintf("File %s: no lines match pattern %q (already compliant)", path, pattern),
+		}, nil
+	}
+
+	if mode == "audit" {
+		// Count matches for reporting
+		matches := re.FindAllStringIndex(original, -1)
+		return &models.ConfigMethodResult{
+			Status:  "audit_non_compliant",
+			Message: fmt.Sprintf("File %s: %d match(es) for pattern %q would be replaced", path, len(matches), pattern),
+		}, nil
+	}
+
+	// Enforce: write updated content
+	if err := os.WriteFile(path, []byte(replaced), 0644); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to write %s: %v", path, err)}, nil
+	}
+
+	matches := re.FindAllStringIndex(original, -1)
+	return &models.ConfigMethodResult{
+		Status:  "repaired",
+		Message: fmt.Sprintf("File %s: replaced %d match(es) of pattern %q", path, len(matches), pattern),
+	}, nil
+}
+
+// methodSysctlValue ensures a sysctl kernel parameter has the expected value.
+// Parameters: "key" (required — e.g. "vm.swappiness"), "value" (required),
+//
+//	"persistent" (optional, "true"|"false", default "true" — write to /etc/sysctl.d)
+func (pe *PolicyExecutor) methodSysctlValue(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+	key := params["key"]
+	value := params["value"]
+	if key == "" || value == "" {
+		return nil, fmt.Errorf("sysctl_value requires 'key' and 'value' parameters")
+	}
+
+	// Read current live value via sysctl
+	cmd := exec.CommandContext(ctx, "sysctl", "-n", key)
+	out, err := cmd.Output()
+	if err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to read sysctl %s: %v", key, err)}, nil
+	}
+
+	current := strings.TrimSpace(string(out))
+	if current == value {
+		// Also check persistence if requested
+		persistent := params["persistent"] != "false"
+		if persistent {
+			persisted := isSysctlPersisted(key, value)
+			if !persisted {
+				if mode == "audit" {
+					return &models.ConfigMethodResult{
+						Status:  "audit_non_compliant",
+						Message: fmt.Sprintf("sysctl %s=%s is set live but not persisted", key, value),
+					}, nil
+				}
+				if err := persistSysctl(key, value); err != nil {
+					return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to persist sysctl %s: %v", key, err)}, nil
+				}
+				return &models.ConfigMethodResult{
+					Status:  "repaired",
+					Message: fmt.Sprintf("sysctl %s=%s persisted to /etc/sysctl.d/99-patchmon.conf", key, value),
+				}, nil
+			}
+		}
+		return &models.ConfigMethodResult{
+			Status:   statusCompliant(mode),
+			Message:  fmt.Sprintf("sysctl %s = %s", key, value),
+			Actual:   current,
+			Expected: value,
+		}, nil
+	}
+
+	if mode == "audit" {
+		return &models.ConfigMethodResult{
+			Status:   "audit_non_compliant",
+			Message:  fmt.Sprintf("sysctl %s is %s, expected %s", key, current, value),
+			Actual:   current,
+			Expected: value,
+		}, nil
+	}
+
+	// Enforce: set the value live
+	setCmd := exec.CommandContext(ctx, "sysctl", "-w", key+"="+value)
+	if output, err := setCmd.CombinedOutput(); err != nil {
+		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("sysctl -w %s=%s failed: %v (%s)", key, value, err, truncate(string(output), 200))}, nil
+	}
+
+	// Persist
+	persistent := params["persistent"] != "false"
+	if persistent {
+		if err := persistSysctl(key, value); err != nil {
+			return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("set live but failed to persist sysctl %s: %v", key, err)}, nil
+		}
+	}
+
+	return &models.ConfigMethodResult{
+		Status:  "repaired",
+		Message: fmt.Sprintf("sysctl %s set to %s (was %s)", key, value, current),
 	}, nil
 }

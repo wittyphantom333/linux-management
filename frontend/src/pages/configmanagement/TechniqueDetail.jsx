@@ -93,6 +93,36 @@ const METHOD_TYPES = [
 		label: "SSH Key Present",
 		description: "Ensure an SSH public key is in a user's authorized_keys",
 	},
+	{
+		value: "file_absent",
+		label: "File Absent",
+		description: "Ensure a file does not exist",
+	},
+	{
+		value: "directory_absent",
+		label: "Directory Absent",
+		description: "Ensure a directory does not exist",
+	},
+	{
+		value: "service_enabled",
+		label: "Service Enabled",
+		description: "Ensure a service is enabled to start at boot",
+	},
+	{
+		value: "service_disabled",
+		label: "Service Disabled",
+		description: "Ensure a service is disabled at boot",
+	},
+	{
+		value: "file_replace_lines",
+		label: "File Replace Lines",
+		description: "Regex find/replace across all lines of a file",
+	},
+	{
+		value: "sysctl_value",
+		label: "Sysctl Value",
+		description: "Ensure a kernel parameter (sysctl) has the expected value",
+	},
 ];
 
 const CATEGORIES = [
@@ -329,6 +359,30 @@ export default function TechniqueDetail() {
 						placeholder: "ssh-rsa AAAA... user@host",
 					},
 					{ key: "label", label: "Label", placeholder: "deploy-key" },
+				];
+			case "file_absent":
+				return [
+					{ key: "path", label: "File Path", required: true },
+				];
+			case "directory_absent":
+				return [
+					{ key: "path", label: "Directory Path", required: true },
+					{ key: "recursive", label: "Recursive delete", type: "checkbox" },
+				];
+			case "service_enabled":
+			case "service_disabled":
+				return [{ key: "name", label: "Service Name", required: true }];
+			case "file_replace_lines":
+				return [
+					{ key: "path", label: "File Path", required: true },
+					{ key: "pattern", label: "Regex Pattern", required: true, placeholder: "^#?\\s*Port\\s+.*" },
+					{ key: "replacement", label: "Replacement", required: true, placeholder: "Port 2222" },
+				];
+			case "sysctl_value":
+				return [
+					{ key: "key", label: "Sysctl Key", required: true, placeholder: "vm.swappiness" },
+					{ key: "value", label: "Expected Value", required: true, placeholder: "0" },
+					{ key: "persistent", label: "Persist to /etc/sysctl.d", type: "checkbox" },
 				];
 			default:
 				return [];

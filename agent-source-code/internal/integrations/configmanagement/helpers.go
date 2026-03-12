@@ -276,6 +276,152 @@ func restartService(name string) error {
 	return exec.ErrNotFound
 }
 
+// isServiceEnabled checks whether a service is configured to start at boot.
+func isServiceEnabled(name string) bool {
+	sm := detectServiceManager()
+	switch sm {
+	case "systemd":
+		cmd := exec.Command("systemctl", "is-enabled", "--quiet", name)
+		return cmd.Run() == nil
+	case "openrc":
+		// rc-update show lists enabled services; check if our service is in the default runlevel
+		cmd := exec.Command("rc-update", "show", "default")
+		out, err := cmd.Output()
+		if err != nil {
+			return false
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.Contains(strings.TrimSpace(line), name) {
+				return true
+			}
+		}
+		return false
+	case "freebsd":
+		// Check if service_enable="YES" in /etc/rc.conf
+		content, err := os.ReadFile("/etc/rc.conf")
+		if err != nil {
+			return false
+		}
+		// Look for: servicename_enable="YES" (case-insensitive for YES)
+		enableKey := strings.ReplaceAll(name, "-", "_") + "_enable"
+		for _, line := range strings.Split(string(content), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, enableKey) {
+				upper := strings.ToUpper(trimmed)
+				if strings.Contains(upper, "YES") {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	return false
+}
+
+// enableService enables a service to start at boot.
+func enableService(name string) error {
+	sm := detectServiceManager()
+	switch sm {
+	case "systemd":
+		return exec.Command("systemctl", "enable", name).Run()
+	case "openrc":
+		return exec.Command("rc-update", "add", name, "default").Run()
+	case "freebsd":
+		enableKey := strings.ReplaceAll(name, "-", "_") + "_enable"
+		cmd := exec.Command("sysrc", enableKey+"=YES")
+		return cmd.Run()
+	}
+	return exec.ErrNotFound
+}
+
+// disableService disables a service from starting at boot.
+func disableService(name string) error {
+	sm := detectServiceManager()
+	switch sm {
+	case "systemd":
+		return exec.Command("systemctl", "disable", name).Run()
+	case "openrc":
+		return exec.Command("rc-update", "del", name, "default").Run()
+	case "freebsd":
+		enableKey := strings.ReplaceAll(name, "-", "_") + "_enable"
+		cmd := exec.Command("sysrc", enableKey+"=NO")
+		return cmd.Run()
+	}
+	return exec.ErrNotFound
+}
+
+// reloadService reloads a service configuration.
+func reloadService(name string) error {
+	sm := detectServiceManager()
+	switch sm {
+	case "systemd":
+		return exec.Command("systemctl", "reload", name).Run()
+	case "openrc":
+		return exec.Command("rc-service", name, "reload").Run()
+	case "freebsd":
+		return exec.Command("service", name, "reload").Run()
+	}
+	return exec.ErrNotFound
+}
+
+// isSysctlPersisted checks whether a key=value is present in /etc/sysctl.d/99-patchmon.conf.
+func isSysctlPersisted(key, value string) bool {
+	content, err := os.ReadFile("/etc/sysctl.d/99-patchmon.conf")
+	if err != nil {
+		return false
+	}
+	expected := key + " = " + value
+	expectedAlt := key + "=" + value
+	for _, line := range strings.Split(string(content), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == expected || trimmed == expectedAlt {
+			return true
+		}
+	}
+	return false
+}
+
+// persistSysctl writes/updates a sysctl key=value in /etc/sysctl.d/99-patchmon.conf.
+func persistSysctl(key, value string) error {
+	confPath := "/etc/sysctl.d/99-patchmon.conf"
+	expected := key + " = " + value
+
+	// Read existing content
+	content, err := os.ReadFile(confPath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	lines := strings.Split(string(content), "\n")
+	found := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Match lines starting with the key (possibly with different value)
+		if strings.HasPrefix(trimmed, key+" ") || strings.HasPrefix(trimmed, key+"=") || strings.HasPrefix(trimmed, key+"\t") {
+			lines[i] = expected
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		// Add a header comment if file is empty/new
+		if len(strings.TrimSpace(string(content))) == 0 {
+			lines = []string{"# Managed by PatchMon - do not edit", expected, ""}
+		} else {
+			lines = append(lines, expected)
+		}
+	}
+
+	// Ensure /etc/sysctl.d exists
+	if err := os.MkdirAll("/etc/sysctl.d", 0755); err != nil {
+		return err
+	}
+
+	newContent := strings.Join(lines, "\n")
+	return os.WriteFile(confPath, []byte(newContent), 0644)
+}
+
 // substituteParams replaces ${param_name} placeholders with values from the map.
 func substituteParams(template string, params models.ParamMap) string {
 	result := template
