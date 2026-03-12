@@ -1869,25 +1869,25 @@ const HostDetail = () => {
 																className={`p-3 rounded-lg border ${cardBg}`}
 															>
 																<div className="flex items-center gap-2 mb-2">
-																	<HardDrive className="h-4 w-4 text-secondary-500" />
-																	<span className="font-medium text-secondary-900 dark:text-white text-sm">
+																	<HardDrive className="h-4 w-4 text-secondary-400" />
+																	<span className="font-medium text-secondary-700 dark:text-secondary-200 text-sm">
 																		{disk.name || `Disk ${index + 1}`}
 																	</span>
 																</div>
 																{disk.size && (
-																	<p className="text-xs text-secondary-600 dark:text-secondary-300 mb-1">
+																	<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
 																		Size: {disk.size}
 																	</p>
 																)}
 																{disk.mountpoint && (
-																	<p className="text-xs text-secondary-600 dark:text-secondary-300 mb-1">
+																	<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
 																		Mount: {disk.mountpoint}
 																	</p>
 																)}
 																{disk.usage &&
 																	typeof disk.usage === "number" && (
 																		<div className="mt-2">
-																			<div className="flex justify-between text-xs text-secondary-600 dark:text-secondary-300 mb-1">
+																			<div className="flex justify-between text-xs text-secondary-500 dark:text-secondary-400 mb-1">
 																				<span>Usage</span>
 																				<span className={`font-semibold ${
 																					usage > 90
@@ -2935,17 +2935,17 @@ const HostDetail = () => {
 																	className={`rounded-lg p-3 border ${cardBg}`}
 																>
 																	<div className="flex items-center justify-between mb-1.5">
-																		<span className="font-medium text-secondary-900 dark:text-white text-xs truncate">
+																		<span className="font-medium text-secondary-700 dark:text-secondary-200 text-xs truncate">
 																			{disk.name || `Disk ${index + 1}`}
 																		</span>
 																		{disk.size && (
-																			<span className="text-[10px] text-secondary-400 dark:text-secondary-500 ml-2 flex-shrink-0">
+																			<span className="text-[10px] text-secondary-500 dark:text-secondary-400 ml-2 flex-shrink-0">
 																				{disk.size}
 																			</span>
 																		)}
 																	</div>
 																	{disk.mountpoint && (
-																		<p className="text-[10px] text-secondary-400 dark:text-secondary-500 font-mono mb-2 truncate">
+																		<p className="text-[10px] text-secondary-500 dark:text-secondary-400 font-mono mb-2 truncate">
 																			{disk.mountpoint}
 																		</p>
 																	)}
