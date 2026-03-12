@@ -5,6 +5,8 @@ import {
 	CheckCircle,
 	Download,
 	Edit,
+	FileCode,
+	Hammer,
 	Info,
 	Package,
 	Save,
@@ -395,6 +397,31 @@ const RolePermissionsCard = ({
 			icon: Settings,
 			description: "System configuration access",
 		},
+		{
+			key: "can_view_config_management",
+			label: "View Config Management",
+			icon: FileCode,
+			description: "Access config management data",
+		},
+		{
+			key: "can_manage_config_management",
+			label: "Manage Config Management",
+			icon: FileCode,
+			description: "Create, edit, and delete techniques, directives, and rules",
+		},
+		{
+			key: "can_view_patch_management",
+			label: "View Patch Management",
+			icon: Hammer,
+			description: "Access patch management data",
+		},
+		{
+			key: "can_manage_patch_management",
+			label: "Manage Patch Management",
+			icon: Hammer,
+			description:
+				"Create, edit, and delete policies, windows, and trigger jobs",
+		},
 	];
 
 	const handlePermissionChange = (key, value) => {
@@ -556,6 +583,10 @@ const AddRoleModal = ({ isOpen, onClose, onSuccess }) => {
 		can_view_reports: true,
 		can_export_data: false,
 		can_manage_settings: false,
+		can_view_config_management: true,
+		can_manage_config_management: false,
+		can_view_patch_management: true,
+		can_manage_patch_management: false,
 	});
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -631,6 +662,22 @@ const AddRoleModal = ({ isOpen, onClose, onSuccess }) => {
 							{ key: "can_view_reports", label: "View Reports" },
 							{ key: "can_export_data", label: "Export Data" },
 							{ key: "can_manage_settings", label: "Manage Settings" },
+							{
+								key: "can_view_config_management",
+								label: "View Config Management",
+							},
+							{
+								key: "can_manage_config_management",
+								label: "Manage Config Management",
+							},
+							{
+								key: "can_view_patch_management",
+								label: "View Patch Management",
+							},
+							{
+								key: "can_manage_patch_management",
+								label: "Manage Patch Management",
+							},
 						].map((permission) => (
 							<div key={permission.key} className="flex items-center">
 								<input

@@ -480,6 +480,14 @@ export const AuthProvider = ({ children }) => {
 	const canViewReports = () => hasPermission("can_view_reports");
 	const canExportData = () => hasPermission("can_export_data");
 	const canManageSettings = () => hasPermission("can_manage_settings");
+	const canViewConfigManagement = () =>
+		hasPermission("can_view_config_management");
+	const canManageConfigManagement = () =>
+		hasPermission("can_manage_config_management");
+	const canViewPatchManagement = () =>
+		hasPermission("can_view_patch_management");
+	const canManagePatchManagement = () =>
+		hasPermission("can_manage_patch_management");
 
 	// Check if any admin users exist (for first-time setup)
 	// Also checks if OIDC is configured to bypass the welcome page
@@ -612,6 +620,10 @@ export const AuthProvider = ({ children }) => {
 		canViewReports,
 		canExportData,
 		canManageSettings,
+		canViewConfigManagement,
+		canManageConfigManagement,
+		canViewPatchManagement,
+		canManagePatchManagement,
 		acceptReleaseNotes,
 	};
 

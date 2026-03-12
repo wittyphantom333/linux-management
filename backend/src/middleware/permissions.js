@@ -56,6 +56,18 @@ const requireManageUsers = requirePermission("can_manage_users");
 const requireViewReports = requirePermission("can_view_reports");
 const requireExportData = requirePermission("can_export_data");
 const requireManageSettings = requirePermission("can_manage_settings");
+const requireViewConfigManagement = requirePermission(
+	"can_view_config_management",
+);
+const requireManageConfigManagement = requirePermission(
+	"can_manage_config_management",
+);
+const requireViewPatchManagement = requirePermission(
+	"can_view_patch_management",
+);
+const requireManagePatchManagement = requirePermission(
+	"can_manage_patch_management",
+);
 
 module.exports = {
 	requirePermission,
@@ -69,4 +81,8 @@ module.exports = {
 	requireViewReports,
 	requireExportData,
 	requireManageSettings,
+	requireViewConfigManagement,
+	requireManageConfigManagement,
+	requireViewPatchManagement,
+	requireManagePatchManagement,
 };

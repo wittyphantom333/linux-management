@@ -203,11 +203,15 @@ model role_permissions {
   can_view_users        Boolean  @default(false)
   can_manage_users      Boolean  @default(false)
   can_manage_superusers Boolean  @default(false)
-  can_view_reports      Boolean  @default(true)
-  can_export_data       Boolean  @default(false)
-  can_manage_settings   Boolean  @default(false)
-  created_at            DateTime @default(now())
-  updated_at            DateTime
+  can_view_reports              Boolean  @default(true)
+  can_export_data               Boolean  @default(false)
+  can_manage_settings           Boolean  @default(false)
+  can_view_config_management    Boolean  @default(true)
+  can_manage_config_management  Boolean  @default(false)
+  can_view_patch_management     Boolean  @default(true)
+  can_manage_patch_management   Boolean  @default(false)
+  created_at                    DateTime @default(now())
+  updated_at                    DateTime
 }
 
 model settings {
