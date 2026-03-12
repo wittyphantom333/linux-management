@@ -11,6 +11,7 @@
 const { getPrismaClient } = require("../config/prisma");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger");
+const { evaluatePatchJobAlerts } = require("./hostReportAlertEvaluator");
 
 const prisma = getPrismaClient();
 
@@ -580,6 +581,21 @@ async function processAgentPatchReport(hostId, report) {
 		where: { id: jobHost.job_id },
 		data: jobUpdate,
 	});
+
+	// Fire-and-forget: evaluate patch job alerts when job reaches terminal state
+	if (
+		jobUpdate.status === "failed" ||
+		jobUpdate.status === "completed_with_errors"
+	) {
+		const updatedJob = await prisma.patch_jobs.findUnique({
+			where: { id: jobHost.job_id },
+		});
+		if (updatedJob) {
+			evaluatePatchJobAlerts(updatedJob, jobUpdate.status).catch((err) =>
+				logger.error("[AlertEvaluator] patch job alert error:", err),
+			);
+		}
+	}
 
 	logger.info(
 		`[PatchMgmt] Host report for job ${jobHost.job_id}: ${status} (${updatedCount} updated, ${failedCount} failed)`,

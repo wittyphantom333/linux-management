@@ -237,7 +237,7 @@ const Layout = ({ children }) => {
 
 			if (canViewReports() && settings?.alerts_enabled !== false) {
 				inventoryItems.push({
-					name: "Reporting",
+					name: "Alerts",
 					href: "/reporting",
 					icon: AlertTriangle,
 				});
@@ -344,7 +344,7 @@ const Layout = ({ children }) => {
 		if (path === "/") return "Dashboard";
 		if (path === "/hosts") return "Hosts";
 		if (path === "/packages") return "Packages";
-		if (path === "/reporting") return "Reporting";
+		if (path === "/reporting") return "Alerts";
 		if (path === "/repositories" || path.startsWith("/repositories/"))
 			return "Repositories";
 		if (path === "/services") return "Services";
@@ -747,7 +747,7 @@ const Layout = ({ children }) => {
 																					{stats.cards.totalHosts}
 																				</span>
 																			)}
-																		{subItem.name === "Reporting" &&
+																		{subItem.name === "Alerts" &&
 																			alertStats && (
 																				<div className="ml-2 flex items-center gap-0.5">
 																					{/* Informational - Blue */}
@@ -1201,7 +1201,7 @@ const Layout = ({ children }) => {
 																							{stats.cards.totalHosts}
 																						</span>
 																					)}
-																				{subItem.name === "Reporting" &&
+																				{subItem.name === "Alerts" &&
 																					alertStats && (
 																						<div className="ml-2 flex items-center gap-0.5">
 																							{/* Informational - Blue */}

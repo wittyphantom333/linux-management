@@ -389,9 +389,33 @@ const AlertTypeTableRow = ({ config, onUpdate, isSaving, usersData }) => {
 		onUpdate(config.alert_type, field, value);
 	};
 
-	const formatAlertType = (type) => {
-		return type.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+	const ALERT_TYPE_LABELS = {
+		host_down: "Host Down",
+		server_update: "Server Update",
+		agent_update: "Agent Update",
+		disk_space_warning: "Disk Space",
+		high_load_average: "High Load",
+		reboot_required: "Reboot Required",
+		security_updates: "Security Updates",
+		patch_job_failed: "Patch Job Failed",
 	};
+
+	const ALERT_TYPE_DESCRIPTIONS = {
+		host_down: "Alerts when a host stops reporting",
+		server_update: "Alerts when a new PatchMon server version is available",
+		agent_update: "Alerts when a new agent version is available",
+		disk_space_warning:
+			"Alerts when disk usage exceeds threshold (set in metadata)",
+		high_load_average:
+			"Alerts when load average exceeds per-core threshold (set in metadata)",
+		reboot_required: "Alerts when a host requires a reboot",
+		security_updates: "Alerts when a host has pending security updates",
+		patch_job_failed: "Alerts when a patch job fails or completes with errors",
+	};
+
+	const formatAlertType = (type) =>
+		ALERT_TYPE_LABELS[type] ||
+		type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
 	return (
 		<tr className="hover:bg-secondary-50 dark:hover:bg-secondary-800">
@@ -399,6 +423,9 @@ const AlertTypeTableRow = ({ config, onUpdate, isSaving, usersData }) => {
 			<td className="px-6 py-4 whitespace-nowrap">
 				<div className="text-sm font-medium text-secondary-900 dark:text-white">
 					{formatAlertType(config.alert_type)}
+				</div>
+				<div className="text-xs text-secondary-500 dark:text-secondary-400 mt-0.5">
+					{ALERT_TYPE_DESCRIPTIONS[config.alert_type] || ""}
 				</div>
 			</td>
 

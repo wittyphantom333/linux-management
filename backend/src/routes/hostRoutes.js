@@ -27,6 +27,9 @@ const { redis } = require("../services/automation/shared/redis");
 const { verifyApiKey } = require("../utils/apiKeyUtils");
 const { encrypt, decrypt } = require("../utils/encryption");
 const { getSettings } = require("../services/settingsService");
+const {
+	evaluateHostReportAlerts,
+} = require("../services/hostReportAlertEvaluator");
 
 const router = express.Router();
 const prisma = getPrismaClient();
@@ -1013,6 +1016,17 @@ router.post(
 			}, getLongTransactionOptions());
 
 			// Agent auto-update is now handled client-side by the agent itself
+
+			// Fire-and-forget: evaluate host-report-based alerts
+			evaluateHostReportAlerts(host, {
+				diskDetails: updateData.disk_details,
+				loadAverage: updateData.load_average,
+				cpuCores: updateData.cpu_cores,
+				needsReboot: updateData.needs_reboot,
+				rebootReason: updateData.reboot_reason,
+			}).catch((err) =>
+				logger.error("[AlertEvaluator] fire-and-forget error:", err),
+			);
 
 			const response = {
 				message: "Host updated successfully",

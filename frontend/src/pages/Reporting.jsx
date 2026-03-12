@@ -8,16 +8,34 @@ import {
 	MoreVertical,
 	RefreshCw,
 	Search,
+	Settings,
 	Trash2,
 	X,
 	XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { adminUsersAPI, alertsAPI, formatRelativeTime } from "../utils/api";
 
+/** Human-readable labels for alert types */
+const ALERT_TYPE_LABELS = {
+	host_down: "Host Down",
+	server_update: "Server Update",
+	agent_update: "Agent Update",
+	disk_space_warning: "Disk Space",
+	high_load_average: "High Load",
+	reboot_required: "Reboot Required",
+	security_updates: "Security Updates",
+	patch_job_failed: "Patch Job Failed",
+};
+
+const formatAlertType = (type) =>
+	ALERT_TYPE_LABELS[type] ||
+	type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
 const Reporting = () => {
-	const { user: _user } = useAuth();
+	const { user: _user, canManageSettings } = useAuth();
 	const queryClient = useQueryClient();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [severityFilter, setSeverityFilter] = useState("all");
@@ -246,6 +264,16 @@ const Reporting = () => {
 			agent_update:
 				"bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
 			host_down: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+			disk_space_warning:
+				"bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+			high_load_average:
+				"bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+			reboot_required:
+				"bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+			security_updates:
+				"bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
+			patch_job_failed:
+				"bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 		};
 		return (
 			<span
@@ -254,7 +282,7 @@ const Reporting = () => {
 					"bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
 				}`}
 			>
-				{type.replace("_", " ")}
+				{formatAlertType(type)}
 			</span>
 		);
 	};
@@ -548,13 +576,22 @@ const Reporting = () => {
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="text-2xl font-semibold text-secondary-900 dark:text-white">
-						Reporting
+						Alerts
 					</h1>
 					<p className="text-sm text-secondary-600 dark:text-secondary-400 mt-1">
 						View and manage system alerts and notifications
 					</p>
 				</div>
 				<div className="flex items-center gap-3">
+					{canManageSettings() && (
+						<Link
+							to="/settings/alert-settings"
+							className="btn-outline flex items-center gap-2"
+						>
+							<Settings className="h-4 w-4" />
+							Alert Settings
+						</Link>
+					)}
 					<button
 						type="button"
 						onClick={() => refetchAlerts()}
@@ -679,7 +716,7 @@ const Reporting = () => {
 							<option value="all">All Types</option>
 							{alertTypes.map((type) => (
 								<option key={type} value={type}>
-									{type.replace("_", " ")}
+									{formatAlertType(type)}
 								</option>
 							))}
 						</select>
