@@ -1851,10 +1851,22 @@ const HostDetail = () => {
 														Disk Usage
 													</h5>
 													<div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-														{host.disk_details.map((disk, index) => (
+														{host.disk_details.map((disk, index) => {
+															const usage = disk.usage && typeof disk.usage === "number" ? disk.usage : 0;
+															const barColor = usage > 90
+																? "bg-red-500 dark:bg-red-400"
+																: usage > 75
+																	? "bg-amber-500 dark:bg-amber-400"
+																	: "bg-primary-500 dark:bg-primary-400";
+															const cardBg = usage > 90
+																? "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 border-red-200/50 dark:border-red-700/30"
+																: usage > 75
+																	? "bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200/50 dark:border-amber-700/30"
+																	: "bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/20 dark:to-sky-800/10 border-sky-200/50 dark:border-sky-700/30";
+															return (
 															<div
 																key={disk.name || `disk-${index}`}
-																className="bg-secondary-50 dark:bg-secondary-700 p-3 rounded-lg"
+																className={`p-3 rounded-lg border ${cardBg}`}
 															>
 																<div className="flex items-center gap-2 mb-2">
 																	<HardDrive className="h-4 w-4 text-secondary-500" />
@@ -1877,20 +1889,27 @@ const HostDetail = () => {
 																		<div className="mt-2">
 																			<div className="flex justify-between text-xs text-secondary-600 dark:text-secondary-300 mb-1">
 																				<span>Usage</span>
-																				<span>{disk.usage}%</span>
+																				<span className={`font-semibold ${
+																					usage > 90
+																						? "text-red-600 dark:text-red-400"
+																						: usage > 75
+																							? "text-amber-600 dark:text-amber-400"
+																							: "text-secondary-600 dark:text-secondary-300"
+																				}`}>{disk.usage}%</span>
 																			</div>
 																			<div className="w-full bg-secondary-200 dark:bg-secondary-600 rounded-full h-2">
 																				<div
-																					className="bg-primary-600 dark:bg-primary-400 h-2 rounded-full transition-all duration-300"
+																					className={`${barColor} h-2 rounded-full transition-all duration-300`}
 																					style={{
 																						width: `${Math.min(Math.max(disk.usage, 0), 100)}%`,
 																					}}
-																				></div>
+																				/>
 																			</div>
 																		</div>
 																	)}
 															</div>
-														))}
+															);
+														})}
 													</div>
 												</div>
 											)}
@@ -2905,10 +2924,15 @@ const HostDetail = () => {
 																: usage > 75
 																	? "bg-amber-500 dark:bg-amber-400"
 																	: "bg-primary-500 dark:bg-primary-400";
+															const cardBg = usage > 90
+																? "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 border-red-200/50 dark:border-red-700/30"
+																: usage > 75
+																	? "bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200/50 dark:border-amber-700/30"
+																	: "bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/20 dark:to-sky-800/10 border-sky-200/50 dark:border-sky-700/30";
 															return (
 																<div
 																	key={disk.name || `disk-${index}`}
-																	className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50"
+																	className={`rounded-lg p-3 border ${cardBg}`}
 																>
 																	<div className="flex items-center justify-between mb-1.5">
 																		<span className="font-medium text-secondary-900 dark:text-white text-xs truncate">
