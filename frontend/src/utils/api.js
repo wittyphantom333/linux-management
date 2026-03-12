@@ -137,10 +137,6 @@ export const adminHostsAPI = {
 		}),
 	updateConnection: (hostId, connectionInfo) =>
 		api.patch(`/hosts/${hostId}/connection`, connectionInfo),
-	updateNotes: (hostId, notes) =>
-		api.patch(`/hosts/${hostId}/notes`, {
-			notes: notes,
-		}),
 	getIntegrations: (hostId) => api.get(`/hosts/${hostId}/integrations`),
 	toggleIntegration: (hostId, integrationName, enabled) =>
 		api.post(`/hosts/${hostId}/integrations/${integrationName}/toggle`, {

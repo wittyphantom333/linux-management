@@ -176,9 +176,8 @@ const Hosts = () => {
 				visible: true,
 				order: 15,
 			},
-			{ id: "notes", label: "Notes", visible: false, order: 16 },
-			{ id: "last_update", label: "Last Update", visible: true, order: 17 },
-			{ id: "actions", label: "Actions", visible: true, order: 18 },
+			{ id: "last_update", label: "Last Update", visible: true, order: 16 },
+			{ id: "actions", label: "Actions", visible: true, order: 17 },
 		],
 		[],
 	);
@@ -605,8 +604,7 @@ const Hosts = () => {
 				searchTerm === "" ||
 				host.friendly_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				host.ip?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				host.os_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				host.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+				host.os_type?.toLowerCase().includes(searchTerm.toLowerCase());
 
 			// Group filter - handle multiple groups per host
 			const memberships = host.host_group_memberships || [];
@@ -759,10 +757,6 @@ const Hosts = () => {
 				case "last_update":
 					aValue = new Date(a.last_update);
 					bValue = new Date(b.last_update);
-					break;
-				case "notes":
-					aValue = (a.notes || "").toLowerCase();
-					bValue = (b.notes || "").toLowerCase();
 					break;
 				case "integrations": {
 					// Sort by integration count
@@ -1177,20 +1171,6 @@ const Hosts = () => {
 				return (
 					<div className="text-sm text-secondary-500 dark:text-secondary-300">
 						{formatRelativeTime(host.last_update)}
-					</div>
-				);
-			case "notes":
-				return (
-					<div className="text-sm text-secondary-900 dark:text-white max-w-xs">
-						{host.notes ? (
-							<div className="truncate" title={host.notes}>
-								{host.notes}
-							</div>
-						) : (
-							<span className="text-secondary-400 dark:text-secondary-500 italic">
-								No notes
-							</span>
-						)}
 					</div>
 				);
 			case "actions":

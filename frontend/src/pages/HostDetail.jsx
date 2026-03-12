@@ -12,7 +12,6 @@ import {
 	Database,
 	Download,
 	ExternalLink,
-	FileText,
 	HardDrive,
 	Key,
 	Loader2,
@@ -90,8 +89,6 @@ const HostDetail = () => {
 	const [dockerSubTab, setDockerSubTab] = useState("containers");
 	const [historyPage, setHistoryPage] = useState(0);
 	const [historyLimit] = useState(10);
-	const [notes, setNotes] = useState("");
-	const [notesMessage, setNotesMessage] = useState({ text: "", type: "" });
 	const [updateMessage, setUpdateMessage] = useState({ text: "", jobId: "" });
 	const [reportMessage, setReportMessage] = useState({ text: "", jobId: "" });
 	const [integrationRefreshMessage, setIntegrationRefreshMessage] = useState({
@@ -276,13 +273,6 @@ const HostDetail = () => {
 			setShowCredentialsModal(true);
 		}
 	}, [host, location.state?.fromWizard]);
-
-	// Sync notes state with host data
-	useEffect(() => {
-		if (host) {
-			setNotes(host.notes || "");
-		}
-	}, [host]);
 
 	const deleteHostMutation = useMutation({
 		mutationFn: (hostId) => adminHostsAPI.delete(hostId),
@@ -523,26 +513,6 @@ const HostDetail = () => {
 		onSuccess: () => {
 			queryClient.invalidateQueries(["host", hostId]);
 			queryClient.invalidateQueries(["hosts"]);
-		},
-	});
-
-	const updateNotesMutation = useMutation({
-		mutationFn: ({ hostId, notes }) =>
-			adminHostsAPI.updateNotes(hostId, notes).then((res) => res.data),
-		onSuccess: () => {
-			queryClient.invalidateQueries(["host", hostId]);
-			queryClient.invalidateQueries(["hosts"]);
-			setNotesMessage({ text: "Notes saved successfully!", type: "success" });
-			// Clear message after 3 seconds
-			safeSetTimeout(() => setNotesMessage({ text: "", type: "" }), 3000);
-		},
-		onError: (error) => {
-			setNotesMessage({
-				text: error.response?.data?.error || "Failed to save notes",
-				type: "error",
-			});
-			// Clear message after 5 seconds for errors
-			safeSetTimeout(() => setNotesMessage({ text: "", type: "" }), 5000);
 		},
 	});
 
@@ -2062,71 +2032,6 @@ const HostDetail = () => {
 						</div>
 					</div>
 
-					{/* Notes Card */}
-					<div className="card p-4">
-						<h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4">
-							Notes
-						</h3>
-						<div className="space-y-4">
-							{notesMessage.text && (
-								<div
-									className={`rounded-md p-4 ${
-										notesMessage.type === "success"
-											? "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700"
-											: "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700"
-									}`}
-								>
-									<div className="flex">
-										{notesMessage.type === "success" ? (
-											<CheckCircle className="h-5 w-5 text-green-400 dark:text-green-300" />
-										) : (
-											<AlertCircle className="h-5 w-5 text-red-400 dark:text-red-300" />
-										)}
-										<div className="ml-3">
-											<p
-												className={`text-sm font-medium ${
-													notesMessage.type === "success"
-														? "text-green-800 dark:text-green-200"
-														: "text-red-800 dark:text-red-200"
-												}`}
-											>
-												{notesMessage.text}
-											</p>
-										</div>
-									</div>
-								</div>
-							)}
-
-							<div className="bg-secondary-50 dark:bg-secondary-700 rounded-lg p-4">
-								<textarea
-									value={notes}
-									onChange={(e) => setNotes(e.target.value)}
-									placeholder="Add notes about this host..."
-									className="w-full h-32 p-3 border border-secondary-200 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-800 text-secondary-900 dark:text-white placeholder-secondary-500 dark:placeholder-secondary-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-									maxLength={1000}
-								/>
-								<div className="flex justify-between items-center mt-3">
-									<p className="text-xs text-secondary-500 dark:text-secondary-400">
-										{notes.length}/1000
-									</p>
-									<button
-										type="button"
-										onClick={() => {
-											updateNotesMutation.mutate({
-												hostId: host.id,
-												notes: notes,
-											});
-										}}
-										disabled={updateNotesMutation.isPending}
-										className="px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 rounded-md transition-colors"
-									>
-										{updateNotesMutation.isPending ? "Saving..." : "Save Notes"}
-									</button>
-								</div>
-							</div>
-						</div>
-					</div>
-
 					{/* Agent Queue Card */}
 					<div className="card p-4">
 						<h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4 flex items-center gap-2">
@@ -2555,295 +2460,319 @@ const HostDetail = () => {
 						</button>
 					</div>
 
-					<div className="p-4">
+					<div className="p-5">
 						{/* Host Information */}
 						{activeTab === "host" && (
-							<div className="space-y-4">
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											Friendly Name
-										</p>
-										<InlineEdit
-											value={host.friendly_name}
-											onSave={(newName) =>
-												updateFriendlyNameMutation.mutate(newName)
-											}
-											placeholder="Enter friendly name..."
-											maxLength={100}
-											validate={(value) => {
-												if (!value.trim()) return "Friendly name is required";
-												if (value.trim().length < 1)
-													return "Friendly name must be at least 1 character";
-												if (value.trim().length > 100)
-													return "Friendly name must be less than 100 characters";
-												return null;
-											}}
-											className="w-full text-sm"
-										/>
-									</div>
-
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											IP Address
-										</p>
-										<InlineEdit
-											value={host.ip || ""}
-											onSave={(newIp) => {
-												if (!newIp.trim()) {
-													updateConnectionMutation.mutate({ ip: null });
-												} else {
-													updateConnectionMutation.mutate({ ip: newIp.trim() });
-												}
-											}}
-											placeholder="No IP set (click to add)"
-											validate={(value) => {
-												if (
-													value.trim() &&
-													!/^(\d{1,3}\.){3}\d{1,3}$/.test(value.trim())
-												) {
-													return "Invalid IP address format";
-												}
-												return null;
-											}}
-											className="w-full text-sm font-mono"
-										/>
-									</div>
-
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											Hostname
-										</p>
-										<InlineEdit
-											value={host.hostname || ""}
-											onSave={(newHostname) => {
-												if (!newHostname.trim()) {
-													updateConnectionMutation.mutate({ hostname: null });
-												} else {
-													updateConnectionMutation.mutate({
-														hostname: newHostname.trim(),
-													});
-												}
-											}}
-											placeholder="No hostname set (click to add)"
-											maxLength={255}
-											className="w-full text-sm font-mono"
-										/>
-									</div>
-
-									{host.machine_id && (
+							<div className="space-y-6">
+								{/* Identity & Connection */}
+								<div>
+									<h4 className="text-xs font-semibold uppercase tracking-wider text-secondary-400 dark:text-secondary-500 mb-3">
+										Identity & Connection
+									</h4>
+									<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-4">
 										<div>
-											<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-												Machine ID
+											<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+												Friendly Name
 											</p>
-											<p className="font-medium text-secondary-900 dark:text-white font-mono text-sm break-all">
-												{host.machine_id}
-											</p>
+											<InlineEdit
+												value={host.friendly_name}
+												onSave={(newName) =>
+													updateFriendlyNameMutation.mutate(newName)
+												}
+												placeholder="Enter friendly name..."
+												maxLength={100}
+												validate={(value) => {
+													if (!value.trim()) return "Friendly name is required";
+													if (value.trim().length > 100)
+														return "Friendly name must be less than 100 characters";
+													return null;
+												}}
+												className="w-full text-sm"
+											/>
 										</div>
-									)}
 
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											Host Groups
-										</p>
-										{/* Extract group IDs from the new many-to-many structure */}
-										{(() => {
-											const groupIds =
-												host.host_group_memberships?.map(
-													(membership) => membership.host_groups.id,
-												) || [];
-											return (
-												<InlineMultiGroupEdit
-													key={`${host.id}-${groupIds.join(",")}`}
-													value={groupIds}
-													onSave={(newGroupIds) =>
-														updateHostGroupsMutation.mutate({
-															hostId: host.id,
-															groupIds: newGroupIds,
-														})
+										<div>
+											<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+												IP Address
+											</p>
+											<InlineEdit
+												value={host.ip || ""}
+												onSave={(newIp) => {
+													if (!newIp.trim()) {
+														updateConnectionMutation.mutate({ ip: null });
+													} else {
+														updateConnectionMutation.mutate({ ip: newIp.trim() });
 													}
-													options={hostGroups || []}
-													placeholder="Select groups..."
-													className="w-full"
-												/>
-											);
-										})()}
-									</div>
+												}}
+												placeholder="No IP set (click to add)"
+												validate={(value) => {
+													if (
+														value.trim() &&
+														!/^(\d{1,3}\.){3}\d{1,3}$/.test(value.trim())
+													) {
+														return "Invalid IP address format";
+													}
+													return null;
+												}}
+												className="w-full text-sm font-mono"
+											/>
+										</div>
 
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											Integrations
-										</p>
-										<button
-											type="button"
-											onClick={() => handleTabChange("integrations")}
-											className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-										>
-											Manage in Integrations tab →
-										</button>
-									</div>
+										<div>
+											<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+												Hostname
+											</p>
+											<InlineEdit
+												value={host.hostname || ""}
+												onSave={(newHostname) => {
+													if (!newHostname.trim()) {
+														updateConnectionMutation.mutate({ hostname: null });
+													} else {
+														updateConnectionMutation.mutate({
+															hostname: newHostname.trim(),
+														});
+													}
+												}}
+												placeholder="No hostname set (click to add)"
+												maxLength={255}
+												className="w-full text-sm font-mono"
+											/>
+										</div>
 
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											Operating System
-										</p>
-										<div className="flex items-center gap-2">
-											<OSIcon osType={host.os_type} className="h-4 w-4" />
+										{host.machine_id && (
+											<div className="md:col-span-2 xl:col-span-3">
+												<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+													Machine ID
+												</p>
+												<p className="font-mono text-sm text-secondary-900 dark:text-white break-all select-all">
+													{host.machine_id}
+												</p>
+											</div>
+										)}
+
+										<div>
+											<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+												Host Groups
+											</p>
+											{(() => {
+												const groupIds =
+													host.host_group_memberships?.map(
+														(membership) => membership.host_groups.id,
+													) || [];
+												return (
+													<InlineMultiGroupEdit
+														key={`${host.id}-${groupIds.join(",")}`}
+														value={groupIds}
+														onSave={(newGroupIds) =>
+															updateHostGroupsMutation.mutate({
+																hostId: host.id,
+																groupIds: newGroupIds,
+															})
+														}
+														options={hostGroups || []}
+														placeholder="Select groups..."
+														className="w-full"
+													/>
+												);
+											})()}
+										</div>
+
+										<div>
+											<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+												Integrations
+											</p>
+											<button
+												type="button"
+												onClick={() => handleTabChange("integrations")}
+												className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+											>
+												Manage in Integrations tab →
+											</button>
+										</div>
+									</div>
+								</div>
+
+								{/* System & Agent */}
+								<div className="border-t border-secondary-100 dark:border-secondary-700 pt-5">
+									<h4 className="text-xs font-semibold uppercase tracking-wider text-secondary-400 dark:text-secondary-500 mb-3">
+										System & Agent
+									</h4>
+									<div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+										<div className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50">
+											<div className="flex items-center gap-2 mb-1.5">
+												<OSIcon osType={host.os_type} className="h-4 w-4" />
+												<p className="text-xs text-secondary-500 dark:text-secondary-400">
+													Operating System
+												</p>
+											</div>
 											<p className="font-medium text-secondary-900 dark:text-white text-sm">
 												{host.os_type} {host.os_version}
 											</p>
 										</div>
-									</div>
 
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											Agent Version
-										</p>
-										<p className="font-medium text-secondary-900 dark:text-white text-sm">
-											{host.agent_version || "Unknown"}
-										</p>
-									</div>
+										{host.architecture && (
+											<div className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50">
+												<div className="flex items-center gap-2 mb-1.5">
+													<Terminal className="h-3.5 w-3.5 text-secondary-400 dark:text-secondary-500" />
+													<p className="text-xs text-secondary-500 dark:text-secondary-400">
+														Architecture
+													</p>
+												</div>
+												<p className="font-medium text-secondary-900 dark:text-white text-sm">
+													{host.architecture}
+												</p>
+											</div>
+										)}
 
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											Agent Auto-update
-										</p>
-										<div className="flex items-center gap-2">
-											<button
-												type="button"
-												onClick={handleAutoUpdateToggle}
-												disabled={toggleAutoUpdateMutation.isPending}
-												className={`relative inline-flex h-5 w-9 items-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-													host.auto_update
-														? "bg-primary-600 dark:bg-primary-500"
-														: "bg-secondary-200 dark:bg-secondary-600"
-												}`}
-											>
+										{host.kernel_version && (
+											<div className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50 col-span-2 md:col-span-1 xl:col-span-2">
+												<div className="flex items-center gap-2 mb-1.5">
+													<Server className="h-3.5 w-3.5 text-secondary-400 dark:text-secondary-500" />
+													<p className="text-xs text-secondary-500 dark:text-secondary-400">
+														Running Kernel
+													</p>
+												</div>
+												<p className="font-mono text-sm text-secondary-900 dark:text-white break-all">
+													{host.kernel_version}
+												</p>
+											</div>
+										)}
+
+										{host.installed_kernel_version && host.installed_kernel_version !== host.kernel_version && (
+											<div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-lg p-3 border border-amber-200/50 dark:border-amber-700/30 col-span-2 md:col-span-1 xl:col-span-2">
+												<div className="flex items-center gap-2 mb-1.5">
+													<AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+													<p className="text-xs text-amber-600 dark:text-amber-400">
+														Installed Kernel (reboot needed)
+													</p>
+												</div>
+												<p className="font-mono text-sm text-secondary-900 dark:text-white break-all">
+													{host.installed_kernel_version}
+												</p>
+											</div>
+										)}
+
+										{host.selinux_status && (
+											<div className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50">
+												<div className="flex items-center gap-2 mb-1.5">
+													<Shield className="h-3.5 w-3.5 text-secondary-400 dark:text-secondary-500" />
+													<p className="text-xs text-secondary-500 dark:text-secondary-400">
+														SELinux
+													</p>
+												</div>
 												<span
-													className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-														host.auto_update ? "translate-x-5" : "translate-x-1"
+													className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+														host.selinux_status === "enabled"
+															? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+															: host.selinux_status === "permissive"
+																? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+																: "bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-300"
 													}`}
-												/>
-											</button>
-											{/* Warning badge when global auto-update is disabled */}
-											{!settings?.auto_update && host.auto_update && (
-												<span
-													className="text-amber-500 dark:text-amber-400"
-													title="Global auto-updates disabled in Settings → Agent Updates"
 												>
-													<AlertTriangle className="h-4 w-4" />
+													{host.selinux_status}
 												</span>
-											)}
-										</div>
-									</div>
+											</div>
+										)}
 
-									<div>
-										<p className="text-xs text-secondary-500 dark:text-secondary-300 mb-1.5">
-											Force Agent Version Upgrade
-										</p>
-										<button
-											type="button"
-											onClick={() => forceAgentUpdateMutation.mutate()}
-											disabled={
-												forceAgentUpdateMutation.isPending ||
-												!wsStatus?.connected
-											}
-											title={
-												!wsStatus?.connected
-													? "Agent is not connected"
-													: "Force agent to update now"
-											}
-											className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-md hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											<RefreshCw
-												className={`h-3 w-3 ${
-													forceAgentUpdateMutation.isPending
-														? "animate-spin"
-														: ""
-												}`}
-											/>
-											{forceAgentUpdateMutation.isPending
-												? "Updating..."
-												: wsStatus?.connected
-													? "Update Now"
-													: "Offline"}
-										</button>
-										{updateMessage.text && (
-											<p className="text-xs mt-1.5 text-secondary-600 dark:text-secondary-400">
-												{updateMessage.text}
-												{updateMessage.jobId && (
-													<span className="ml-1 font-mono text-secondary-500">
-														(Job #{updateMessage.jobId})
+										<div className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50">
+											<div className="flex items-center gap-2 mb-1.5">
+												<Settings className="h-3.5 w-3.5 text-secondary-400 dark:text-secondary-500" />
+												<p className="text-xs text-secondary-500 dark:text-secondary-400">
+													Agent Version
+												</p>
+											</div>
+											<p className="font-medium text-secondary-900 dark:text-white text-sm">
+												{host.agent_version || "Unknown"}
+											</p>
+										</div>
+
+										<div className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50">
+											<div className="flex items-center gap-2 mb-1.5">
+												<RefreshCw className="h-3.5 w-3.5 text-secondary-400 dark:text-secondary-500" />
+												<p className="text-xs text-secondary-500 dark:text-secondary-400">
+													Auto-update
+												</p>
+											</div>
+											<div className="flex items-center gap-2">
+												<button
+													type="button"
+													onClick={handleAutoUpdateToggle}
+													disabled={toggleAutoUpdateMutation.isPending}
+													className={`relative inline-flex h-5 w-9 items-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
+														host.auto_update
+															? "bg-primary-600 dark:bg-primary-500"
+															: "bg-secondary-300 dark:bg-secondary-600"
+													}`}
+												>
+													<span
+														className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+															host.auto_update ? "translate-x-5" : "translate-x-1"
+														}`}
+													/>
+												</button>
+												<span className="text-sm text-secondary-700 dark:text-secondary-300">
+													{host.auto_update ? "On" : "Off"}
+												</span>
+												{!settings?.auto_update && host.auto_update && (
+													<span
+														className="text-amber-500 dark:text-amber-400"
+														title="Global auto-updates disabled in Settings → Agent Updates"
+													>
+														<AlertTriangle className="h-3.5 w-3.5" />
 													</span>
 												)}
-											</p>
-										)}
+											</div>
+										</div>
+
+										<div className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50">
+											<div className="flex items-center gap-2 mb-1.5">
+												<Download className="h-3.5 w-3.5 text-secondary-400 dark:text-secondary-500" />
+												<p className="text-xs text-secondary-500 dark:text-secondary-400">
+													Force Update
+												</p>
+											</div>
+											<button
+												type="button"
+												onClick={() => forceAgentUpdateMutation.mutate()}
+												disabled={
+													forceAgentUpdateMutation.isPending ||
+													!wsStatus?.connected
+												}
+												title={
+													!wsStatus?.connected
+														? "Agent is not connected"
+														: "Force agent to update now"
+												}
+												className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-md hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+											>
+												<RefreshCw
+													className={`h-3 w-3 ${
+														forceAgentUpdateMutation.isPending
+															? "animate-spin"
+															: ""
+													}`}
+												/>
+												{forceAgentUpdateMutation.isPending
+													? "Updating..."
+													: wsStatus?.connected
+														? "Update Now"
+														: "Offline"}
+											</button>
+											{updateMessage.text && (
+												<p className="text-xs mt-1.5 text-secondary-500 dark:text-secondary-400">
+													{updateMessage.text}
+													{updateMessage.jobId && (
+														<span className="ml-1 font-mono text-secondary-400">
+															(Job #{updateMessage.jobId})
+														</span>
+													)}
+												</p>
+											)}
+										</div>
 									</div>
 								</div>
 
-								{/* System Information (merged from System tab) */}
-								{(host.kernel_version ||
-									host.selinux_status ||
-									host.architecture) && (
-									<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
-										<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-											<Terminal className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-											System Information
-										</h4>
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-											{host.architecture && (
-												<div>
-													<p className="text-xs text-secondary-500 dark:text-secondary-300">
-														Architecture
-													</p>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
-														{host.architecture}
-													</p>
-												</div>
-											)}
-											{host.kernel_version && (
-												<div>
-													<p className="text-xs text-secondary-500 dark:text-secondary-300">
-														Running Kernel
-													</p>
-													<p className="font-medium text-secondary-900 dark:text-white font-mono text-sm break-all">
-														{host.kernel_version}
-													</p>
-												</div>
-											)}
-											{host.installed_kernel_version && (
-												<div>
-													<p className="text-xs text-secondary-500 dark:text-secondary-300">
-														Installed Kernel
-													</p>
-													<p className="font-medium text-secondary-900 dark:text-white font-mono text-sm break-all">
-														{host.installed_kernel_version}
-													</p>
-												</div>
-											)}
-											{host.selinux_status && (
-												<div>
-													<p className="text-xs text-secondary-500 dark:text-secondary-300">
-														SELinux Status
-													</p>
-													<span
-														className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-															host.selinux_status === "enabled"
-																? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-																: host.selinux_status === "permissive"
-																	? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-																	: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-														}`}
-													>
-														{host.selinux_status}
-													</span>
-												</div>
-											)}
-										</div>
-									</div>
-								)}
-
-								{/* Resource Information */}
+								{/* Resources */}
 								{(host.system_uptime ||
 									host.cpu_model ||
 									host.cpu_cores ||
@@ -2856,74 +2785,80 @@ const HostDetail = () => {
 									(host.disk_details &&
 										Array.isArray(host.disk_details) &&
 										host.disk_details.length > 0)) && (
-									<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
-										<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-											<Monitor className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-											Resource Information
+									<div className="border-t border-secondary-100 dark:border-secondary-700 pt-5">
+										<h4 className="text-xs font-semibold uppercase tracking-wider text-secondary-400 dark:text-secondary-500 mb-3">
+											Resources
 										</h4>
-										<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+										{/* Resource summary cards */}
+										<div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
 											{host.system_uptime && (
-												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-													<div className="flex items-center gap-2 mb-2">
-														<Clock className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														<p className="text-xs text-secondary-500 dark:text-secondary-300">
-															System Uptime
+												<div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10 rounded-lg p-3 border border-blue-200/50 dark:border-blue-700/30">
+													<div className="flex items-center gap-1.5 mb-1">
+														<Clock className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
+														<p className="text-[10px] font-medium uppercase tracking-wider text-blue-600/70 dark:text-blue-400/70">
+															Uptime
 														</p>
 													</div>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+													<p className="font-semibold text-blue-900 dark:text-blue-100 text-sm leading-tight">
 														{host.system_uptime}
 													</p>
 												</div>
 											)}
 											{host.cpu_model && (
-												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-													<div className="flex items-center gap-2 mb-2">
-														<Cpu className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														<p className="text-xs text-secondary-500 dark:text-secondary-300">
-															CPU Model
+												<div className="bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-900/20 dark:to-violet-800/10 rounded-lg p-3 border border-violet-200/50 dark:border-violet-700/30 col-span-2 md:col-span-1 xl:col-span-2">
+													<div className="flex items-center gap-1.5 mb-1">
+														<Cpu className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" />
+														<p className="text-[10px] font-medium uppercase tracking-wider text-violet-600/70 dark:text-violet-400/70">
+															CPU
 														</p>
 													</div>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+													<p className="font-semibold text-violet-900 dark:text-violet-100 text-sm leading-tight">
 														{host.cpu_model}
+														{host.cpu_cores && (
+															<span className="font-normal text-violet-600 dark:text-violet-300 ml-1">
+																({host.cpu_cores} cores)
+															</span>
+														)}
 													</p>
 												</div>
 											)}
-											{host.cpu_cores && (
-												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-													<div className="flex items-center gap-2 mb-2">
-														<Cpu className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														<p className="text-xs text-secondary-500 dark:text-secondary-300">
+											{!host.cpu_model && host.cpu_cores && (
+												<div className="bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-900/20 dark:to-violet-800/10 rounded-lg p-3 border border-violet-200/50 dark:border-violet-700/30">
+													<div className="flex items-center gap-1.5 mb-1">
+														<Cpu className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" />
+														<p className="text-[10px] font-medium uppercase tracking-wider text-violet-600/70 dark:text-violet-400/70">
 															CPU Cores
 														</p>
 													</div>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+													<p className="font-semibold text-violet-900 dark:text-violet-100 text-sm leading-tight">
 														{host.cpu_cores}
 													</p>
 												</div>
 											)}
 											{host.ram_installed != null && (
-												<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-													<div className="flex items-center gap-2 mb-2">
-														<MemoryStick className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-														<p className="text-xs text-secondary-500 dark:text-secondary-300">
-															RAM Installed
+												<div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/10 rounded-lg p-3 border border-emerald-200/50 dark:border-emerald-700/30">
+													<div className="flex items-center gap-1.5 mb-1">
+														<MemoryStick className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
+														<p className="text-[10px] font-medium uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70">
+															RAM
 														</p>
 													</div>
-													<p className="font-medium text-secondary-900 dark:text-white text-sm">
+													<p className="font-semibold text-emerald-900 dark:text-emerald-100 text-sm leading-tight">
 														{format_memory_gib(host.ram_installed)}
 													</p>
 												</div>
 											)}
 											{host.swap_size !== undefined &&
 												host.swap_size !== null && (
-													<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-														<div className="flex items-center gap-2 mb-2">
-															<MemoryStick className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-															<p className="text-xs text-secondary-500 dark:text-secondary-300">
-																Swap Size
+													<div className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 rounded-lg p-3 border border-amber-200/50 dark:border-amber-700/30">
+														<div className="flex items-center gap-1.5 mb-1">
+															<MemoryStick className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+															<p className="text-[10px] font-medium uppercase tracking-wider text-amber-600/70 dark:text-amber-400/70">
+																Swap
 															</p>
 														</div>
-														<p className="font-medium text-secondary-900 dark:text-white text-sm">
+														<p className="font-semibold text-amber-900 dark:text-amber-100 text-sm leading-tight">
 															{format_memory_gib(host.swap_size)}
 														</p>
 													</div>
@@ -2932,149 +2867,99 @@ const HostDetail = () => {
 												Array.isArray(host.load_average) &&
 												host.load_average.length > 0 &&
 												host.load_average.some((load) => load != null) && (
-													<div className="bg-secondary-50 dark:bg-secondary-700 p-4 rounded-lg">
-														<div className="flex items-center gap-2 mb-2">
-															<Activity className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-															<p className="text-xs text-secondary-500 dark:text-secondary-300">
-																Load Average
+													<div className="bg-gradient-to-br from-rose-50 to-rose-100/50 dark:from-rose-900/20 dark:to-rose-800/10 rounded-lg p-3 border border-rose-200/50 dark:border-rose-700/30">
+														<div className="flex items-center gap-1.5 mb-1">
+															<Activity className="h-3.5 w-3.5 text-rose-500 dark:text-rose-400" />
+															<p className="text-[10px] font-medium uppercase tracking-wider text-rose-600/70 dark:text-rose-400/70">
+																Load Avg
 															</p>
 														</div>
-														<p className="font-medium text-secondary-900 dark:text-white text-sm">
+														<p className="font-semibold text-rose-900 dark:text-rose-100 text-sm leading-tight">
 															{host.load_average
 																.filter((load) => load != null)
-																.map((load, index) => (
-																	<span key={`load-${index}-${load}`}>
-																		{typeof load === "number"
-																			? load.toFixed(2)
-																			: String(load)}
-																		{index <
-																			host.load_average.filter(
-																				(load) => load != null,
-																			).length -
-																				1 && ", "}
-																	</span>
-																))}
+																.map((load) =>
+																	typeof load === "number"
+																		? load.toFixed(2)
+																		: String(load),
+																)
+																.join(" / ")}
 														</p>
 													</div>
 												)}
 										</div>
+
+										{/* Disk Usage */}
 										{host.disk_details &&
 											Array.isArray(host.disk_details) &&
 											host.disk_details.length > 0 && (
-												<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
-													<h5 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-														<HardDrive className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+												<div>
+													<h5 className="text-xs font-semibold uppercase tracking-wider text-secondary-400 dark:text-secondary-500 mb-2 flex items-center gap-1.5">
+														<HardDrive className="h-3.5 w-3.5" />
 														Disk Usage
 													</h5>
-													<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-2">
-														{host.disk_details.map((disk, index) => (
-															<div
-																key={disk.name || `disk-${index}`}
-																className="bg-secondary-50 dark:bg-secondary-700 p-3 rounded-lg"
-															>
-																<div className="flex items-center gap-2 mb-2">
-																	<HardDrive className="h-4 w-4 text-secondary-500" />
-																	<span className="font-medium text-secondary-900 dark:text-white text-sm">
-																		{disk.name || `Disk ${index + 1}`}
-																	</span>
-																</div>
-																{disk.size && (
-																	<p className="text-xs text-secondary-600 dark:text-secondary-300 mb-1">
-																		Size: {disk.size}
-																	</p>
-																)}
-																{disk.mountpoint && (
-																	<p className="text-xs text-secondary-600 dark:text-secondary-300 mb-1">
-																		Mount: {disk.mountpoint}
-																	</p>
-																)}
-																{disk.usage &&
-																	typeof disk.usage === "number" && (
-																		<div className="mt-2">
-																			<div className="flex justify-between text-xs text-secondary-600 dark:text-secondary-300 mb-1">
-																				<span>Usage</span>
-																				<span>{disk.usage}%</span>
-																			</div>
-																			<div className="w-full bg-secondary-200 dark:bg-secondary-600 rounded-full h-2">
-																				<div
-																					className="bg-primary-600 dark:bg-primary-400 h-2 rounded-full transition-all duration-300"
-																					style={{
-																						width: `${Math.min(Math.max(disk.usage, 0), 100)}%`,
-																					}}
-																				></div>
-																			</div>
-																		</div>
+													<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
+														{host.disk_details.map((disk, index) => {
+															const usage = disk.usage && typeof disk.usage === "number" ? disk.usage : 0;
+															const barColor = usage > 90
+																? "bg-red-500 dark:bg-red-400"
+																: usage > 75
+																	? "bg-amber-500 dark:bg-amber-400"
+																	: "bg-primary-500 dark:bg-primary-400";
+															return (
+																<div
+																	key={disk.name || `disk-${index}`}
+																	className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50"
+																>
+																	<div className="flex items-center justify-between mb-1.5">
+																		<span className="font-medium text-secondary-900 dark:text-white text-xs truncate">
+																			{disk.name || `Disk ${index + 1}`}
+																		</span>
+																		{disk.size && (
+																			<span className="text-[10px] text-secondary-400 dark:text-secondary-500 ml-2 flex-shrink-0">
+																				{disk.size}
+																			</span>
+																		)}
+																	</div>
+																	{disk.mountpoint && (
+																		<p className="text-[10px] text-secondary-400 dark:text-secondary-500 font-mono mb-2 truncate">
+																			{disk.mountpoint}
+																		</p>
 																	)}
-															</div>
-														))}
+																	{disk.usage &&
+																		typeof disk.usage === "number" && (
+																			<div>
+																				<div className="flex justify-between text-[10px] mb-0.5">
+																					<span className="text-secondary-500 dark:text-secondary-400">
+																						Usage
+																					</span>
+																					<span className={`font-semibold ${
+																						usage > 90
+																							? "text-red-600 dark:text-red-400"
+																							: usage > 75
+																								? "text-amber-600 dark:text-amber-400"
+																								: "text-secondary-600 dark:text-secondary-300"
+																					}`}>
+																						{disk.usage}%
+																					</span>
+																				</div>
+																				<div className="w-full bg-secondary-200 dark:bg-secondary-600 rounded-full h-1.5">
+																					<div
+																						className={`${barColor} h-1.5 rounded-full transition-all duration-300`}
+																						style={{
+																							width: `${Math.min(Math.max(disk.usage, 0), 100)}%`,
+																						}}
+																					/>
+																				</div>
+																			</div>
+																		)}
+																</div>
+															);
+														})}
 													</div>
 												</div>
 											)}
 									</div>
 								)}
-
-								{/* Notes (merged from Notes tab) */}
-								<div className="pt-4 border-t border-secondary-200 dark:border-secondary-600">
-									<h4 className="text-sm font-medium text-secondary-900 dark:text-white mb-3 flex items-center gap-2">
-										<FileText className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-										Notes
-									</h4>
-									{notesMessage.text && (
-										<div
-											className={`rounded-md p-3 mb-3 ${
-												notesMessage.type === "success"
-													? "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700"
-													: "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700"
-											}`}
-										>
-											<div className="flex">
-												{notesMessage.type === "success" ? (
-													<CheckCircle className="h-4 w-4 text-green-400 dark:text-green-300" />
-												) : (
-													<AlertCircle className="h-4 w-4 text-red-400 dark:text-red-300" />
-												)}
-												<p
-													className={`ml-2 text-sm ${
-														notesMessage.type === "success"
-															? "text-green-800 dark:text-green-200"
-															: "text-red-800 dark:text-red-200"
-													}`}
-												>
-													{notesMessage.text}
-												</p>
-											</div>
-										</div>
-									)}
-									<div className="bg-secondary-50 dark:bg-secondary-700 rounded-lg p-4">
-										<textarea
-											value={notes}
-											onChange={(e) => setNotes(e.target.value)}
-											placeholder="Add notes about this host... (e.g., purpose, special configurations, maintenance notes)"
-											className="w-full h-24 p-3 border border-secondary-200 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-800 text-secondary-900 dark:text-white placeholder-secondary-500 dark:placeholder-secondary-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-sm"
-											maxLength={1000}
-										/>
-										<div className="flex justify-between items-center mt-2">
-											<span className="text-xs text-secondary-400 dark:text-secondary-500">
-												{notes.length}/1000
-											</span>
-											<button
-												type="button"
-												onClick={() => {
-													updateNotesMutation.mutate({
-														hostId: host.id,
-														notes: notes,
-													});
-												}}
-												disabled={updateNotesMutation.isPending}
-												className="px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 rounded-md transition-colors"
-											>
-												{updateNotesMutation.isPending
-													? "Saving..."
-													: "Save Notes"}
-											</button>
-										</div>
-									</div>
-								</div>
 							</div>
 						)}
 
