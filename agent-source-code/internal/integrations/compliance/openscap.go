@@ -561,6 +561,33 @@ func (s *OpenSCAPScanner) EnsureInstalled() error {
 		}
 	}
 
+	// Final version-adequacy check for Ubuntu.
+	// Even when a content file exists (e.g. from ssg-debderived), the user can
+	// still get "ssg-base is not installed" if dpkg has no ssg-base package and
+	// there is no .ssg-version marker.  Resolve this by forcing a GitHub upgrade
+	// whenever the detected version is empty or below the minimum.
+	baseOSName := s.getContentOSName()
+	minVersion := ""
+	if (s.osInfo.Name == "ubuntu" || baseOSName == "ubuntu") && s.osInfo.Version >= "24.04" {
+		minVersion = "0.1.76"
+	} else if (s.osInfo.Name == "ubuntu" || baseOSName == "ubuntu") && s.osInfo.Version >= "22.04" {
+		minVersion = "0.1.60"
+	}
+	if minVersion != "" {
+		detectedVersion := s.GetContentPackageVersion()
+		if detectedVersion == "" || compareVersions(detectedVersion, minVersion) < 0 {
+			s.logger.WithFields(logrus.Fields{
+				"detected_version": detectedVersion,
+				"min_version":      minVersion,
+			}).Info("SSG version missing or below minimum after install, upgrading from GitHub...")
+			if err := s.UpgradeSSGContent(); err != nil {
+				s.logger.WithError(err).Warn("Failed to upgrade SSG content from GitHub for version adequacy")
+			} else {
+				s.logger.Info("SSG content upgraded from GitHub to meet minimum version requirement")
+			}
+		}
+	}
+
 	// Re-check availability after installation
 	s.checkAvailability()
 	if !s.available {
