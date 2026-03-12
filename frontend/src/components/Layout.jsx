@@ -35,10 +35,8 @@ import { useUpdateNotification } from "../contexts/UpdateNotificationContext";
 import { alertsAPI, dashboardAPI, settingsAPI, versionAPI } from "../utils/api";
 import { patchManagementAPI } from "../utils/patchManagementApi";
 import { complianceAPI } from "../utils/complianceApi";
-import { configManagementAPI } from "../utils/configManagementApi";
 import ActiveJobsPanel from "./ActiveJobsPanel";
 import ActiveCompliancePanel from "./ActiveCompliancePanel";
-import ActiveConfigRunsPanel from "./ActiveConfigRunsPanel";
 import DiscordIcon from "./DiscordIcon";
 import GlobalSearch from "./GlobalSearch";
 import Logo from "./Logo";
@@ -58,7 +56,6 @@ const Layout = ({ children }) => {
 	const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 	const [activeJobsPanelOpen, setActiveJobsPanelOpen] = useState(false);
 	const [compliancePanelOpen, setCompliancePanelOpen] = useState(false);
-	const [configRunsPanelOpen, setConfigRunsPanelOpen] = useState(false);
 	const location = useLocation();
 	const navigate = useNavigate();
 	const {
@@ -140,15 +137,6 @@ const Layout = ({ children }) => {
 		staleTime: 0,
 	});
 	const activeScanCount = activeScansData?.count || 0;
-
-	// Fetch recent config management run count for sidebar badge
-	const { data: recentConfigData } = useQuery({
-		queryKey: ["configmgmt-recent-count"],
-		queryFn: () => configManagementAPI.getRecentRuns().then((r) => r.data),
-		refetchInterval: 30000,
-		staleTime: 0,
-	});
-	const recentConfigCount = recentConfigData?.count || 0;
 
 	// Track WebSocket status for hosts
 	const [wsStatusMap, setWsStatusMap] = useState({});
@@ -1323,20 +1311,6 @@ const Layout = ({ children }) => {
 																							{activeScanCount}
 																						</button>
 																					)}
-																				{subItem.name === "Config Mgmt" &&
-																					recentConfigCount > 0 && (
-																						<button
-																							type="button"
-																							onClick={(e) => {
-																								e.preventDefault();
-																								e.stopPropagation();
-																								setConfigRunsPanelOpen(true);
-																							}}
-																							className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs rounded bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-200 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
-																						>
-																							{recentConfigCount}
-																						</button>
-																					)}
 																				{/* {subItem.name === "Packages" &&
 																			stats?.cards?.totalOutdatedPackages !==
 																				undefined && (
@@ -1747,12 +1721,6 @@ const Layout = ({ children }) => {
 				<ActiveCompliancePanel
 					open={compliancePanelOpen}
 					onClose={() => setCompliancePanelOpen(false)}
-				/>
-
-				{/* Recent Config Management Runs Panel */}
-				<ActiveConfigRunsPanel
-					open={configRunsPanelOpen}
-					onClose={() => setConfigRunsPanelOpen(false)}
 				/>
 			</div>
 		</SidebarContext.Provider>
