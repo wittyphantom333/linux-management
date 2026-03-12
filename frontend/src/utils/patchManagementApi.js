@@ -33,6 +33,10 @@ export const patchManagementAPI = {
 	getHostPatchResults: (hostId, params = {}) =>
 		api.get(`/patch-management/hosts/${hostId}/results`, { params }),
 
+	// Trigger patches for a single host
+	triggerHostPatches: (hostId) =>
+		api.post(`/patch-management/hosts/${hostId}/run-patches`),
+
 	// Diffs
 	getJobHostDiff: (jobId, jobHostId) =>
 		api.get(`/patch-management/jobs/${jobId}/hosts/${jobHostId}/diff`),

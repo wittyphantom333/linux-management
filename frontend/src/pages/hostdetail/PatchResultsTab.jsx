@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	AlertTriangle,
 	ArrowUpDown,
@@ -10,6 +10,7 @@ import {
 	Diff,
 	Loader2,
 	Package,
+	Play,
 	RefreshCw,
 	RotateCcw,
 	Server,
@@ -18,6 +19,7 @@ import {
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { patchManagementAPI } from "../../utils/patchManagementApi";
+import { useAuth } from "../../contexts/AuthContext";
 
 const STATUS_STYLES = {
 	pending:
@@ -59,10 +61,13 @@ const STATUS_ICONS = {
 const PAGE_SIZE = 15;
 
 export default function PatchResultsTab({ hostId }) {
+	const queryClient = useQueryClient();
+	const { canManagePatchManagement } = useAuth();
 	const [page, setPage] = useState(0);
 	const [expandedRows, setExpandedRows] = useState(new Set());
 	const [diffData, setDiffData] = useState({});
 	const [statusFilter, setStatusFilter] = useState("");
+	const [triggerMsg, setTriggerMsg] = useState(null);
 
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ["patchmgmt", "host-results", hostId, page, statusFilter],
@@ -81,6 +86,35 @@ export default function PatchResultsTab({ hostId }) {
 	const total = data?.total || 0;
 	const summary = data?.summary || {};
 	const totalPages = Math.ceil(total / PAGE_SIZE);
+
+	// Run patches mutation
+	const runPatchesMutation = useMutation({
+		mutationFn: () =>
+			patchManagementAPI.triggerHostPatches(hostId).then((r) => r.data),
+		onSuccess: (resp) => {
+			queryClient.invalidateQueries([
+				"patchmgmt",
+				"host-results",
+				hostId,
+			]);
+			const pkgs = resp.packages_count ?? "?";
+			const policy = resp.policy?.name ?? "policy";
+			setTriggerMsg({
+				type: "success",
+				text: `Patch job created — ${pkgs} package(s) via "${policy}"`,
+			});
+			setTimeout(() => setTriggerMsg(null), 6000);
+		},
+		onError: (err) => {
+			setTriggerMsg({
+				type: "error",
+				text:
+					err.response?.data?.error ||
+					"Failed to trigger patches",
+			});
+			setTimeout(() => setTriggerMsg(null), 6000);
+		},
+	});
 
 	function toggleRow(id) {
 		setExpandedRows((prev) => {
@@ -156,22 +190,59 @@ export default function PatchResultsTab({ hostId }) {
 					<Package className="h-4 w-4" />
 					Patch Job Results ({total})
 				</h3>
-				<select
-					value={statusFilter}
-					onChange={(e) => {
-						setStatusFilter(e.target.value);
-						setPage(0);
-					}}
-					className="text-xs border border-secondary-300 dark:border-secondary-600 rounded-md px-2 py-1 bg-white dark:bg-secondary-800 text-secondary-700 dark:text-secondary-300"
-				>
-					<option value="">All statuses</option>
-					<option value="completed">Completed</option>
-					<option value="failed">Failed</option>
-					<option value="skipped">Skipped</option>
-					<option value="pending">Pending</option>
-					<option value="running">Running</option>
-				</select>
+				<div className="flex items-center gap-2">
+					{canManagePatchManagement && (
+						<button
+							type="button"
+							onClick={() => runPatchesMutation.mutate()}
+							disabled={runPatchesMutation.isPending}
+							className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+						>
+							{runPatchesMutation.isPending ? (
+								<Loader2 className="h-3 w-3 animate-spin" />
+							) : (
+								<Play className="h-3 w-3" />
+							)}
+							{runPatchesMutation.isPending
+								? "Creating job..."
+								: "Run Patches"}
+						</button>
+					)}
+					<select
+						value={statusFilter}
+						onChange={(e) => {
+							setStatusFilter(e.target.value);
+							setPage(0);
+						}}
+						className="text-xs border border-secondary-300 dark:border-secondary-600 rounded-md px-2 py-1 bg-white dark:bg-secondary-800 text-secondary-700 dark:text-secondary-300"
+					>
+						<option value="">All statuses</option>
+						<option value="completed">Completed</option>
+						<option value="failed">Failed</option>
+						<option value="skipped">Skipped</option>
+						<option value="pending">Pending</option>
+						<option value="running">Running</option>
+					</select>
+				</div>
 			</div>
+
+			{/* Trigger feedback */}
+			{triggerMsg && (
+				<div
+					className={`text-xs px-3 py-2 rounded-md ${
+						triggerMsg.type === "success"
+							? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800"
+							: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800"
+					}`}
+				>
+					{triggerMsg.type === "success" ? (
+						<CheckCircle2 className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+					) : (
+						<XCircle className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+					)}
+					{triggerMsg.text}
+				</div>
+			)}
 
 			{/* Results list */}
 			{results.length === 0 ? (

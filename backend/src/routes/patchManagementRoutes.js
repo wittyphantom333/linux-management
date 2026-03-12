@@ -20,6 +20,7 @@ const { v4: uuidv4 } = require("uuid");
 const { verifyApiKey } = require("../utils/apiKeyUtils");
 const {
 	createPatchJob,
+	createPatchJobForHost,
 	computeSnapshotDiff,
 	computeNextRun,
 	getPendingJobForHost,
@@ -1409,6 +1410,40 @@ router.get(
 		} catch (error) {
 			logger.error(`[PatchMgmt] Failed to get history: ${error.message}`);
 			return res.status(500).json({ error: "Failed to get patch history" });
+		}
+	},
+);
+
+// POST /api/v1/patch-management/hosts/:hostId/run-patches
+// Trigger a patch job scoped to a single host
+router.post(
+	"/hosts/:hostId/run-patches",
+	authenticateToken,
+	requireManagePatchManagement,
+	async (req, res) => {
+		/* #swagger.tags = ['Patch Management - Jobs'] */
+		/* #swagger.summary = 'Trigger patches for a single host' */
+		/* #swagger.description = 'Creates a single-host patch job using the best matching policy. Requires JWT auth.' */
+		/* #swagger.security = [{ "bearerAuth": [] }] */
+		try {
+			const { hostId } = req.params;
+
+			const result = await createPatchJobForHost(hostId, {
+				triggeredBy: "manual",
+				triggeredByUser: req.user?.id,
+			});
+
+			return res.status(201).json({
+				success: true,
+				job: result.job,
+				policy: result.policy,
+				packages_count: result.packagesCount,
+			});
+		} catch (error) {
+			logger.error(
+				`[PatchMgmt] Failed to trigger host patches: ${error.message}`,
+			);
+			return res.status(400).json({ error: error.message });
 		}
 	},
 );

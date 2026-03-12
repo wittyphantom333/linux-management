@@ -240,6 +240,136 @@ async function createPatchJob(
 	return { job, hostsCount: totalHostsWithPackages };
 }
 
+/**
+ * Create a patch job scoped to a single host.
+ * Finds all enabled policies that target the host, picks the one with the most
+ * matching packages (or the first if tied), and creates a single-host job.
+ */
+async function createPatchJobForHost(
+	hostId,
+	{ triggeredBy = "manual", triggeredByUser = null } = {},
+) {
+	// 1) Load the host with its packages
+	const host = await prisma.hosts.findUnique({
+		where: { id: hostId },
+		include: {
+			host_packages: { include: { packages: true } },
+		},
+	});
+	if (!host) throw new Error("Host not found");
+	if (host.status !== "active")
+		throw new Error("Host is not active");
+
+	// 2) Find groups this host belongs to
+	const memberships = await prisma.host_group_memberships.findMany({
+		where: { host_id: hostId },
+		select: { host_group_id: true },
+	});
+	const groupIds = memberships.map((m) => m.host_group_id);
+	if (groupIds.length === 0)
+		throw new Error("Host is not a member of any host group");
+
+	// 3) Find enabled policies targeting those groups
+	const policyGroups = await prisma.patch_policy_groups.findMany({
+		where: { host_group_id: { in: groupIds } },
+		select: { policy_id: true },
+	});
+	const uniquePolicyIds = [...new Set(policyGroups.map((pg) => pg.policy_id))];
+	if (uniquePolicyIds.length === 0)
+		throw new Error("No patch policies target this host");
+
+	const policies = await prisma.patch_policies.findMany({
+		where: { id: { in: uniquePolicyIds }, enabled: true },
+		include: { patch_policy_filters: true },
+	});
+	if (policies.length === 0)
+		throw new Error("No enabled policies target this host");
+
+	// 4) Pick the policy with the most matching packages for this host
+	let bestPolicy = null;
+	let bestPackages = [];
+	for (const policy of policies) {
+		const matched = filterPackagesForPolicy(
+			host.host_packages,
+			policy,
+			policy.patch_policy_filters,
+		);
+		if (matched.length > bestPackages.length) {
+			bestPolicy = policy;
+			bestPackages = matched;
+		}
+	}
+
+	if (!bestPolicy || bestPackages.length === 0)
+		throw new Error(
+			"No updatable packages match any policy for this host",
+		);
+
+	// 5) Create the single-host job
+	const jobId = uuidv4();
+	const jobHostId = uuidv4();
+
+	const preSnapshot = host.host_packages
+		.filter((hp) => hp.packages)
+		.map((hp) => ({
+			package_name: hp.packages.name,
+			current_version: hp.current_version,
+			available_version: hp.available_version,
+			needs_update: hp.needs_update,
+			is_security_update: hp.is_security_update,
+		}));
+
+	const packageRows = bestPackages.map((hp) => ({
+		id: uuidv4(),
+		job_host_id: jobHostId,
+		package_name: hp.packages.name,
+		previous_version: hp.current_version,
+		target_version: hp.available_version,
+		status: "pending",
+	}));
+
+	const job = await prisma.$transaction(async (tx) => {
+		const createdJob = await tx.patch_jobs.create({
+			data: {
+				id: jobId,
+				policy_id: bestPolicy.id,
+				status: "pending",
+				triggered_by: triggeredBy,
+				triggered_by_user: triggeredByUser,
+				total_hosts: 1,
+				created_at: new Date(),
+			},
+		});
+
+		await tx.patch_job_hosts.create({
+			data: {
+				id: jobHostId,
+				job_id: jobId,
+				host_id: hostId,
+				status: "pending",
+				pre_snapshot: preSnapshot,
+			},
+		});
+
+		if (packageRows.length > 0) {
+			await tx.patch_job_packages.createMany({ data: packageRows });
+		}
+
+		return createdJob;
+	});
+
+	logger.info(
+		`[PatchMgmt] Single-host job ${jobId} created for host ${hostId} using policy "${bestPolicy.name}": ${bestPackages.length} packages`,
+	);
+
+	return {
+		job,
+		hostsCount: 1,
+		policy: { id: bestPolicy.id, name: bestPolicy.name },
+		packagesCount: bestPackages.length,
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Snapshot diff
 // ---------------------------------------------------------------------------
@@ -609,6 +739,7 @@ module.exports = {
 	filterPackagesForPolicy,
 	matchesFilter,
 	createPatchJob,
+	createPatchJobForHost,
 	computeSnapshotDiff,
 	computeNextRun,
 	refreshWindowSchedules,
