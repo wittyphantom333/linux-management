@@ -95,6 +95,20 @@ export default function RuleDetail() {
 			toast.error(`Save failed: ${err.response?.data?.error || err.message}`),
 	});
 
+	const runMutation = useMutation({
+		mutationFn: () => configManagementAPI.runRule(id),
+		onSuccess: (res) => {
+			const { notified, total } = res.data;
+			toast.success(
+				notified > 0
+					? `Run triggered — ${notified} of ${total} agent(s) notified`
+					: `No connected agents to notify (${total} host(s) in groups)`,
+			);
+		},
+		onError: (err) =>
+			toast.error(`Run failed: ${err.response?.data?.error || err.message}`),
+	});
+
 	function handleSave() {
 		if (!name.trim()) {
 			toast.error("Name is required");
@@ -152,15 +166,36 @@ export default function RuleDetail() {
 						</h1>
 					</div>
 				</div>
-				<button
-					type="button"
-					onClick={handleSave}
-					disabled={saveMutation.isPending}
-					className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
-				>
-					<Save className="h-4 w-4" />
-					{saveMutation.isPending ? "Saving…" : "Save"}
-				</button>
+				<div className="flex items-center gap-2">
+					{!isNew && (
+						<button
+							type="button"
+							onClick={() => {
+								if (
+									window.confirm(
+										`Trigger an immediate run of "${rule?.name || name}"?\n\nThis will push report_now to all agents in the rule's host groups.`,
+									)
+								) {
+									runMutation.mutate();
+								}
+							}}
+							disabled={runMutation.isPending}
+							className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+						>
+							<Play className="h-4 w-4" />
+							{runMutation.isPending ? "Running…" : "Run Now"}
+						</button>
+					)}
+					<button
+						type="button"
+						onClick={handleSave}
+						disabled={saveMutation.isPending}
+						className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
+					>
+						<Save className="h-4 w-4" />
+						{saveMutation.isPending ? "Saving…" : "Save"}
+					</button>
+				</div>
 			</div>
 
 			{/* Basic info */}

@@ -247,6 +247,20 @@ export default function ConfigManagement() {
 			toast.error(`Delete failed: ${err.response?.data?.error || err.message}`),
 	});
 
+	const runRule = useMutation({
+		mutationFn: (id) => configManagementAPI.runRule(id),
+		onSuccess: (res) => {
+			const { notified, total } = res.data;
+			toast.success(
+				notified > 0
+					? `Run triggered — ${notified} of ${total} agent(s) notified`
+					: `No connected agents to notify (${total} host(s) in groups)`,
+			);
+		},
+		onError: (err) =>
+			toast.error(`Run failed: ${err.response?.data?.error || err.message}`),
+	});
+
 	// ─── Filtered lists ───────────────────────────────────────────────
 	const filteredTechniques = useMemo(() => {
 		if (!techniques) return [];
@@ -389,6 +403,11 @@ export default function ConfigManagement() {
 					rules={filteredRules}
 					search={ruleSearch}
 					setSearch={setRuleSearch}
+					onRun={(id, name) => {
+						if (window.confirm(`Trigger an immediate run of "${name}"?`)) {
+							runRule.mutate(id);
+						}
+					}}
 					onDelete={(id) => {
 						if (window.confirm("Delete this rule?")) {
 							deleteRule.mutate(id);
@@ -1476,7 +1495,7 @@ function DirectivesTab({ directives, search, setSearch, onDelete }) {
 }
 
 // ─── Rules tab ──────────────────────────────────────────────────────────────
-function RulesTab({ rules, search, setSearch, onDelete }) {
+function RulesTab({ rules, search, setSearch, onRun, onDelete }) {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between gap-4">
@@ -1574,6 +1593,14 @@ function RulesTab({ rules, search, setSearch, onDelete }) {
 									</td>
 									<td className="px-4 py-3 text-right">
 										<div className="flex items-center justify-end gap-2">
+											<button
+												type="button"
+												onClick={() => onRun(r.id, r.name)}
+												className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30"
+												title="Run Now"
+											>
+												<Play className="h-4 w-4 text-green-600 dark:text-green-400" />
+											</button>
 											<Link
 												to={`/config-management/rules/${r.id}`}
 												className="p-1 rounded hover:bg-secondary-200 dark:hover:bg-secondary-700"

@@ -1100,6 +1100,66 @@ router.delete(
 	},
 );
 
+// POST /api/v1/configmanagement/rules/:id/run - Trigger immediate evaluation on all affected agents
+router.post(
+	"/rules/:id/run",
+	authenticateToken,
+	requireManageConfigManagement,
+	async (req, res) => {
+		/* #swagger.tags = ['Config Management - Rules'] */
+		/* #swagger.summary = 'Run a rule now' */
+		/* #swagger.description = 'Push report_now to all connected agents in the rule host groups, causing them to immediately re-evaluate their config management policy. Requires JWT auth.' */
+		/* #swagger.security = [{ "bearerAuth": [] }] */
+		try {
+			const rule = await prisma.cm_rules.findUnique({
+				where: { id: req.params.id },
+				include: {
+					cm_rule_groups: { select: { host_group_id: true } },
+				},
+			});
+			if (!rule) return res.status(404).json({ error: "Rule not found" });
+
+			const groupIds = rule.cm_rule_groups.map((rg) => rg.host_group_id);
+			if (groupIds.length === 0) {
+				return res.json({ success: true, message: "Rule has no host groups", notified: 0, total: 0 });
+			}
+
+			const memberships = await prisma.host_group_memberships.findMany({
+				where: { host_group_id: { in: groupIds } },
+				select: { host_id: true },
+			});
+			const hostIds = [...new Set(memberships.map((m) => m.host_id))];
+
+			const hosts = await prisma.hosts.findMany({
+				where: { id: { in: hostIds }, status: "active" },
+				select: { api_id: true },
+			});
+
+			let notified = 0;
+			for (const host of hosts) {
+				if (isConnected(host.api_id)) {
+					pushReportNow(host.api_id);
+					notified++;
+				}
+			}
+
+			logger.info(
+				`[ConfigMgmt] Rule "${rule.name}" run triggered by ${req.user?.username}: ${notified}/${hosts.length} agents notified`,
+			);
+
+			return res.json({
+				success: true,
+				message: `Triggered ${notified} of ${hosts.length} agent(s)`,
+				notified,
+				total: hosts.length,
+			});
+		} catch (error) {
+			logger.error(`[ConfigMgmt] Failed to run rule: ${error.message}`);
+			return res.status(500).json({ error: "Failed to run rule" });
+		}
+	},
+);
+
 // ============================================================================
 // POLICY GENERATION (server computes the per-host policy)
 // ============================================================================

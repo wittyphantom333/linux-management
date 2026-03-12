@@ -35,6 +35,7 @@ export const configManagementAPI = {
 	createRule: (data) => api.post("/configmanagement/rules", data),
 	updateRule: (id, data) => api.put(`/configmanagement/rules/${id}`, data),
 	deleteRule: (id) => api.delete(`/configmanagement/rules/${id}`),
+	runRule: (id) => api.post(`/configmanagement/rules/${id}/run`),
 
 	// ── Policy ─────────────────────────────────────────────────────────
 	getHostPolicy: (hostId) => api.get(`/configmanagement/policy/${hostId}`),
