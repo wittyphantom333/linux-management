@@ -33,9 +33,39 @@ const {
 	requireViewPatchManagement,
 	requireManagePatchManagement,
 } = require("../middleware/permissions");
+const { pushReportNow, isConnected } = require("../services/agentWs");
 
 const prisma = getPrismaClient();
 const router = express.Router();
+
+/**
+ * Push report_now to all connected agents for the given host IDs.
+ * Used to make agents pick up new patch jobs immediately instead of
+ * waiting for their next scheduled check-in.
+ */
+async function notifyHostsForPatchJob(hostIds) {
+	if (!hostIds || hostIds.length === 0) return;
+	try {
+		const hosts = await prisma.hosts.findMany({
+			where: { id: { in: hostIds } },
+			select: { api_id: true, friendly_name: true },
+		});
+		let notified = 0;
+		for (const host of hosts) {
+			if (isConnected(host.api_id)) {
+				pushReportNow(host.api_id);
+				notified++;
+			}
+		}
+		if (notified > 0) {
+			logger.info(
+				`[PatchMgmt] Pushed report_now to ${notified}/${hosts.length} connected agent(s) for immediate job pickup`,
+			);
+		}
+	} catch (err) {
+		logger.warn(`[PatchMgmt] Failed to notify agents: ${err.message}`);
+	}
+}
 
 // ============================================================================
 // POLICIES
@@ -924,6 +954,11 @@ router.post(
 				triggeredByUser: req.user?.id,
 			});
 
+			// Notify affected agents to pick up the job immediately
+			if (result.hostIds && result.hostIds.length > 0) {
+				notifyHostsForPatchJob(result.hostIds);
+			}
+
 			return res.status(201).json({
 				success: true,
 				job: result.job,
@@ -1517,6 +1552,9 @@ router.post(
 				triggeredBy: "manual",
 				triggeredByUser: req.user?.id,
 			});
+
+			// Notify the specific host agent to pick up the job immediately
+			notifyHostsForPatchJob([hostId]);
 
 			return res.status(201).json({
 				success: true,

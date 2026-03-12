@@ -29,6 +29,20 @@ import (
 
 var reportJSON bool
 
+// burstChan is signalled when actionable work (patch job execution, config
+// enforcement changes) was performed during a report cycle.  The main event
+// loop in serve.go listens on this channel and enters "burst polling" mode,
+// running a few rapid re-checks at short intervals before reverting to the
+// normal cadence.
+var burstChan = make(chan struct{}, 1)
+
+func requestBurst() {
+	select {
+	case burstChan <- struct{}{}:
+	default: // already signalled
+	}
+}
+
 // reportCmd represents the report command
 var reportCmd = &cobra.Command{
 	Use:   "report",
@@ -410,6 +424,12 @@ func sendIntegrationData() {
 	// Send Config Management data if available
 	if cmData, exists := integrationData["configmanagement"]; exists && cmData.Error == "" {
 		sendConfigMgmtData(httpClient, cmData, hostname, machineID)
+
+		// Signal burst if enforcement made changes (repaired > 0)
+		if cm, ok := cmData.Data.(*models.ConfigManagementData); ok && cm.Report != nil && cm.Report.Repaired > 0 {
+			logger.Info("Config management enforcement applied changes — requesting burst polling")
+			requestBurst()
+		}
 	}
 
 	// Patch management data is already sent by the integration itself (report + status)
@@ -419,6 +439,12 @@ func sendIntegrationData() {
 			logger.WithField("error", pmData.Error).Warn("Patch management integration had an error")
 		} else {
 			logger.Debug("Patch management integration completed")
+
+			// Signal burst if a patch job was executed
+			if pm, ok := pmData.Data.(*models.PatchManagementData); ok && pm.Report != nil {
+				logger.Info("Patch job executed — requesting burst polling for follow-up work")
+				requestBurst()
+			}
 		}
 	}
 

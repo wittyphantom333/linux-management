@@ -999,10 +999,24 @@ async function startServer() {
 
 						for (const window of dueWindows) {
 							try {
-								await createPatchJob(window.policy_id, `window:${window.id}`);
+								const result = await createPatchJob(window.policy_id, `window:${window.id}`);
 								logger.info(
 									`[PatchMgmt] Auto-triggered job for policy ${window.policy_id} via window "${window.name}"`,
 								);
+								// Notify affected agents to pick up the job immediately
+								if (result.hostIds && result.hostIds.length > 0) {
+									const { pushReportNow, isConnected } = require("./services/agentWs");
+									const pdb2 = getPrismaClient();
+									const hosts = await pdb2.hosts.findMany({
+										where: { id: { in: result.hostIds } },
+										select: { api_id: true },
+									});
+									for (const host of hosts) {
+										if (isConnected(host.api_id)) {
+											pushReportNow(host.api_id);
+										}
+									}
+								}
 							} catch (err) {
 								logger.error(
 									`[PatchMgmt] Failed to trigger job for policy ${window.policy_id} in window "${window.name}": ${err.message}`,

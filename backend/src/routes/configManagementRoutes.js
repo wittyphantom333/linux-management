@@ -22,9 +22,75 @@ const {
 	requireViewConfigManagement,
 	requireManageConfigManagement,
 } = require("../middleware/permissions");
+const { pushReportNow, isConnected } = require("../services/agentWs");
 
 const prisma = getPrismaClient();
 const router = express.Router();
+
+/**
+ * Resolve all connected agents affected by a config management change and
+ * push report_now so they pick up the new policy immediately.
+ *
+ * @param {'directive'|'rule'} changeType  What was changed
+ * @param {string} changeId               The id of the changed entity
+ */
+async function notifyAffectedConfigAgents(changeType, changeId) {
+	try {
+		let groupIds = [];
+
+		if (changeType === "rule") {
+			// Rule changed — get its group IDs directly
+			const ruleGroups = await prisma.cm_rule_groups.findMany({
+				where: { rule_id: changeId },
+				select: { host_group_id: true },
+			});
+			groupIds = ruleGroups.map((rg) => rg.host_group_id);
+		} else if (changeType === "directive") {
+			// Directive changed — find all rules that reference it, collect group IDs
+			const ruleDirectives = await prisma.cm_rule_directives.findMany({
+				where: { directive_id: changeId },
+				select: { rule_id: true },
+			});
+			const ruleIds = [...new Set(ruleDirectives.map((rd) => rd.rule_id))];
+			if (ruleIds.length === 0) return;
+			const ruleGroups = await prisma.cm_rule_groups.findMany({
+				where: { rule_id: { in: ruleIds } },
+				select: { host_group_id: true },
+			});
+			groupIds = ruleGroups.map((rg) => rg.host_group_id);
+		}
+
+		if (groupIds.length === 0) return;
+
+		// Get all hosts in those groups
+		const memberships = await prisma.host_group_memberships.findMany({
+			where: { host_group_id: { in: groupIds } },
+			select: { host_id: true },
+		});
+		const hostIds = [...new Set(memberships.map((m) => m.host_id))];
+		if (hostIds.length === 0) return;
+
+		const hosts = await prisma.hosts.findMany({
+			where: { id: { in: hostIds }, status: "active" },
+			select: { api_id: true },
+		});
+
+		let notified = 0;
+		for (const host of hosts) {
+			if (isConnected(host.api_id)) {
+				pushReportNow(host.api_id);
+				notified++;
+			}
+		}
+		if (notified > 0) {
+			logger.info(
+				`[ConfigMgmt] Pushed report_now to ${notified}/${hosts.length} agent(s) after ${changeType} change`,
+			);
+		}
+	} catch (err) {
+		logger.warn(`[ConfigMgmt] Failed to notify agents: ${err.message}`);
+	}
+}
 
 // ============================================================================
 // TECHNIQUES
@@ -549,6 +615,8 @@ router.post(
 			});
 
 			logger.info(`[ConfigMgmt] Directive created: ${name}`);
+			// Notify affected agents to pick up the updated policy
+			notifyAffectedConfigAgents("directive", directive.id);
 			return res.json({ success: true, directive });
 		} catch (error) {
 			logger.error(`[ConfigMgmt] Failed to create directive: ${error.message}`);
@@ -660,6 +728,8 @@ router.put(
 			});
 
 			logger.info(`[ConfigMgmt] Directive updated: ${directive.name}`);
+			// Notify affected agents to pick up the updated policy
+			notifyAffectedConfigAgents("directive", directive.id);
 			return res.json({ success: true, directive });
 		} catch (error) {
 			logger.error(`[ConfigMgmt] Failed to update directive: ${error.message}`);
@@ -834,6 +904,8 @@ router.post(
 			});
 
 			logger.info(`[ConfigMgmt] Rule created: ${name}`);
+			// Notify affected agents to pick up the updated policy
+			notifyAffectedConfigAgents("rule", rule.id);
 			return res.json({ success: true, rule });
 		} catch (error) {
 			logger.error(`[ConfigMgmt] Failed to create rule: ${error.message}`);
@@ -997,6 +1069,8 @@ router.put(
 			});
 
 			logger.info(`[ConfigMgmt] Rule updated: ${result.name}`);
+			// Notify affected agents to pick up the updated policy
+			notifyAffectedConfigAgents("rule", req.params.id);
 			return res.json({ success: true, rule: result });
 		} catch (error) {
 			logger.error(`[ConfigMgmt] Failed to update rule: ${error.message}`);

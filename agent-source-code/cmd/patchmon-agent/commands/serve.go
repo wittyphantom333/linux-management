@@ -211,18 +211,57 @@ func runService() error {
 	// Track current interval for offset recalculation on updates
 	currentInterval := intervalMinutes
 
+	// Burst polling: after actionable work (patch job, config enforcement),
+	// temporarily speed up check-ins so the agent can pick up follow-up work
+	// without waiting for the full interval.
+	const burstInterval = 30 * time.Second
+	const maxBurstCycles = 3
+	var burstTicker *time.Ticker
+	var burstCh <-chan time.Time // nil when not bursting (blocks forever in select)
+	burstRemaining := 0
+
+	// drainBurst non-blockingly consumes a burst request raised by report.go
+	// and activates burst polling if one was raised.
+	drainBurst := func() {
+		select {
+		case <-burstChan:
+			burstRemaining = maxBurstCycles
+			if burstTicker != nil {
+				burstTicker.Stop()
+			}
+			burstTicker = time.NewTicker(burstInterval)
+			burstCh = burstTicker.C
+			logger.WithField("cycles", maxBurstCycles).Info("Burst polling activated — rapid re-checks at 30s intervals")
+		default:
+		}
+	}
+
 	for {
 		select {
 		case <-offsetTimer.C:
 			// Offset period completed, start consuming from ticker normally
 			offsetPassed = true
 			logger.Debug("Offset period completed, periodic reports will now start")
+		case <-burstCh:
+			// Burst re-check
+			burstRemaining--
+			logger.WithField("remaining", burstRemaining).Info("Burst report cycle")
+			if err := sendReport(false); err != nil {
+				logger.WithError(err).Warn("burst report failed")
+			}
+			drainBurst() // could re-extend if more work was found
+			if burstRemaining <= 0 {
+				burstTicker.Stop()
+				burstCh = nil
+				logger.Info("Burst polling complete, reverting to normal interval")
+			}
 		case <-ticker.C:
 			// Only process ticker events after offset has passed
 			if offsetPassed {
 				if err := sendReport(false); err != nil {
 					logger.WithError(err).Warn("periodic report failed")
 				}
+				drainBurst()
 			}
 		case m := <-messages:
 			switch m.kind {
@@ -266,6 +305,7 @@ func runService() error {
 				if err := sendReport(false); err != nil {
 					logger.WithError(err).Warn("report_now failed")
 				}
+				drainBurst()
 			case "update_agent":
 				if err := updateAgent(); err != nil {
 					logger.WithError(err).Warn("update_agent failed")
