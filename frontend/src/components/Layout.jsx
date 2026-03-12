@@ -260,7 +260,7 @@ const Layout = ({ children }) => {
 				name: "Compliance",
 				href: "/compliance",
 				icon: Shield,
-				beta: true,
+				beta: false,
 			});
 
 			if (canViewReports()) {
@@ -268,7 +268,7 @@ const Layout = ({ children }) => {
 					name: "Docker",
 					href: "/docker",
 					icon: Container,
-					beta: true,
+					beta: false,
 				});
 			}
 
