@@ -54,11 +54,12 @@ api.interceptors.response.use(
 	(response) => response,
 	(error) => {
 		if (error.response?.status === 401) {
-			// Don't redirect if we're on the login page or if it's a TFA verification error
+			// Don't redirect if we're on the login/landing page or if it's a TFA verification error
 			const currentPath = window.location.pathname;
 			const isTfaError = error.config?.url?.includes("/verify-tfa");
+			const isPublicPage = currentPath === "/login" || currentPath === "/";
 
-			if (currentPath !== "/login" && !isTfaError) {
+			if (!isPublicPage && !isTfaError) {
 				// Handle unauthorized - clear user state and redirect
 				// Note: Token is in httpOnly cookie (server clears on logout)
 				localStorage.removeItem("user");
