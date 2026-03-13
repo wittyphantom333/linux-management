@@ -586,7 +586,9 @@ router.post(
 			const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff]);
 			const isPng = fileBuffer.slice(0, 4).equals(PNG_MAGIC);
 			const isJpeg = fileBuffer.slice(0, 3).equals(JPEG_MAGIC);
-			const isSvg = fileBuffer.toString("utf8", 0, 100).includes("<svg");
+			const isSvg = fileBuffer
+				.toString("utf8", 0, Math.min(fileBuffer.length, 1000))
+				.includes("<svg");
 
 			// Determine file extension based on actual content (magic bytes)
 			let fileExtension;

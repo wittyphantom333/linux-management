@@ -49,11 +49,17 @@ const BrandingTab = () => {
 				credentials: "include",
 				body: JSON.stringify({ logoType, fileContent, fileName }),
 			});
-			const data = await res.json();
 			if (!res.ok) {
-				throw new Error(data.error || data.details || "Failed to upload logo");
+				let errorMsg = `Upload failed (${res.status})`;
+				try {
+					const data = await res.json();
+					errorMsg = data.error || data.details || errorMsg;
+				} catch (_) {
+					// Response wasn't JSON (e.g. nginx 413 HTML page)
+				}
+				throw new Error(errorMsg);
 			}
-			return data;
+			return await res.json();
 		},
 		onSuccess: async (_data, variables) => {
 			// Invalidate and refetch settings to get updated timestamp
