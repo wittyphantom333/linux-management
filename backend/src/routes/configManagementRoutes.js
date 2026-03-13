@@ -1121,7 +1121,12 @@ router.post(
 
 			const groupIds = rule.cm_rule_groups.map((rg) => rg.host_group_id);
 			if (groupIds.length === 0) {
-				return res.json({ success: true, message: "Rule has no host groups", notified: 0, total: 0 });
+				return res.json({
+					success: true,
+					message: "Rule has no host groups",
+					notified: 0,
+					total: 0,
+				});
 			}
 
 			const memberships = await prisma.host_group_memberships.findMany({
@@ -1641,8 +1646,13 @@ router.post("/agent/report", async (req, res) => {
 	try {
 		const apiId = req.headers["x-api-id"];
 		const apiKey = req.headers["x-api-key"];
-		const { report, current_hash, hostname, machine_id, agent_version } =
-			req.body;
+		const {
+			report,
+			current_hash: _current_hash,
+			hostname,
+			machine_id: _machine_id,
+			agent_version: _agent_version,
+		} = req.body;
 
 		if (!apiId || !apiKey) {
 			return res.status(401).json({ error: "API credentials required" });
@@ -1750,8 +1760,7 @@ router.post("/agent/report", async (req, res) => {
 
 				let jobStatus = "running";
 				if (allDone) {
-					jobStatus =
-						failedCount > 0 ? "completed_with_errors" : "completed";
+					jobStatus = failedCount > 0 ? "completed_with_errors" : "completed";
 				}
 
 				await prisma.cm_jobs.update({
@@ -1769,7 +1778,9 @@ router.post("/agent/report", async (req, res) => {
 				);
 			}
 		} catch (jobErr) {
-			logger.warn(`[ConfigMgmt] Failed to update job tracking: ${jobErr.message}`);
+			logger.warn(
+				`[ConfigMgmt] Failed to update job tracking: ${jobErr.message}`,
+			);
 		}
 
 		return res.json({
@@ -1825,7 +1836,9 @@ router.get(
 				count: runs.length,
 			});
 		} catch (error) {
-			logger.error(`[ConfigMgmt] Failed to fetch recent runs: ${error.message}`);
+			logger.error(
+				`[ConfigMgmt] Failed to fetch recent runs: ${error.message}`,
+			);
 			return res.status(500).json({ error: "Failed to fetch recent runs" });
 		}
 	},

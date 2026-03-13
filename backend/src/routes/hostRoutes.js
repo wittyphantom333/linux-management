@@ -2258,7 +2258,8 @@ router.post(
 
 			res.json({
 				success: true,
-				message: "Reboot command sent. The host will reboot in approximately 1 minute.",
+				message:
+					"Reboot command sent. The host will reboot in approximately 1 minute.",
 			});
 		} catch (error) {
 			logger.error("Reboot host error:", error);

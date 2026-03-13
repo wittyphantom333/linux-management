@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-	AlertTriangle,
 	CheckCircle2,
 	Clock,
 	Loader2,
@@ -166,9 +165,7 @@ export default function ActiveCMJobsPanel({ open, onClose }) {
 														)}
 														{isRunning ? "Running" : "Pending"}
 													</span>
-													<span className="text-xs text-secondary-400">
-														·
-													</span>
+													<span className="text-xs text-secondary-400">·</span>
 													<span className="text-xs text-secondary-500 dark:text-secondary-400">
 														{formatTime(job.created_at)}
 													</span>

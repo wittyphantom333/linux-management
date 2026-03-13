@@ -237,7 +237,11 @@ async function createPatchJob(
 		`[PatchMgmt] Job ${jobId} created for policy "${policy.name}": ${totalHostsWithPackages} hosts, triggered by ${triggeredBy}`,
 	);
 
-	return { job, hostsCount: totalHostsWithPackages, hostIds: jobHostsData.map((h) => h.host_id) };
+	return {
+		job,
+		hostsCount: totalHostsWithPackages,
+		hostIds: jobHostsData.map((h) => h.host_id),
+	};
 }
 
 /**
@@ -394,7 +398,9 @@ async function createPatchJobsForHost(
 	}
 
 	if (results.length === 0) {
-		throw new Error("No updatable packages match the selected policies for this host");
+		throw new Error(
+			"No updatable packages match the selected policies for this host",
+		);
 	}
 
 	return results;

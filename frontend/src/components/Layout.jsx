@@ -7,7 +7,6 @@ import {
 	Clock,
 	Container,
 	GitBranch,
-	Github,
 	Globe,
 	Home,
 	LogOut,
@@ -21,25 +20,22 @@ import {
 	Settings,
 	Settings2,
 	Shield,
-	Star,
 	UserCircle,
 	X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { FaLinkedin, FaYoutube } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useColorTheme } from "../contexts/ColorThemeContext";
 import SidebarContext from "../contexts/SidebarContext";
 import { useUpdateNotification } from "../contexts/UpdateNotificationContext";
 import { alertsAPI, dashboardAPI, settingsAPI, versionAPI } from "../utils/api";
-import { patchManagementAPI } from "../utils/patchManagementApi";
 import { complianceAPI } from "../utils/complianceApi";
 import { configManagementAPI } from "../utils/configManagementApi";
-import ActiveJobsPanel from "./ActiveJobsPanel";
-import ActiveCompliancePanel from "./ActiveCompliancePanel";
+import { patchManagementAPI } from "../utils/patchManagementApi";
 import ActiveCMJobsPanel from "./ActiveCMJobsPanel";
-import DiscordIcon from "./DiscordIcon";
+import ActiveCompliancePanel from "./ActiveCompliancePanel";
+import ActiveJobsPanel from "./ActiveJobsPanel";
 import GlobalSearch from "./GlobalSearch";
 import Logo from "./Logo";
 import ReleaseNotesModal from "./ReleaseNotesModal";
@@ -1727,23 +1723,20 @@ const Layout = ({ children }) => {
 										<Globe className="h-5 w-5" />
 									</button>
 									{mobileLinksOpen && (
-										<>
-											<button
-												type="button"
-												className="fixed inset-0 z-40 bg-transparent border-0 p-0 cursor-default"
-												onClick={() => setMobileLinksOpen(false)}
-												onKeyDown={(e) => {
-													if (e.key === "Enter" || e.key === " ") {
-														e.preventDefault();
-														setMobileLinksOpen(false);
-													}
-												}}
-												aria-label="Close mobile menu"
-											/>
-										</>
+										<button
+											type="button"
+											className="fixed inset-0 z-40 bg-transparent border-0 p-0 cursor-default"
+											onClick={() => setMobileLinksOpen(false)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													setMobileLinksOpen(false);
+												}
+											}}
+											aria-label="Close mobile menu"
+										/>
 									)}
 								</div>
-
 							</div>
 						</div>
 					</div>

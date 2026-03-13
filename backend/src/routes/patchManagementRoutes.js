@@ -742,7 +742,7 @@ router.get(
 	"/jobs/active",
 	authenticateToken,
 	requireViewPatchManagement,
-	async (req, res) => {
+	async (_req, res) => {
 		/* #swagger.tags = ['Patch Management - Jobs'] */
 		/* #swagger.summary = 'List active (running/pending) patch jobs' */
 		/* #swagger.description = 'Returns all jobs with status pending or running, ordered by creation date. Includes per-host progress counts. Requires JWT auth.' */
@@ -1523,7 +1523,9 @@ router.get(
 			const policies = await getPoliciesForHost(hostId);
 			return res.json({ success: true, policies });
 		} catch (error) {
-			logger.error(`[PatchMgmt] Failed to get applicable policies: ${error.message}`);
+			logger.error(
+				`[PatchMgmt] Failed to get applicable policies: ${error.message}`,
+			);
 			return res.status(400).json({ error: error.message });
 		}
 	},
@@ -1545,7 +1547,9 @@ router.post(
 			const { policyIds } = req.body;
 
 			if (!Array.isArray(policyIds) || policyIds.length === 0) {
-				return res.status(400).json({ error: "policyIds must be a non-empty array" });
+				return res
+					.status(400)
+					.json({ error: "policyIds must be a non-empty array" });
 			}
 
 			const results = await createPatchJobsForHost(hostId, policyIds, {

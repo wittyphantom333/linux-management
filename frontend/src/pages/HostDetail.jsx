@@ -111,7 +111,10 @@ const HostDetail = () => {
 
 	// Reboot confirmation dialog and message
 	const [showRebootConfirm, setShowRebootConfirm] = useState(false);
-	const [rebootMessage, setRebootMessage] = useState({ text: "", isError: false });
+	const [rebootMessage, setRebootMessage] = useState({
+		text: "",
+		isError: false,
+	});
 
 	// Ref to track component mount state for setTimeout cleanup
 	const isMountedRef = useRef(true);
@@ -373,8 +376,7 @@ const HostDetail = () => {
 
 	// Reboot host mutation
 	const rebootHostMutation = useMutation({
-		mutationFn: () =>
-			adminHostsAPI.rebootHost(hostId).then((res) => res.data),
+		mutationFn: () => adminHostsAPI.rebootHost(hostId).then((res) => res.data),
 		onSuccess: (data) => {
 			setRebootMessage({
 				text: data?.message || "Reboot command sent successfully",
@@ -1122,10 +1124,7 @@ const HostDetail = () => {
 							<button
 								type="button"
 								onClick={() => setShowRebootConfirm(true)}
-								disabled={
-									rebootHostMutation.isPending ||
-									!wsStatus?.connected
-								}
+								disabled={rebootHostMutation.isPending || !wsStatus?.connected}
 								title={
 									!wsStatus?.connected
 										? "Agent is not connected"
@@ -1135,9 +1134,7 @@ const HostDetail = () => {
 							>
 								<Power className="h-4 w-4" />
 								<span className="hidden sm:inline">
-									{rebootHostMutation.isPending
-										? "Sending..."
-										: "Reboot"}
+									{rebootHostMutation.isPending ? "Sending..." : "Reboot"}
 								</span>
 							</button>
 						</div>
@@ -1155,9 +1152,11 @@ const HostDetail = () => {
 								)}
 								{rebootMessage.text && (
 									<p
-										className={rebootMessage.isError
-											? "text-red-600 dark:text-red-400"
-											: "text-green-600 dark:text-green-400"}
+										className={
+											rebootMessage.isError
+												? "text-red-600 dark:text-red-400"
+												: "text-green-600 dark:text-green-400"
+										}
 									>
 										{rebootMessage.text}
 									</p>
@@ -1219,9 +1218,7 @@ const HostDetail = () => {
 							disabled={rebootHostMutation.isPending}
 							className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-md transition-colors"
 						>
-							{rebootHostMutation.isPending
-								? "Sending..."
-								: "Confirm Reboot"}
+							{rebootHostMutation.isPending ? "Sending..." : "Confirm Reboot"}
 						</button>
 						<button
 							type="button"
@@ -1852,62 +1849,71 @@ const HostDetail = () => {
 													</h5>
 													<div className="space-y-3 max-h-80 overflow-y-auto pr-2">
 														{host.disk_details.map((disk, index) => {
-															const usage = disk.usage && typeof disk.usage === "number" ? disk.usage : 0;
-															const barColor = usage > 90
-																? "bg-red-500 dark:bg-red-400"
-																: usage > 75
-																	? "bg-amber-500 dark:bg-amber-400"
-																	: "bg-primary-500 dark:bg-primary-400";
-															const cardBg = usage > 90
-																? "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 border-red-200/50 dark:border-red-700/30"
-																: usage > 75
-																	? "bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200/50 dark:border-amber-700/30"
-																	: "bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/20 dark:to-sky-800/10 border-sky-200/50 dark:border-sky-700/30";
+															const usage =
+																disk.usage && typeof disk.usage === "number"
+																	? disk.usage
+																	: 0;
+															const barColor =
+																usage > 90
+																	? "bg-red-500 dark:bg-red-400"
+																	: usage > 75
+																		? "bg-amber-500 dark:bg-amber-400"
+																		: "bg-primary-500 dark:bg-primary-400";
+															const cardBg =
+																usage > 90
+																	? "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 border-red-200/50 dark:border-red-700/30"
+																	: usage > 75
+																		? "bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200/50 dark:border-amber-700/30"
+																		: "bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/20 dark:to-sky-800/10 border-sky-200/50 dark:border-sky-700/30";
 															return (
-															<div
-																key={disk.name || `disk-${index}`}
-																className={`p-3 rounded-lg border ${cardBg}`}
-															>
-																<div className="flex items-center gap-2 mb-2">
-																	<HardDrive className="h-4 w-4 text-secondary-400" />
-																	<span className="font-medium text-secondary-700 dark:text-secondary-200 text-sm">
-																		{disk.name || `Disk ${index + 1}`}
-																	</span>
-																</div>
-																{disk.size && (
-																	<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
-																		Size: {disk.size}
-																	</p>
-																)}
-																{disk.mountpoint && (
-																	<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
-																		Mount: {disk.mountpoint}
-																	</p>
-																)}
-																{disk.usage &&
-																	typeof disk.usage === "number" && (
-																		<div className="mt-2">
-																			<div className="flex justify-between text-xs text-secondary-500 dark:text-secondary-400 mb-1">
-																				<span>Usage</span>
-																				<span className={`font-semibold ${
-																					usage > 90
-																						? "text-red-600 dark:text-red-400"
-																						: usage > 75
-																							? "text-amber-600 dark:text-amber-400"
-																							: "text-secondary-600 dark:text-secondary-300"
-																				}`}>{disk.usage}%</span>
-																			</div>
-																			<div className="w-full bg-secondary-200 dark:bg-secondary-600 rounded-full h-2">
-																				<div
-																					className={`${barColor} h-2 rounded-full transition-all duration-300`}
-																					style={{
-																						width: `${Math.min(Math.max(disk.usage, 0), 100)}%`,
-																					}}
-																				/>
-																			</div>
-																		</div>
+																<div
+																	key={disk.name || `disk-${index}`}
+																	className={`p-3 rounded-lg border ${cardBg}`}
+																>
+																	<div className="flex items-center gap-2 mb-2">
+																		<HardDrive className="h-4 w-4 text-secondary-400" />
+																		<span className="font-medium text-secondary-700 dark:text-secondary-200 text-sm">
+																			{disk.name || `Disk ${index + 1}`}
+																		</span>
+																	</div>
+																	{disk.size && (
+																		<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+																			Size: {disk.size}
+																		</p>
 																	)}
-															</div>
+																	{disk.mountpoint && (
+																		<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+																			Mount: {disk.mountpoint}
+																		</p>
+																	)}
+																	{disk.usage &&
+																		typeof disk.usage === "number" && (
+																			<div className="mt-2">
+																				<div className="flex justify-between text-xs text-secondary-500 dark:text-secondary-400 mb-1">
+																					<span>Usage</span>
+																					<span
+																						className={`font-semibold ${
+																							usage > 90
+																								? "text-red-600 dark:text-red-400"
+																								: usage > 75
+																									? "text-amber-600 dark:text-amber-400"
+																									: "text-secondary-600 dark:text-secondary-300"
+																						}`}
+																					>
+																						{disk.usage}%
+																					</span>
+																				</div>
+																				<div className="w-full bg-secondary-200 dark:bg-secondary-600 rounded-full h-2">
+																					<div
+																						className={`${barColor} h-2 rounded-full transition-all duration-300`}
+																						style={{
+																							width: `${Math.min(Math.max(disk.usage, 0), 100)}%`,
+																						}}
+																					/>
+																				</div>
+																			</div>
+																		)}
+																</div>
 															);
 														})}
 													</div>
@@ -2520,7 +2526,9 @@ const HostDetail = () => {
 													if (!newIp.trim()) {
 														updateConnectionMutation.mutate({ ip: null });
 													} else {
-														updateConnectionMutation.mutate({ ip: newIp.trim() });
+														updateConnectionMutation.mutate({
+															ip: newIp.trim(),
+														});
 													}
 												}}
 												placeholder="No IP set (click to add)"
@@ -2657,19 +2665,20 @@ const HostDetail = () => {
 											</div>
 										)}
 
-										{host.installed_kernel_version && host.installed_kernel_version !== host.kernel_version && (
-											<div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-lg p-3 border border-amber-200/50 dark:border-amber-700/30 col-span-2 md:col-span-1 xl:col-span-2">
-												<div className="flex items-center gap-2 mb-1.5">
-													<AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-													<p className="text-xs text-amber-600 dark:text-amber-400">
-														Installed Kernel (reboot needed)
+										{host.installed_kernel_version &&
+											host.installed_kernel_version !== host.kernel_version && (
+												<div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-lg p-3 border border-amber-200/50 dark:border-amber-700/30 col-span-2 md:col-span-1 xl:col-span-2">
+													<div className="flex items-center gap-2 mb-1.5">
+														<AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+														<p className="text-xs text-amber-600 dark:text-amber-400">
+															Installed Kernel (reboot needed)
+														</p>
+													</div>
+													<p className="font-mono text-sm text-secondary-900 dark:text-white break-all">
+														{host.installed_kernel_version}
 													</p>
 												</div>
-												<p className="font-mono text-sm text-secondary-900 dark:text-white break-all">
-													{host.installed_kernel_version}
-												</p>
-											</div>
-										)}
+											)}
 
 										{host.selinux_status && (
 											<div className="bg-secondary-50/50 dark:bg-secondary-800/50 rounded-lg p-3 border border-secondary-100 dark:border-secondary-700/50">
@@ -2725,7 +2734,9 @@ const HostDetail = () => {
 												>
 													<span
 														className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-															host.auto_update ? "translate-x-5" : "translate-x-1"
+															host.auto_update
+																? "translate-x-5"
+																: "translate-x-1"
 														}`}
 													/>
 												</button>
@@ -2918,17 +2929,22 @@ const HostDetail = () => {
 													</h5>
 													<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
 														{host.disk_details.map((disk, index) => {
-															const usage = disk.usage && typeof disk.usage === "number" ? disk.usage : 0;
-															const barColor = usage > 90
-																? "bg-red-500 dark:bg-red-400"
-																: usage > 75
-																	? "bg-amber-500 dark:bg-amber-400"
-																	: "bg-primary-500 dark:bg-primary-400";
-															const cardBg = usage > 90
-																? "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 border-red-200/50 dark:border-red-700/30"
-																: usage > 75
-																	? "bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200/50 dark:border-amber-700/30"
-																	: "bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/20 dark:to-sky-800/10 border-sky-200/50 dark:border-sky-700/30";
+															const usage =
+																disk.usage && typeof disk.usage === "number"
+																	? disk.usage
+																	: 0;
+															const barColor =
+																usage > 90
+																	? "bg-red-500 dark:bg-red-400"
+																	: usage > 75
+																		? "bg-amber-500 dark:bg-amber-400"
+																		: "bg-primary-500 dark:bg-primary-400";
+															const cardBg =
+																usage > 90
+																	? "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 border-red-200/50 dark:border-red-700/30"
+																	: usage > 75
+																		? "bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200/50 dark:border-amber-700/30"
+																		: "bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/20 dark:to-sky-800/10 border-sky-200/50 dark:border-sky-700/30";
 															return (
 																<div
 																	key={disk.name || `disk-${index}`}
@@ -2956,13 +2972,15 @@ const HostDetail = () => {
 																					<span className="text-secondary-500 dark:text-secondary-400">
 																						Usage
 																					</span>
-																					<span className={`font-semibold ${
-																						usage > 90
-																							? "text-red-600 dark:text-red-400"
-																							: usage > 75
-																								? "text-amber-600 dark:text-amber-400"
-																								: "text-secondary-600 dark:text-secondary-300"
-																					}`}>
+																					<span
+																						className={`font-semibold ${
+																							usage > 90
+																								? "text-red-600 dark:text-red-400"
+																								: usage > 75
+																									? "text-amber-600 dark:text-amber-400"
+																									: "text-secondary-600 dark:text-secondary-300"
+																						}`}
+																					>
 																						{disk.usage}%
 																					</span>
 																				</div>

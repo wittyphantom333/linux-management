@@ -2,11 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "../contexts/ThemeContext";
 import { settingsAPI } from "../utils/api";
 
-const Logo = ({
-	className = "h-8 w-auto",
-	alt = "Monux Logo",
-	...props
-}) => {
+const Logo = ({ className = "h-8 w-auto", alt = "Monux Logo", ...props }) => {
 	const { isDark } = useTheme();
 
 	const { data: settings } = useQuery({

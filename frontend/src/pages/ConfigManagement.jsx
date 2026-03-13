@@ -1688,7 +1688,9 @@ function jobStatusBadge(status) {
 		<span
 			className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${s.bg} ${s.text}`}
 		>
-			<Icon className={`h-3 w-3 ${status === "running" ? "animate-spin" : ""}`} />
+			<Icon
+				className={`h-3 w-3 ${status === "running" ? "animate-spin" : ""}`}
+			/>
 			{s.label}
 		</span>
 	);

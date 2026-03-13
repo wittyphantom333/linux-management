@@ -396,16 +396,13 @@ function init(server, prismaClient) {
 												);
 											if (hostUpConfig?.is_enabled) {
 												const hostName =
-													host.friendly_name ||
-													host.hostname ||
-													host.api_id;
+													host.friendly_name || host.hostname || host.api_id;
 												const downAt =
 													existingAlert.created_at ||
 													existingAlert.metadata?.created_at;
 												const downtimeSec = downAt
 													? Math.round(
-															(Date.now() - new Date(downAt).getTime()) /
-																1000,
+															(Date.now() - new Date(downAt).getTime()) / 1000,
 														)
 													: null;
 												const downtimeStr = downtimeSec

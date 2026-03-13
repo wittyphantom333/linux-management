@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	AlertTriangle,
 	ArrowUpDown,
 	CheckCircle2,
 	Clock,
@@ -15,9 +14,9 @@ import {
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { patchManagementAPI } from "../utils/patchManagementApi";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
+import { patchManagementAPI } from "../utils/patchManagementApi";
 
 const HOST_STATUS_CONFIG = {
 	pending: { icon: Clock, color: "text-yellow-500", label: "Pending" },
@@ -168,7 +167,7 @@ export default function ActiveJobsPanel({ open, onClose }) {
 							{jobs.map((job) => {
 								const progress = getProgressPercent(job);
 								const isRunning = job.status === "running";
-								const isPending = job.status === "pending";
+								const _isPending = job.status === "pending";
 								const hs = job.host_statuses || {};
 
 								return (
@@ -198,9 +197,7 @@ export default function ActiveJobsPanel({ open, onClose }) {
 														)}
 														{isRunning ? "Running" : "Pending"}
 													</span>
-													<span className="text-xs text-secondary-400">
-														·
-													</span>
+													<span className="text-xs text-secondary-400">·</span>
 													<span className="text-xs text-secondary-500 dark:text-secondary-400">
 														{formatTime(job.created_at)}
 													</span>

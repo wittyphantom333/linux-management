@@ -144,8 +144,8 @@ const BrandingTab = () => {
 					</h2>
 				</div>
 				<p className="text-sm text-secondary-500 dark:text-secondary-300 mb-6">
-					Customize your Monux installation with custom logos and favicon.
-					These will be displayed throughout the application.
+					Customize your Monux installation with custom logos and favicon. These
+					will be displayed throughout the application.
 				</p>
 			</div>
 

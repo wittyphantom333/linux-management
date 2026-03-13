@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { patchManagementAPI } from "../../utils/patchManagementApi";
 import { useAuth } from "../../contexts/AuthContext";
+import { patchManagementAPI } from "../../utils/patchManagementApi";
 
 const STATUS_STYLES = {
 	pending:
@@ -85,15 +85,10 @@ export default function PatchResultsTab({ hostId }) {
 	});
 
 	// Fetch applicable policies when picker is open
-	const {
-		data: policiesData,
-		isLoading: policiesLoading,
-	} = useQuery({
+	const { data: policiesData, isLoading: policiesLoading } = useQuery({
 		queryKey: ["patchmgmt", "host-applicable-policies", hostId],
 		queryFn: () =>
-			patchManagementAPI
-				.getHostApplicablePolicies(hostId)
-				.then((r) => r.data),
+			patchManagementAPI.getHostApplicablePolicies(hostId).then((r) => r.data),
 		enabled: showPolicyPicker,
 	});
 	const applicablePolicies = policiesData?.policies || [];
@@ -110,11 +105,7 @@ export default function PatchResultsTab({ hostId }) {
 				.triggerHostPatches(hostId, policyIds)
 				.then((r) => r.data),
 		onSuccess: (resp) => {
-			queryClient.invalidateQueries([
-				"patchmgmt",
-				"host-results",
-				hostId,
-			]);
+			queryClient.invalidateQueries(["patchmgmt", "host-results", hostId]);
 			const jobs = resp.jobs || [];
 			const totalPkgs = jobs.reduce(
 				(sum, j) => sum + (j.packages_count ?? 0),
@@ -132,9 +123,7 @@ export default function PatchResultsTab({ hostId }) {
 		onError: (err) => {
 			setTriggerMsg({
 				type: "error",
-				text:
-					err.response?.data?.error ||
-					"Failed to trigger patches",
+				text: err.response?.data?.error || "Failed to trigger patches",
 			});
 			setTimeout(() => setTriggerMsg(null), 6000);
 		},
@@ -306,7 +295,8 @@ export default function PatchResultsTab({ hostId }) {
 												)}
 											</div>
 											<span className="text-xs font-medium text-secondary-500 dark:text-secondary-400 shrink-0">
-												{policy.packages_count} pkg{policy.packages_count !== 1 ? "s" : ""}
+												{policy.packages_count} pkg
+												{policy.packages_count !== 1 ? "s" : ""}
 											</span>
 										</label>
 									))}
@@ -320,13 +310,16 @@ export default function PatchResultsTab({ hostId }) {
 									if (selectedPolicies.size === applicablePolicies.length) {
 										setSelectedPolicies(new Set());
 									} else {
-										setSelectedPolicies(new Set(applicablePolicies.map((p) => p.id)));
+										setSelectedPolicies(
+											new Set(applicablePolicies.map((p) => p.id)),
+										);
 									}
 								}}
 								disabled={applicablePolicies.length === 0}
 								className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium disabled:opacity-50"
 							>
-								{selectedPolicies.size === applicablePolicies.length && applicablePolicies.length > 0
+								{selectedPolicies.size === applicablePolicies.length &&
+								applicablePolicies.length > 0
 									? "Deselect All"
 									: "Select All"}
 							</button>
@@ -344,8 +337,7 @@ export default function PatchResultsTab({ hostId }) {
 										runPatchesMutation.mutate([...selectedPolicies])
 									}
 									disabled={
-										selectedPolicies.size === 0 ||
-										runPatchesMutation.isPending
+										selectedPolicies.size === 0 || runPatchesMutation.isPending
 									}
 									className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 								>

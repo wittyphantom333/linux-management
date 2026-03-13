@@ -87,6 +87,7 @@ const SettingsMetrics = lazy(() => import("./pages/settings/SettingsMetrics"));
 const SettingsDebug = lazy(() => import("./pages/settings/SettingsDebug"));
 const AiSettings = lazy(() => import("./pages/settings/AiSettings"));
 const DiscordSettings = lazy(() => import("./pages/settings/DiscordSettings"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -133,9 +134,23 @@ function AppRoutes() {
 	return (
 		<Suspense fallback={<LoadingFallback />}>
 			<Routes>
-				<Route path="/login" element={<Login />} />
 				<Route
 					path="/"
+					element={
+						isAuth ? (
+							<ProtectedRoute requirePermission="can_view_dashboard">
+								<Layout>
+									<Dashboard />
+								</Layout>
+							</ProtectedRoute>
+						) : (
+							<LandingPage />
+						)
+					}
+				/>
+				<Route path="/login" element={<Login />} />
+				<Route
+					path="/dashboard"
 					element={
 						<ProtectedRoute requirePermission="can_view_dashboard">
 							<Layout>

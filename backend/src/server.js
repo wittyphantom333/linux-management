@@ -349,7 +349,10 @@ app.get("/health", (_req, res) => {
 // Serve custom branding uploads (logos, favicon) from a dedicated directory
 // that survives frontend rebuilds and has correct permissions.
 // Served under /api/v1/branding so nginx proxies it through the /api/ location block.
-const brandingDir = process.env.BRANDING_DIR || process.env.ASSETS_DIR || require("node:path").join(__dirname, "../../branding");
+const brandingDir =
+	process.env.BRANDING_DIR ||
+	process.env.ASSETS_DIR ||
+	require("node:path").join(__dirname, "../../branding");
 const fsSync = require("node:fs");
 fsSync.mkdirSync(brandingDir, { recursive: true });
 app.use("/api/v1/branding", express.static(brandingDir, { maxAge: "1h" }));
@@ -1007,13 +1010,19 @@ async function startServer() {
 
 						for (const window of dueWindows) {
 							try {
-								const result = await createPatchJob(window.policy_id, `window:${window.id}`);
+								const result = await createPatchJob(
+									window.policy_id,
+									`window:${window.id}`,
+								);
 								logger.info(
 									`[PatchMgmt] Auto-triggered job for policy ${window.policy_id} via window "${window.name}"`,
 								);
 								// Notify affected agents to pick up the job immediately
 								if (result.hostIds && result.hostIds.length > 0) {
-									const { pushReportNow, isConnected } = require("./services/agentWs");
+									const {
+										pushReportNow,
+										isConnected,
+									} = require("./services/agentWs");
 									const pdb2 = getPrismaClient();
 									const hosts = await pdb2.hosts.findMany({
 										where: { id: { in: result.hostIds } },

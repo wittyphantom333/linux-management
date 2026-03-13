@@ -17,8 +17,7 @@ import { configManagementAPI } from "../../utils/configManagementApi";
 const STATUS_STYLES = {
 	pending:
 		"bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-	running:
-		"bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+	running: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
 	completed:
 		"bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
 	completed_with_errors:
@@ -37,7 +36,9 @@ const STATUS_ICONS = {
 function statusBadge(status) {
 	const style = STATUS_STYLES[status] || STATUS_STYLES.pending;
 	const Icon = STATUS_ICONS[status] || Clock;
-	const label = (status || "pending").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+	const label = (status || "pending")
+		.replace(/_/g, " ")
+		.replace(/\b\w/g, (c) => c.toUpperCase());
 	return (
 		<span
 			className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${style}`}
@@ -99,7 +100,8 @@ export default function JobDetail() {
 	}
 
 	const done = job.completed_hosts + job.failed_hosts;
-	const pct = job.total_hosts > 0 ? Math.round((done / job.total_hosts) * 100) : 100;
+	const pct =
+		job.total_hosts > 0 ? Math.round((done / job.total_hosts) * 100) : 100;
 
 	return (
 		<div className="space-y-6">
@@ -116,7 +118,8 @@ export default function JobDetail() {
 						Config Management Job
 					</h1>
 					<p className="text-sm text-secondary-500 dark:text-secondary-400 mt-0.5">
-						{job.rule_name || "Unknown Rule"} — triggered {timeAgo(job.created_at)}
+						{job.rule_name || "Unknown Rule"} — triggered{" "}
+						{timeAgo(job.created_at)}
 					</p>
 				</div>
 				{statusBadge(job.status)}

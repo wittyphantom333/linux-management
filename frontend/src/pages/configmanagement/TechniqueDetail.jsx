@@ -361,9 +361,7 @@ export default function TechniqueDetail() {
 					{ key: "label", label: "Label", placeholder: "deploy-key" },
 				];
 			case "file_absent":
-				return [
-					{ key: "path", label: "File Path", required: true },
-				];
+				return [{ key: "path", label: "File Path", required: true }];
 			case "directory_absent":
 				return [
 					{ key: "path", label: "Directory Path", required: true },
@@ -375,14 +373,38 @@ export default function TechniqueDetail() {
 			case "file_replace_lines":
 				return [
 					{ key: "path", label: "File Path", required: true },
-					{ key: "pattern", label: "Regex Pattern", required: true, placeholder: "^#?\\s*Port\\s+.*" },
-					{ key: "replacement", label: "Replacement", required: true, placeholder: "Port 2222" },
+					{
+						key: "pattern",
+						label: "Regex Pattern",
+						required: true,
+						placeholder: "^#?\\s*Port\\s+.*",
+					},
+					{
+						key: "replacement",
+						label: "Replacement",
+						required: true,
+						placeholder: "Port 2222",
+					},
 				];
 			case "sysctl_value":
 				return [
-					{ key: "key", label: "Sysctl Key", required: true, placeholder: "vm.swappiness" },
-					{ key: "value", label: "Expected Value", required: true, placeholder: "0" },
-					{ key: "persistent", label: "Persist to /etc/sysctl.d", type: "checkbox" },
+					{
+						key: "key",
+						label: "Sysctl Key",
+						required: true,
+						placeholder: "vm.swappiness",
+					},
+					{
+						key: "value",
+						label: "Expected Value",
+						required: true,
+						placeholder: "0",
+					},
+					{
+						key: "persistent",
+						label: "Persist to /etc/sysctl.d",
+						type: "checkbox",
+					},
 				];
 			default:
 				return [];

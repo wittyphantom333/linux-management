@@ -542,8 +542,8 @@ const Settings = () => {
 
 			<div className="mb-8">
 				<p className="text-secondary-600 dark:text-secondary-300">
-					Configure your Monux server settings. These settings will be used
-					in installation scripts and agent communications.
+					Configure your Monux server settings. These settings will be used in
+					installation scripts and agent communications.
 				</p>
 			</div>
 

@@ -1676,9 +1676,9 @@ const Integrations = () => {
 												Automatic Docker Discovery
 											</h4>
 											<p className="text-xs md:text-sm text-primary-800 dark:text-primary-300 mb-3">
-												The Monux Go agent automatically discovers Docker
-												when it's available on your host and collects
-												comprehensive inventory information:
+												The Monux Go agent automatically discovers Docker when
+												it's available on your host and collects comprehensive
+												inventory information:
 											</p>
 											<ul className="list-disc list-inside space-y-2 text-xs md:text-sm text-primary-800 dark:text-primary-300 ml-2">
 												<li>
@@ -1958,9 +1958,9 @@ const Integrations = () => {
 												Automatic Security Compliance Scanning
 											</h4>
 											<p className="text-xs md:text-sm text-primary-800 dark:text-primary-300 mb-3">
-												The Monux Go agent includes built-in compliance
-												scanning capabilities that automatically assess your
-												hosts against industry security benchmarks:
+												The Monux Go agent includes built-in compliance scanning
+												capabilities that automatically assess your hosts
+												against industry security benchmarks:
 											</p>
 											<ul className="list-disc list-inside space-y-2 text-xs md:text-sm text-primary-800 dark:text-primary-300 ml-2">
 												<li>

@@ -3995,8 +3995,8 @@ const ComplianceTab = ({
 					</h3>
 					<div className="space-y-4 text-sm text-secondary-300">
 						<p>
-							Monux uses industry-standard compliance scanning tools to
-							evaluate your systems against security benchmarks.
+							Monux uses industry-standard compliance scanning tools to evaluate
+							your systems against security benchmarks.
 						</p>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="p-3 bg-secondary-700/30 rounded-lg">

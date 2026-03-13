@@ -66,13 +66,7 @@ const ComplianceJobsTab = ({ scannedHosts }) => {
 
 	// Scan history (includes running scans from DB)
 	const { data, isLoading } = useQuery({
-		queryKey: [
-			"compliance-jobs",
-			page,
-			statusFilter,
-			typeFilter,
-			hostFilter,
-		],
+		queryKey: ["compliance-jobs", page, statusFilter, typeFilter, hostFilter],
 		queryFn: () => {
 			const params = { limit, offset: page * limit };
 			if (statusFilter) params.status = statusFilter;
@@ -267,9 +261,7 @@ const ComplianceJobsTab = ({ scannedHosts }) => {
 										STATUS_CONFIG[scan.status] || STATUS_CONFIG.completed;
 									const StatusIcon = cfg.icon;
 									const scorePct =
-										scan.score != null
-											? `${Math.round(scan.score)}%`
-											: "—";
+										scan.score != null ? `${Math.round(scan.score)}%` : "—";
 
 									return (
 										<tr
@@ -357,10 +349,9 @@ const ComplianceJobsTab = ({ scannedHosts }) => {
 												<div className="flex items-center gap-1.5">
 													<Clock className="h-3.5 w-3.5" />
 													{scan.status === "running"
-														? formatDistanceToNow(
-																new Date(scan.started_at),
-																{ addSuffix: false },
-															)
+														? formatDistanceToNow(new Date(scan.started_at), {
+																addSuffix: false,
+															})
 														: format_duration(scan.duration_ms)}
 												</div>
 											</td>
@@ -378,10 +369,9 @@ const ComplianceJobsTab = ({ scannedHosts }) => {
 												}
 											>
 												{scan.started_at
-													? formatDistanceToNow(
-															new Date(scan.started_at),
-															{ addSuffix: true },
-														)
+													? formatDistanceToNow(new Date(scan.started_at), {
+															addSuffix: true,
+														})
 													: "—"}
 											</td>
 
@@ -426,11 +416,7 @@ const ComplianceJobsTab = ({ scannedHosts }) => {
 			{/* Bottom pagination */}
 			{total_pages > 1 && (
 				<div className="flex justify-center">
-					<Pagination
-						page={page}
-						totalPages={total_pages}
-						setPage={setPage}
-					/>
+					<Pagination page={page} totalPages={total_pages} setPage={setPage} />
 				</div>
 			)}
 		</div>

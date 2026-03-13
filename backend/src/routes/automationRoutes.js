@@ -509,8 +509,7 @@ router.get("/overview", authenticateToken, async (_req, res) => {
 				{
 					name: "Version Update Check",
 					queue: QUEUE_NAMES.VERSION_UPDATE_CHECK,
-					description:
-						"Checks for new Monux server and agent releases via DNS",
+					description: "Checks for new Monux server and agent releases via DNS",
 					schedule: "Daily at midnight",
 					lastRun: recentJobs[0][0]?.finishedOn
 						? new Date(recentJobs[0][0].finishedOn).toLocaleString()
