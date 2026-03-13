@@ -1,15 +1,15 @@
 # =============================================================================
-# PatchMon Docker Compose - Production
+# Monux Docker Compose - Production
 # =============================================================================
 # Before starting, copy env.example to .env and fill in your values:
 #
 #   cp env.example .env
 #
-# Then start PatchMon:
+# Then start Monux:
 #
 #   docker compose up -d
 #
-# See the PatchMon documentation for full configuration details.
+# See the Monux documentation for full configuration details.
 # =============================================================================
 
 name: patchmon

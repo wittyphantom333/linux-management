@@ -1,4 +1,4 @@
-# Makefile for PatchMon Agent
+# Makefile for Monux Agent
 
 # Build variables
 BINARY_NAME=patchmon-agent

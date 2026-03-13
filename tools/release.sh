@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# PatchMon Release Script
+# Monux Release Script
 # =============================================================================
 # Bumps version across all 4 files, runs Go tests, builds all 6 agent
 # binaries, formats frontend with Biome, commits, and pushes.

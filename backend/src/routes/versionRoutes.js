@@ -86,7 +86,7 @@ async function _getLatestCommit(owner, repo) {
 			method: "GET",
 			headers: {
 				Accept: "application/vnd.github.v3+json",
-				"User-Agent": `PatchMon-Server/${currentVersion}`,
+				"User-Agent": `Monux-Server/${currentVersion}`,
 			},
 		});
 
@@ -134,7 +134,7 @@ async function _getCommitDifference(owner, repo, currentVersion) {
 				method: "GET",
 				headers: {
 					Accept: "application/vnd.github.v3+json",
-					"User-Agent": `PatchMon-Server/${getCurrentVersion()}`,
+					"User-Agent": `Monux-Server/${getCurrentVersion()}`,
 				},
 			});
 

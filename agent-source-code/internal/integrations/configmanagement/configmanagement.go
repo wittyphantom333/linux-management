@@ -1,7 +1,7 @@
 // Package configmanagement implements a configuration management integration
 // inspired by Rudder.io's approach: techniques → directives → rules → policies → compliance.
 //
-// The agent periodically fetches its computed policy from the PatchMon server,
+// The agent periodically fetches its computed policy from the Monux server,
 // evaluates each directive's methods against the current system state, and
 // reports compliance (or applies remediation in "enforce" mode).
 package configmanagement

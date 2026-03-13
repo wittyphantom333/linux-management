@@ -1,6 +1,6 @@
 // Package logbuffer provides a logrus hook that captures log entries into
 // a bounded ring buffer. The buffered entries can be drained and shipped
-// to the PatchMon server for remote viewing in the UI.
+// to the Monux server for remote viewing in the UI.
 package logbuffer
 
 import (

@@ -1,5 +1,5 @@
 // Package patchmanagement implements the patch management integration for the
-// PatchMon agent. It fetches pending patch jobs from the server, executes the
+// Monux agent. It fetches pending patch jobs from the server, executes the
 // required package updates via the host's native package manager, captures
 // before/after package snapshots, and reports per-package results.
 package patchmanagement
@@ -652,7 +652,7 @@ func scheduleReboot() {
 	if runtime.GOOS == "freebsd" {
 		_ = exec.Command("shutdown", "-r", "+1").Start()
 	} else {
-		_ = exec.Command("shutdown", "-r", "+1", "PatchMon: scheduled reboot after patching").Start()
+		_ = exec.Command("shutdown", "-r", "+1", "Monux: scheduled reboot after patching").Start()
 	}
 }
 

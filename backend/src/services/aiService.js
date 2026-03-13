@@ -50,7 +50,7 @@ const PROVIDERS = {
 
 // System prompts for different use cases
 const SYSTEM_PROMPTS = {
-	assistant: `You are a helpful terminal assistant integrated into PatchMon, a server management tool.
+	assistant: `You are a helpful terminal assistant integrated into Monux, a server management tool.
 Your role is to help system administrators understand terminal output, diagnose issues, and suggest solutions.
 
 Guidelines:
@@ -96,7 +96,7 @@ async function callOpenRouter(apiKey, model, messages, options = {}) {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${apiKey}`,
 				"HTTP-Referer": "https://patchmon.app",
-				"X-Title": "PatchMon Terminal Assistant",
+				"X-Title": "Monux Terminal Assistant",
 			},
 			body: JSON.stringify({
 				model: model || PROVIDERS.openrouter.defaultModel,

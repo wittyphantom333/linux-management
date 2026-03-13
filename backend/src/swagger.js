@@ -7,9 +7,9 @@ const endpointsFiles = ["./server.js"];
 const doc = {
 	info: {
 		version: "1.0.0",
-		title: "PatchMon REST API",
+		title: "Monux REST API",
 		description:
-			"PatchMon API documentation. For scoped credentials API documentation, see: https://docs.patchmon.net/books/patchmon-application-documentation/page/integration-api-documentation",
+			"Monux API documentation. For scoped credentials API documentation, see: https://docs.patchmon.net/books/patchmon-application-documentation/page/integration-api-documentation",
 	},
 	host: process.env.SWAGGER_HOST || "localhost:3000",
 	basePath: "/api/v1",

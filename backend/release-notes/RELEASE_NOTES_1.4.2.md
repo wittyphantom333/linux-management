@@ -1,4 +1,4 @@
-## 🎉 PatchMon 1.4.2
+## 🎉 Monux 1.4.2
 
 ## 📈 Dashboard and UI
 
@@ -22,7 +22,7 @@
 
 ## 🔐 HTTPS and reverse proxy
 
-- **WebSocket shown as insecure (ws) when using HTTPS**: When PatchMon was behind a reverse proxy (e.g. nginx, Traefik) with HTTPS, the UI could still show the agent connection as insecure (`ws` instead of `wss`). This is fixed by correctly using `X-Forwarded-Proto` (including `https` and `wss`) and the header name used by some proxies (`http_x_forwarded_proto`), so the secure state matches how users actually connect.
+- **WebSocket shown as insecure (ws) when using HTTPS**: When Monux was behind a reverse proxy (e.g. nginx, Traefik) with HTTPS, the UI could still show the agent connection as insecure (`ws` instead of `wss`). This is fixed by correctly using `X-Forwarded-Proto` (including `https` and `wss`) and the header name used by some proxies (`http_x_forwarded_proto`), so the secure state matches how users actually connect.
 
 ---
 
@@ -70,4 +70,4 @@
 
 ## Thank you
 
-I appreciate the whole community for helping with PRs and help testing areas of PatchMon <3
+I appreciate the whole community for helping with PRs and help testing areas of Monux <3

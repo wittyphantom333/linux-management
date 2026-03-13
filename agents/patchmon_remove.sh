@@ -1,11 +1,11 @@
 #!/bin/sh
 
-# PatchMon Agent Removal Script
+# Monux Agent Removal Script
 # POSIX-compliant shell script (works with dash, ash, bash, etc.)
 # Usage: curl -s {PATCHMON_URL}/api/v1/hosts/remove | sudo sh
 #        curl -s {PATCHMON_URL}/api/v1/hosts/remove | sudo REMOVE_BACKUPS=1 sh
 #        curl -s {PATCHMON_URL}/api/v1/hosts/remove | sudo SILENT=1 sh
-# This script completely removes PatchMon from the system
+# This script completely removes Monux from the system
 
 set -e
 
@@ -68,11 +68,11 @@ if [ "$(id -u)" -ne 0 ]; then
    error "This script must be run as root (use sudo)"
 fi
 
-info "🗑️  Starting PatchMon Agent Removal..."
+info "🗑️  Starting Monux Agent Removal..."
 [ "$SILENT_MODE" -eq 0 ] && echo ""
 
 # Step 1: Stop systemd/OpenRC service if it exists
-info "🛑 Stopping PatchMon service..."
+info "🛑 Stopping Monux service..."
 SERVICE_STOPPED=0
 
 # Check for systemd service
@@ -170,10 +170,10 @@ if command -v rc-service >/dev/null 2>&1; then
 fi
 
 # Stop any remaining running processes (legacy or manual starts)
-info "🔍 Checking for running PatchMon processes..."
+info "🔍 Checking for running Monux processes..."
 if pgrep -f "patchmon-agent" >/dev/null; then
     PROCESS_COUNT=$(pgrep -f "patchmon-agent" | wc -l | tr -d ' ')
-    warning "Found $PROCESS_COUNT running PatchMon process(es)"
+    warning "Found $PROCESS_COUNT running Monux process(es)"
     
     # Show process details
     if [ "$SILENT_MODE" -eq 0 ]; then
@@ -210,23 +210,23 @@ if pgrep -f "patchmon-agent" >/dev/null; then
     
     SERVICE_STOPPED=1
 else
-    info "No running PatchMon processes found"
+    info "No running Monux processes found"
 fi
 
 if [ "$SERVICE_STOPPED" -eq 1 ]; then
-    success "PatchMon service/processes stopped"
+    success "Monux service/processes stopped"
 else
-    info "No running PatchMon service or processes found"
+    info "No running Monux service or processes found"
 fi
 
 # Step 2: Remove crontab entries
-info "📅 Removing PatchMon crontab entries..."
+info "📅 Removing Monux crontab entries..."
 if crontab -l 2>/dev/null | grep -q "patchmon-agent"; then
-    warning "Found PatchMon crontab entries, removing them..."
+    warning "Found Monux crontab entries, removing them..."
     crontab -l 2>/dev/null | grep -v "patchmon-agent" | crontab -
     success "Crontab entries removed"
 else
-    info "No PatchMon crontab entries found"
+    info "No Monux crontab entries found"
 fi
 
 # Step 3: Remove agent binaries and scripts
@@ -428,9 +428,9 @@ if crontab -l 2>/dev/null | grep -q "patchmon-agent"; then
 fi
 
 if [ "$REMAINING_FILES" -eq 0 ]; then
-    success "✅ PatchMon has been completely removed from the system!"
+    success "✅ Monux has been completely removed from the system!"
 else
-    warning "⚠️  Some PatchMon files may still remain ($REMAINING_FILES items)"
+    warning "⚠️  Some Monux files may still remain ($REMAINING_FILES items)"
     if [ "$SILENT_MODE" -eq 0 ]; then
         printf "%b\n" "${BLUE}💡 You may need to remove them manually${NC}"
     fi
@@ -457,4 +457,4 @@ if [ "$SILENT_MODE" -eq 0 ]; then
         echo ""
     fi
 fi
-success "🎉 PatchMon removal completed!"
+success "🎉 Monux removal completed!"

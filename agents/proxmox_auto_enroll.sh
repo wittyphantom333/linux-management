@@ -8,10 +8,10 @@ SCRIPT_VERSION="2.0.0"
 echo "[DEBUG] Script Version: $SCRIPT_VERSION ($(date +%Y-%m-%d\ %H:%M:%S))"
 
 # =============================================================================
-# PatchMon Proxmox LXC Auto-Enrollment Script
+# Monux Proxmox LXC Auto-Enrollment Script
 # =============================================================================
 # This script discovers LXC containers on a Proxmox host and automatically
-# enrolls them into PatchMon for patch management.
+# enrolls them into Monux for patch management.
 #
 # Usage:
 #   1. Set environment variables or edit configuration below
@@ -19,8 +19,8 @@ echo "[DEBUG] Script Version: $SCRIPT_VERSION ($(date +%Y-%m-%d\ %H:%M:%S))"
 #
 # Requirements:
 #   - Must run on Proxmox host (requires 'pct' command)
-#   - Auto-enrollment token from PatchMon
-#   - Network access to PatchMon server
+#   - Auto-enrollment token from Monux
+#   - Network access to Monux server
 # =============================================================================
 
 # ===== CONFIGURATION =====
@@ -89,7 +89,7 @@ for cmd in curl jq; do
 done
 
 info "Configuration validated successfully"
-info "PatchMon Server: $PATCHMON_URL"
+info "Monux Server: $PATCHMON_URL"
 info "Dry Run Mode: $DRY_RUN"
 info "Skip Stopped Containers: $SKIP_STOPPED"
 echo ""
@@ -231,8 +231,8 @@ while IFS= read -r line; do
         warn "  ⚠ Could not check agent status - proceeding with enrollment"
     fi
 
-    # Call PatchMon auto-enrollment API
-    info "  Enrolling $friendly_name in PatchMon..."
+    # Call Monux auto-enrollment API
+    info "  Enrolling $friendly_name in Monux..."
     
     response=$(curl $CURL_FLAGS -X POST \
         -H "X-Auto-Enrollment-Key: $AUTO_ENROLLMENT_KEY" \
@@ -302,8 +302,8 @@ while IFS= read -r line; do
             info "  ✓ curl already installed"
         fi
 
-        # Install PatchMon agent in container
-        info "  Installing PatchMon agent..."
+        # Install Monux agent in container
+        info "  Installing Monux agent..."
         
         # Build install URL with force flag and architecture if enabled
         install_url="$PATCHMON_URL/api/v1/hosts/install?arch=$architecture"
@@ -332,7 +332,7 @@ while IFS= read -r line; do
         " 2>&1 </dev/null) || install_exit_code=$?
 
         # Check both exit code AND success message in output for reliability
-        if [[ $install_exit_code -eq 0 ]] || [[ "$install_output" == *"PatchMon Agent installation completed successfully"* ]]; then
+        if [[ $install_exit_code -eq 0 ]] || [[ "$install_output" == *"Monux Agent installation completed successfully"* ]]; then
             info "  ✓ Agent installed successfully in $friendly_name"
             ((enrolled_count++)) || true
         elif [[ $install_exit_code -eq 124 ]]; then
@@ -472,7 +472,7 @@ if [[ ${#dpkg_error_containers[@]} -gt 0 ]]; then
                     rm -f patchmon-install.sh
                 " 2>&1 </dev/null) || install_exit_code=$?
                 
-                if [[ $install_exit_code -eq 0 ]] || [[ "$install_output" == *"PatchMon Agent installation completed successfully"* ]]; then
+                if [[ $install_exit_code -eq 0 ]] || [[ "$install_output" == *"Monux Agent installation completed successfully"* ]]; then
                     info "  ✓ Agent installed successfully in $name"
                     ((recovered_count++)) || true
                     ((enrolled_count++)) || true

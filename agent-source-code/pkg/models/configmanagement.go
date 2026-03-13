@@ -2,7 +2,7 @@
 // This integration is inspired by Rudder.io's approach to configuration management:
 //   - Techniques: reusable configuration skeletons (file management, package state, service state, etc.)
 //   - Directives: parameterised instances of techniques
-//   - Rules: link directives to host groups (applied via PatchMon's existing group system)
+//   - Rules: link directives to host groups (applied via Monux's existing group system)
 //   - Policies: the computed set of directives applicable to a specific host
 //   - Compliance: audit (report only) or enforce (auto-remediate) with drift detection
 package models
@@ -126,7 +126,7 @@ type ConfigRule struct {
 	Name             string            `json:"name"`
 	Description      string            `json:"description,omitempty"`
 	DirectiveIDs     []string          `json:"directive_ids"`
-	GroupIDs         []string          `json:"group_ids"`          // PatchMon host-group IDs
+	GroupIDs         []string          `json:"group_ids"`          // Monux host-group IDs
 	Enabled          bool              `json:"enabled"`
 	Priority         int               `json:"priority"`           // Rule ordering (lower = first)
 	RunSchedule      string            `json:"run_schedule"`       // "always", "once", "interval", "cron"

@@ -2,8 +2,8 @@
   "swagger": "2.0",
   "info": {
     "version": "1.0.0",
-    "title": "PatchMon REST API",
-    "description": "PatchMon API documentation. For scoped credentials API documentation, see: https://docs.patchmon.net/books/patchmon-application-documentation/page/integration-api-documentation"
+    "title": "Monux REST API",
+    "description": "Monux API documentation. For scoped credentials API documentation, see: https://docs.patchmon.net/books/patchmon-application-documentation/page/integration-api-documentation"
   },
   "host": "localhost:3000",
   "basePath": "/api/v1",

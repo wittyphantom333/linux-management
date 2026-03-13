@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# redis-setup.sh - Redis Database and User Setup for PatchMon
-# This script creates a dedicated Redis database and user for a PatchMon instance
+# redis-setup.sh - Redis Database and User Setup for Monux
+# This script creates a dedicated Redis database and user for a Monux instance
 
 set -e
 
@@ -24,7 +24,7 @@ if [ -z "$REDIS_ADMIN_PASSWORD" ]; then
     exit 1
 fi
 
-echo -e "${BLUE}🔧 PatchMon Redis Setup${NC}"
+echo -e "${BLUE}🔧 Monux Redis Setup${NC}"
 echo "=================================="
 
 # Function to generate random strings

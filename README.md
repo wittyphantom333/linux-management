@@ -1,6 +1,6 @@
 <div align="center">
 
-# PatchMon
+# Monux
 
 ### Enterprise-Grade Linux Patch Monitoring & Server Management
 
@@ -13,7 +13,7 @@
 
 ---
 
-This project represents hundreds of hours of development work. If PatchMon has saved you time or helped secure your infrastructure, a coffee would genuinely mean the world.
+This project represents hundreds of hours of development work. If Monux has saved you time or helped secure your infrastructure, a coffee would genuinely mean the world.
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20the%20project-orange?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/iby___)
 
@@ -21,13 +21,13 @@ This project represents hundreds of hours of development work. If PatchMon has s
 
 ---
 
-> **⭐ If you find PatchMon useful, please star this repo - it helps others discover the project!**
+> **⭐ If you find Monux useful, please star this repo - it helps others discover the project!**
 
-## What is PatchMon?
+## What is Monux?
 
-PatchMon is an enterprise-grade platform that gives operations teams a single pane of glass to monitor, manage and secure their entire Linux fleet. Lightweight agents communicate outbound-only to the PatchMon server on your schedule - no inbound ports required on monitored hosts - delivering real-time visibility into package health, compliance posture and system status across environments of any scale.
+Monux is an enterprise-grade platform that gives operations teams a single pane of glass to monitor, manage and secure their entire Linux fleet. Lightweight agents communicate outbound-only to the Monux server on your schedule - no inbound ports required on monitored hosts - delivering real-time visibility into package health, compliance posture and system status across environments of any scale.
 
-Whether you manage ten servers or ten thousand, PatchMon provides the tooling, automation and auditability that modern infrastructure teams demand.
+Whether you manage ten servers or ten thousand, Monux provides the tooling, automation and auditability that modern infrastructure teams demand.
 
 ![Dashboard Screenshot](https://raw.githubusercontent.com/wittyphantom333/linux-management/main/dashboard.png)
 
@@ -59,11 +59,11 @@ Whether you manage ten servers or ten thousand, PatchMon provides the tooling, a
 
 ## Deployment Options
 
-### PatchMon Cloud
+### Monux Cloud
 
-> **Hosted by PatchMon** at **[patchmon.net](https://patchmon.net)**
+> **Hosted by Monux** at **[patchmon.net](https://patchmon.net)**
 
-Fully managed PatchMon hosting with zero infrastructure overhead. We handle provisioning, updates, backups and scaling so you can focus on your fleet instead of the tooling behind it.
+Fully managed Monux hosting with zero infrastructure overhead. We handle provisioning, updates, backups and scaling so you can focus on your fleet instead of the tooling behind it.
 
 - Instant onboarding - sign up and start enrolling agents in minutes
 - Automatic updates with zero-downtime deployments
@@ -84,7 +84,7 @@ Three deployment methods are available:
 
 The quickest way to get running. See the full guide on our documentation site:
 
-👉 **[Installing PatchMon Server on Docker](https://docs.patchmon.net/books/patchmon-application-documentation/page/installing-patchmon-server-on-docker)**
+👉 **[Installing Monux Server on Docker](https://docs.patchmon.net/books/patchmon-application-documentation/page/installing-patchmon-server-on-docker)**
 
 **Quick start:**
 
@@ -99,7 +99,7 @@ sed -i "s/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=$(openssl rand -hex 32)/" .env
 sed -i "s/^REDIS_PASSWORD=$/REDIS_PASSWORD=$(openssl rand -hex 32)/" .env
 sed -i "s/^JWT_SECRET=$/JWT_SECRET=$(openssl rand -hex 64)/" .env
 
-# Start PatchMon
+# Start Monux
 docker compose up -d
 ```
 
@@ -109,7 +109,7 @@ Once all containers are healthy, open your browser at `http://localhost:3000` or
 
 #### 2) Proxmox Community Script
 
-Deploy PatchMon as an LXC container on Proxmox VE using the [Proxmox VE Helper-Scripts](https://community-scripts.github.io/ProxmoxVE/scripts?id=patchmon) community script.
+Deploy Monux as an LXC container on Proxmox VE using the [Proxmox VE Helper-Scripts](https://community-scripts.github.io/ProxmoxVE/scripts?id=patchmon) community script.
 
 **Quick start:**
 
@@ -117,7 +117,7 @@ Deploy PatchMon as an LXC container on Proxmox VE using the [Proxmox VE Helper-S
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/patchmon.sh)"
 ```
 
-Script details and options: **[PatchMon – Proxmox VE Helper-Scripts](https://community-scripts.github.io/ProxmoxVE/scripts?id=patchmon)**
+Script details and options: **[Monux – Proxmox VE Helper-Scripts](https://community-scripts.github.io/ProxmoxVE/scripts?id=patchmon)**
 
 ---
 
@@ -125,7 +125,7 @@ Script details and options: **[PatchMon – Proxmox VE Helper-Scripts](https://c
 
 For a bare-metal or VM install without Docker, see the documentation:
 
-👉 **[Installing PatchMon Server on Ubuntu 24](https://docs.patchmon.net/books/patchmon-application-documentation/page/installing-patchmon-server-on-ubuntu-24)**
+👉 **[Installing Monux Server on Ubuntu 24](https://docs.patchmon.net/books/patchmon-application-documentation/page/installing-patchmon-server-on-ubuntu-24)**
 
 **Quick start:**
 
@@ -160,7 +160,7 @@ After installation visit `http(s)://<your-domain>` and complete the first-time a
 
 ## Communication Model
 
-- **Outbound-only agents** - your servers initiate all connections to PatchMon; no inbound ports required on monitored hosts.
+- **Outbound-only agents** - your servers initiate all connections to Monux; no inbound ports required on monitored hosts.
 - **JWT + httpOnly cookie authentication** on every API call.
 - **Rate limiting** on general, auth and agent endpoints.
 
@@ -202,7 +202,7 @@ Full documentation is available at **[docs.patchmon.net](https://docs.patchmon.n
 
 Track upcoming features and progress on the roadmap board:
 
-👉 **[PatchMon Roadmap](https://github.com/orgs/wittyphantom333/projects/2)**
+👉 **[Monux Roadmap](https://github.com/orgs/wittyphantom333/projects/2)**
 
 ## License
 
@@ -254,17 +254,17 @@ We welcome contributions from the community! Here's how you can get involved:
 
 ## 🏢 Enterprise & Vendor Support
 
-PatchMon is trusted by teams managing production infrastructure worldwide. We offer global vendor support and enterprise solutions tailored to your organisation's requirements.
+Monux is trusted by teams managing production infrastructure worldwide. We offer global vendor support and enterprise solutions tailored to your organisation's requirements.
 
 | Offering | Details |
 |----------|---------|
-| **PatchMon Cloud** | Fully managed hosting - we handle infrastructure, updates, backups and scaling for you. |
+| **Monux Cloud** | Fully managed hosting - we handle infrastructure, updates, backups and scaling for you. |
 | **Global Vendor Support** | Dedicated technical support available worldwide with SLA-backed response times. |
 | **Custom Integrations** | Bespoke API endpoints, third-party connectors and tailored dashboards built to your specification. |
 | **On-Premises / Air-Gapped** | Deploy in your own data centre or isolated environment with full support. |
-| **White-Label Solutions** | Brand PatchMon as your own with custom logos, domains and theming. |
+| **White-Label Solutions** | Brand Monux as your own with custom logos, domains and theming. |
 | **Training & Onboarding** | Comprehensive team training and onboarding programmes for your organisation. |
-| **Consulting** | Architecture review, deployment planning and migration assistance from the team that builds PatchMon. |
+| **Consulting** | Architecture review, deployment planning and migration assistance from the team that builds Monux. |
 
 *Contact us at **support@patchmon.net** for enterprise and vendor support enquiries.*
 
@@ -282,15 +282,15 @@ PatchMon is trusted by teams managing production infrastructure worldwide. We of
 - **Tim Hortons Coffee Shop** - For giving me space to work all day without issues
 - **My family** - For understanding my passion
 
-Thank you to all our contributors who help make PatchMon better every day!
+Thank you to all our contributors who help make Monux better every day!
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by the PatchMon Team**
+**Made with ❤️ by the Monux Team**
 
-This project has taken hundreds of hours of coding, testing and refining. If PatchMon has helped you, consider buying me a coffee to show your appreciation.
+This project has taken hundreds of hours of coding, testing and refining. If Monux has helped you, consider buying me a coffee to show your appreciation.
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20the%20project-orange?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/iby___)
 

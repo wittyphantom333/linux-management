@@ -407,7 +407,7 @@ func persistSysctl(key, value string) error {
 	if !found {
 		// Add a header comment if file is empty/new
 		if len(strings.TrimSpace(string(content))) == 0 {
-			lines = []string{"# Managed by PatchMon - do not edit", expected, ""}
+			lines = []string{"# Managed by Monux - do not edit", expected, ""}
 		} else {
 			lines = append(lines, expected)
 		}

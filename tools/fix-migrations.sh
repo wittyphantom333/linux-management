@@ -1,5 +1,5 @@
 #!/bin/bash
-# PatchMon Migration Fixer
+# Monux Migration Fixer
 # Standalone script to detect and fix failed Prisma migrations
 # Usage: sudo bash fix-migrations.sh [instance-name]
 
@@ -36,7 +36,7 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-# Function to detect PatchMon installations
+# Function to detect Monux installations
 detect_installations() {
     local installations=()
     
@@ -47,7 +47,7 @@ detect_installations() {
             if [[ "$dirname" =~ \.backup\. ]]; then
                 continue
             fi
-            # Check if it's a PatchMon installation
+            # Check if it's a Monux installation
             if [ -f "$dir/backend/package.json" ] && grep -q "patchmon" "$dir/backend/package.json" 2>/dev/null; then
                 installations+=("$dirname")
             fi
@@ -62,7 +62,7 @@ select_installation() {
     local installations=($(detect_installations))
     
     if [ ${#installations[@]} -eq 0 ]; then
-        print_error "No PatchMon installations found in /opt"
+        print_error "No Monux installations found in /opt"
         exit 1
     fi
     
@@ -195,7 +195,7 @@ fix_failed_migrations() {
 # Main script
 main() {
     echo -e "${BLUE}====================================================${NC}"
-    echo -e "${BLUE}        PatchMon Migration Fixer${NC}"
+    echo -e "${BLUE}        Monux Migration Fixer${NC}"
     echo -e "${BLUE}====================================================${NC}"
     echo ""
     

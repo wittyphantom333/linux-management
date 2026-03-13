@@ -1,5 +1,5 @@
 #!/bin/sh
-# PatchMon Direct Host Auto-Enrollment Script
+# Monux Direct Host Auto-Enrollment Script
 # POSIX-compliant shell script (works with dash, ash, bash, etc.)
 # Usage: curl -s "https://patchmon.example.com/api/v1/auto-enrollment/script?type=direct-host&token_key=KEY&token_secret=SECRET" | sh
 
@@ -8,9 +8,9 @@ set -e
 SCRIPT_VERSION="1.0.0"
 
 # =============================================================================
-# PatchMon Direct Host Auto-Enrollment Script
+# Monux Direct Host Auto-Enrollment Script
 # =============================================================================
-# This script automatically enrolls the current host into PatchMon for patch
+# This script automatically enrolls the current host into Monux for patch
 # management.
 #
 # Usage:
@@ -21,8 +21,8 @@ SCRIPT_VERSION="1.0.0"
 #
 # Requirements:
 #   - Run as root or with sudo
-#   - Auto-enrollment token from PatchMon
-#   - Network access to PatchMon server
+#   - Auto-enrollment token from Monux
+#   - Network access to Monux server
 # =============================================================================
 
 # ===== CONFIGURATION =====
@@ -87,7 +87,7 @@ for cmd in curl; do
 done
 
 info "Configuration validated successfully"
-info "PatchMon Server: $PATCHMON_URL"
+info "Monux Server: $PATCHMON_URL"
 echo ""
 
 # ===== GATHER HOST INFORMATION =====
@@ -191,7 +191,7 @@ fi
 echo ""
 
 # ===== ENROLL HOST =====
-info "Enrolling $friendly_name in PatchMon..."
+info "Enrolling $friendly_name in Monux..."
 
 # Build JSON payload
 json_payload=$(cat <<EOF
@@ -236,7 +236,7 @@ if [ "$http_code" = "201" ]; then
     echo ""
 
     # ===== INSTALL AGENT =====
-    info "Installing PatchMon agent..."
+    info "Installing Monux agent..."
 
     # Build install URL with force flag and architecture
     install_url="$PATCHMON_URL/api/v1/hosts/install?arch=$architecture"
@@ -254,7 +254,7 @@ if [ "$http_code" = "201" ]; then
         "$install_url" | sh 2>&1) || install_exit_code=$?
 
     # Check both exit code AND success message in output
-    if [ "$install_exit_code" -eq 0 ] || echo "$install_output" | grep -q "PatchMon Agent installation completed successfully"; then
+    if [ "$install_exit_code" -eq 0 ] || echo "$install_output" | grep -q "Monux Agent installation completed successfully"; then
         success "Agent installed successfully"
     else
         error "Failed to install agent (exit: $install_exit_code)"

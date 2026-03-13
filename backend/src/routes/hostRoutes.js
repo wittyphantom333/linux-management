@@ -314,7 +314,7 @@ router.get("/agent/version", validateApiCredentials, async (req, res) => {
 						timeout: 10000,
 					});
 					const versionMatch = stdout.match(
-						/PatchMon Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
+						/Monux Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
 					);
 					if (versionMatch) serverVersion = versionMatch[1];
 				} catch (execError) {
@@ -332,7 +332,7 @@ router.get("/agent/version", validateApiCredentials, async (req, res) => {
 						{ timeout: 10000, maxBuffer: 10 * 1024 * 1024 },
 					);
 					const versionMatch = stringsOutput.match(
-						/PatchMon Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
+						/Monux Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
 					);
 					if (versionMatch) {
 						serverVersion = versionMatch[1];
@@ -379,7 +379,7 @@ router.get("/agent/version", validateApiCredentials, async (req, res) => {
 						? autoUpdateDisabledReason
 						: null,
 					downloadUrl: `/api/v1/hosts/agent/download?arch=${architecture}&os=${os}`,
-					releaseNotes: `PatchMon Agent v${serverVersion}`,
+					releaseNotes: `Monux Agent v${serverVersion}`,
 					minServerVersion: null,
 					architecture: architecture,
 					agentType: "go",
@@ -595,7 +595,7 @@ router.post(
 router.post("/register", async (_req, res) => {
 	res.status(400).json({
 		error:
-			"Host registration has been disabled. Please contact your administrator to add this host to PatchMon.",
+			"Host registration has been disabled. Please contact your administrator to add this host to Monux.",
 		deprecated: true,
 		message:
 			"Hosts must now be pre-created by administrators with specific API credentials.",
@@ -2570,7 +2570,7 @@ router.post("/bootstrap/exchange", async (req, res) => {
 });
 
 // Serve the removal script (public - no authentication required)
-// The script is static and only removes PatchMon files from the system
+// The script is static and only removes Monux files from the system
 router.get("/remove", async (_req, res) => {
 	try {
 		const fs = require("node:fs");
@@ -2678,7 +2678,7 @@ router.get(
 					timeout: 5000,
 				});
 				const versionMatch = stdout.match(
-					/PatchMon Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
+					/Monux Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
 				);
 				if (versionMatch) version = versionMatch[1];
 			} catch (_) {

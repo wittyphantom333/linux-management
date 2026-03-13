@@ -13,7 +13,7 @@ import (
 var pingCmd = &cobra.Command{
 	Use:   "ping",
 	Short: "Test connectivity and credentials",
-	Long:  "Test connectivity to the PatchMon server and validate API credentials.",
+	Long:  "Test connectivity to the Monux server and validate API credentials.",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		if err := checkRoot(); err != nil {
 			return err

@@ -56,7 +56,7 @@ type ServerVersionInfo struct {
 var checkVersionCmd = &cobra.Command{
 	Use:   "check-version",
 	Short: "Check for agent updates",
-	Long:  "Check if there are any updates available for the PatchMon agent.",
+	Long:  "Check if there are any updates available for the Monux agent.",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		if err := checkRoot(); err != nil {
 			return err
@@ -70,7 +70,7 @@ var checkVersionCmd = &cobra.Command{
 var updateAgentCmd = &cobra.Command{
 	Use:   "update-agent",
 	Short: "Update agent to latest version",
-	Long:  "Download and install the latest version of the PatchMon agent.",
+	Long:  "Download and install the latest version of the Monux agent.",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		if err := checkRoot(); err != nil {
 			return err
@@ -176,7 +176,7 @@ func updateAgent() error {
 	// SECURITY: Hash verification is MANDATORY for binary integrity
 	if versionInfo == nil || versionInfo.Hash == "" {
 		logger.Error("Server did not provide hash for binary verification - refusing to update")
-		return fmt.Errorf("binary hash not provided by server - refusing to update without integrity verification (update your PatchMon server)")
+		return fmt.Errorf("binary hash not provided by server - refusing to update without integrity verification (update your Monux server)")
 	}
 
 	actualHash := fmt.Sprintf("%x", sha256.Sum256(newAgentData))
@@ -233,10 +233,10 @@ func updateAgent() error {
 	versionCmd.Env = os.Environ()
 	versionOutput, err := versionCmd.Output()
 	if err == nil {
-		// Try to extract version from output (format: "PatchMon Agent v1.3.4" or "1.3.4")
+		// Try to extract version from output (format: "Monux Agent v1.3.4" or "1.3.4")
 		versionStr := strings.TrimSpace(string(versionOutput))
-		// Remove "PatchMon Agent v" prefix if present
-		versionStr = strings.TrimPrefix(versionStr, "PatchMon Agent v")
+		// Remove "Monux Agent v" prefix if present
+		versionStr = strings.TrimPrefix(versionStr, "Monux Agent v")
 		versionStr = strings.TrimPrefix(versionStr, "v")
 		versionStr = strings.TrimSpace(versionStr)
 
@@ -298,7 +298,7 @@ func updateAgent() error {
 	return nil // Unreachable, but satisfies function signature
 }
 
-// getServerVersionInfo fetches version information from the PatchMon server
+// getServerVersionInfo fetches version information from the Monux server
 func getServerVersionInfo() (*ServerVersionInfo, error) {
 	// Use the global cfgManager that was initialized with CLI flags
 	// instead of creating a new one
@@ -379,7 +379,7 @@ func getServerVersionInfo() (*ServerVersionInfo, error) {
 	return &versionInfo, nil
 }
 
-// getLatestBinaryFromServer fetches the latest binary information from the PatchMon server
+// getLatestBinaryFromServer fetches the latest binary information from the Monux server
 func getLatestBinaryFromServer() (*ServerVersionResponse, error) {
 	cfgManager := config.New()
 	if err := cfgManager.LoadConfig(); err != nil {

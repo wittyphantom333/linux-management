@@ -1,6 +1,6 @@
 #!/bin/bash
-# PatchMon Self-Hosting Installation Script
-# Automated deployment script for self-hosted PatchMon instances
+# Monux Self-Hosting Installation Script
+# Automated deployment script for self-hosted Monux instances
 # Usage: ./self-hosting-install.sh
 # Interactive self-hosting installation script
 
@@ -8,7 +8,7 @@ set -e
 
 # Create main installation log file
 INSTALL_LOG="/var/log/patchmon-install.log"
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] === PatchMon Self-Hosting Installation Started ===" >> "$INSTALL_LOG"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Monux Self-Hosting Installation Started ===" >> "$INSTALL_LOG"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Script PID: $$" >> "$INSTALL_LOG"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running as user: $(whoami)" >> "$INSTALL_LOG"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Current directory: $(pwd)" >> "$INSTALL_LOG"
@@ -18,7 +18,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] ======================================" >> 
 
 # Create immediate debug log for troubleshooting
 DEBUG_LOG="/tmp/patchmon_debug_$(date +%Y%m%d_%H%M%S).log"
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] === PatchMon Script Started ===" >> "$DEBUG_LOG"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Monux Script Started ===" >> "$DEBUG_LOG"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Script PID: $$" >> "$DEBUG_LOG"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running as user: $(whoami)" >> "$DEBUG_LOG"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Current directory: $(pwd)" >> "$DEBUG_LOG"
@@ -146,7 +146,7 @@ read_yes_no() {
 
 print_banner() {
     echo -e "${BLUE}====================================================${NC}"
-    echo -e "${BLUE}        PatchMon Self-Hosting Installation${NC}"
+    echo -e "${BLUE}        Monux Self-Hosting Installation${NC}"
     echo -e "${BLUE}Running: $SCRIPT_VERSION${NC}"
     echo -e "${BLUE}====================================================${NC}"
 }
@@ -370,7 +370,7 @@ select_branch() {
 interactive_setup() {
     print_banner
     
-    print_info "Welcome to PatchMon Self-Hosting Installation!"
+    print_info "Welcome to Monux Self-Hosting Installation!"
     print_info "This script will guide you through the installation process."
     echo ""
     
@@ -1029,7 +1029,7 @@ setup_database() {
 
 # Clone application repository
 clone_application() {
-    print_info "Cloning PatchMon application..."
+    print_info "Cloning Monux application..."
     
     if [ -d "$APP_DIR" ]; then
         print_warning "Directory $APP_DIR already exists, removing..."
@@ -1233,7 +1233,7 @@ EOF
     fi
     cat > frontend/.env << EOF
 VITE_API_URL=$base_url/api/v1
-VITE_APP_NAME=PatchMon
+VITE_APP_NAME=Monux
 VITE_APP_VERSION=$app_version
 EOF
 
@@ -1365,7 +1365,7 @@ create_systemd_service() {
     
     cat > "/etc/systemd/system/$SERVICE_NAME.service" << EOF
 [Unit]
-Description=PatchMon Service for $FQDN
+Description=Monux Service for $FQDN
 After=network.target postgresql.service
 
 [Service]
@@ -1726,7 +1726,7 @@ setup_letsencrypt() {
 start_services() {
     print_info "Starting services..."
     
-    # Start PatchMon service
+    # Start Monux service
     systemctl start "$SERVICE_NAME"
     
     # Wait for service to start
@@ -1734,9 +1734,9 @@ start_services() {
     
     # Check if service is running
     if systemctl is-active --quiet "$SERVICE_NAME"; then
-        print_status "PatchMon service started successfully"
+        print_status "Monux service started successfully"
     else
-        print_error "Failed to start PatchMon service"
+        print_error "Failed to start Monux service"
         echo ""
         
         # Show last 25 lines of service logs for debugging
@@ -1895,7 +1895,7 @@ Deployment Information:
 - Deployment Duration: $(($(date +%s) - $DEPLOYMENT_START_TIME)) seconds
 
 Service Status:
-- PatchMon Service: $(systemctl is-active $SERVICE_NAME)
+- Monux Service: $(systemctl is-active $SERVICE_NAME)
 - Nginx Service: $(systemctl is-active nginx)
 - PostgreSQL Service: $(systemctl is-active postgresql)
 - SSL Certificate: $(if [ "$USE_LETSENCRYPT" = "true" ]; then echo "Enabled"; else echo "Disabled"; fi)
@@ -1951,7 +1951,7 @@ save_deployment_info() {
     
     cat > "$INFO_FILE" << EOF
 ====================================================
-        PatchMon Deployment Information
+        Monux Deployment Information
 ====================================================
 
 Instance Details:
@@ -2022,11 +2022,11 @@ EOF
     fi
 }
 
-# Restart PatchMon service
+# Restart Monux service
 restart_patchmon() {
-    print_info "Restarting PatchMon service..."
+    print_info "Restarting Monux service..."
     
-    # Restart PatchMon service
+    # Restart Monux service
     systemctl restart "$SERVICE_NAME"
     
     # Wait for service to restart
@@ -2034,9 +2034,9 @@ restart_patchmon() {
     
     # Check if service is running
     if systemctl is-active --quiet "$SERVICE_NAME"; then
-        print_status "PatchMon service restarted successfully"
+        print_status "Monux service restarted successfully"
     else
-        print_error "Failed to restart PatchMon service"
+        print_error "Failed to restart Monux service"
         systemctl status "$SERVICE_NAME"
         return 1
     fi
@@ -2066,7 +2066,7 @@ setup_deployment_logging() {
     exec > >(tee -a "$LOG_FILE")
     exec 2>&1
     
-    log_output "=== PatchMon Deployment Started ==="
+    log_output "=== Monux Deployment Started ==="
     log_output "Script started at: $(date)"
     log_output "Script PID: $$"
     log_output "Running as user: $(whoami)"
@@ -2114,7 +2114,7 @@ deploy_instance() {
     
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Instance check passed - no existing instance found" >> "$DEBUG_LOG"
     
-    print_info "🚀 Deploying PatchMon instance for $FQDN"
+    print_info "🚀 Deploying Monux instance for $FQDN"
     print_info "📧 Email: $EMAIL"
     print_info "🌿 Branch: $DEPLOYMENT_BRANCH"
     print_info "🔒 SSL: $USE_LETSENCRYPT"
@@ -2192,7 +2192,7 @@ deploy_instance() {
     # Create agent version in database
     create_agent_version
     
-    # Restart PatchMon service to ensure it's running properly
+    # Restart Monux service to ensure it's running properly
     restart_patchmon
     
     # Save deployment information to file
@@ -2210,7 +2210,7 @@ deploy_instance() {
     log_message "Backend port: $BACKEND_PORT"
     log_message "SSL enabled: $USE_LETSENCRYPT"
     
-    print_status "PatchMon instance deployed successfully!"
+    print_status "Monux instance deployed successfully!"
     echo ""
     print_info "Next steps:"
     echo "  • Visit your URL: $SERVER_PROTOCOL_SEL://$FQDN (ensure DNS is configured)"
@@ -2222,11 +2222,11 @@ deploy_instance() {
     :
 }
 
-# Detect existing PatchMon installations
+# Detect existing Monux installations
 detect_installations() {
     local installations=()
     
-    # Find all directories in /opt that contain PatchMon installations
+    # Find all directories in /opt that contain Monux installations
     if [ -d "/opt" ]; then
         for dir in /opt/*/; do
             local dirname=$(basename "$dir")
@@ -2234,7 +2234,7 @@ detect_installations() {
             if [[ "$dirname" =~ \.backup\. ]]; then
                 continue
             fi
-            # Check if it's a PatchMon installation
+            # Check if it's a Monux installation
             if [ -f "$dir/backend/package.json" ] && grep -q "patchmon" "$dir/backend/package.json" 2>/dev/null; then
                 installations+=("$dirname")
             fi
@@ -2249,7 +2249,7 @@ select_installation_to_update() {
     local installations=($(detect_installations))
     
     if [ ${#installations[@]} -eq 0 ]; then
-        print_error "No existing PatchMon installations found in /opt"
+        print_error "No existing Monux installations found in /opt"
         exit 1
     fi
     
@@ -3044,7 +3044,7 @@ update_frontend_env_file() {
     mkdir -p "$(dirname "$frontend_env")"
     cat > "$frontend_env" << EOF
 VITE_API_URL=$vite_api_url
-VITE_APP_NAME=PatchMon
+VITE_APP_NAME=Monux
 VITE_APP_VERSION=$app_version
 EOF
     
@@ -3107,7 +3107,7 @@ update_installation() {
     local instance_dir="/opt/$SELECTED_INSTANCE"
     local service_name="$SELECTED_SERVICE_NAME"
     
-    print_info "Updating PatchMon installation: $SELECTED_INSTANCE"
+    print_info "Updating Monux installation: $SELECTED_INSTANCE"
     print_info "Installation directory: $instance_dir"
     print_info "Service name: $service_name"
     
@@ -3447,7 +3447,7 @@ main() {
     # Handle update mode
     if [ "$UPDATE_MODE" = "true" ]; then
         print_banner
-        print_info "PatchMon Update Mode"
+        print_info "Monux Update Mode"
         echo ""
         
         # Select installation to update
@@ -3463,7 +3463,7 @@ main() {
     # Check if existing installations are present
     local existing_installs=($(detect_installations))
     if [ ${#existing_installs[@]} -gt 0 ]; then
-        print_warning "Found ${#existing_installs[@]} existing PatchMon installation(s):"
+        print_warning "Found ${#existing_installs[@]} existing Monux installation(s):"
         for install in "${existing_installs[@]}"; do
             print_info "   - $install"
         done
@@ -3516,7 +3516,7 @@ main() {
 
 # Show usage/help
 show_usage() {
-    echo "PatchMon Self-Hosting Installation & Update Script"
+    echo "Monux Self-Hosting Installation & Update Script"
     echo "Version: $SCRIPT_VERSION"
     echo ""
     echo "Usage:"

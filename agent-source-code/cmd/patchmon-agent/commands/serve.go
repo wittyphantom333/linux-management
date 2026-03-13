@@ -384,14 +384,14 @@ func runService() error {
 					logger.Debug("Compliance scan cancel requested but no scan is running")
 				}
 			case "reboot_host":
-				logger.Warn("Reboot requested by user via PatchMon UI")
+				logger.Warn("Reboot requested by user via Monux UI")
 				go func() {
 					var cmd *exec.Cmd
 					switch runtime.GOOS {
 					case "freebsd":
 						cmd = exec.Command("shutdown", "-r", "+1")
 					default:
-						cmd = exec.Command("shutdown", "-r", "+1", "PatchMon: reboot requested by user")
+						cmd = exec.Command("shutdown", "-r", "+1", "Monux: reboot requested by user")
 					}
 					if err := cmd.Start(); err != nil {
 						logger.WithError(err).Error("Failed to schedule reboot")

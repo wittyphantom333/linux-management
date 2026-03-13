@@ -542,7 +542,7 @@ const Settings = () => {
 
 			<div className="mb-8">
 				<p className="text-secondary-600 dark:text-secondary-300">
-					Configure your PatchMon server settings. These settings will be used
+					Configure your Monux server settings. These settings will be used
 					in installation scripts and agent communications.
 				</p>
 			</div>
@@ -705,7 +705,7 @@ const Settings = () => {
 									</h3>
 								</div>
 								<p className="text-sm text-secondary-500 dark:text-secondary-300 mb-4">
-									Customize your PatchMon installation with custom logos and
+									Customize your Monux installation with custom logos and
 									favicon.
 								</p>
 
@@ -1367,7 +1367,7 @@ const Settings = () => {
 												</h3>
 												<div className="mt-2 text-sm text-red-700 dark:text-red-300">
 													<p className="mb-3">
-														To completely remove PatchMon from a host:
+														To completely remove Monux from a host:
 													</p>
 
 													{/* Agent Removal Script - Standard */}

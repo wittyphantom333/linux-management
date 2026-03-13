@@ -105,7 +105,7 @@ func (m *DNFManager) GetPackages() []models.Package {
 	}).Info("Package collection completed")
 
 	if len(packages) == 0 {
-		m.logger.Error("WARNING: Returning 0 packages - this will show as empty in PatchMon UI")
+		m.logger.Error("WARNING: Returning 0 packages - this will show as empty in Monux UI")
 	}
 
 	return packages

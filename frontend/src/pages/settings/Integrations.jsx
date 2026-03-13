@@ -1361,7 +1361,7 @@ const Integrations = () => {
 											</h4>
 										</div>
 										<p className="text-sm text-secondary-600 dark:text-secondary-400 mb-3">
-											Programmatic access to PatchMon data with granular
+											Programmatic access to Monux data with granular
 											scope-based permissions.
 										</p>
 										<div className="flex flex-wrap gap-2">
@@ -1403,7 +1403,7 @@ const Integrations = () => {
 												GetHomepage Widget Integration
 											</h3>
 											<p className="text-xs md:text-sm text-secondary-600 dark:text-secondary-400">
-												Create API keys to display PatchMon statistics in your
+												Create API keys to display Monux statistics in your
 												GetHomepage dashboard
 											</p>
 										</div>
@@ -1566,9 +1566,9 @@ const Integrations = () => {
 
 									<div className="mt-4 p-3 bg-primary-100 dark:bg-primary-900/40 rounded border border-primary-200 dark:border-primary-700">
 										<pre className="text-xs text-primary-800 dark:text-primary-300 whitespace-pre-wrap overflow-x-auto font-mono">
-											{`- PatchMon:
+											{`- Monux:
     href: ${server_url}
-    description: PatchMon Statistics
+    description: Monux Statistics
     icon: ${server_url}/assets/favicon.svg
     widget:
       type: customapi
@@ -1662,7 +1662,7 @@ const Integrations = () => {
 											Docker Inventory Collection
 										</h3>
 										<p className="text-xs md:text-sm text-secondary-600 dark:text-secondary-400">
-											Docker monitoring is now built into the PatchMon Go agent
+											Docker monitoring is now built into the Monux Go agent
 										</p>
 									</div>
 								</div>
@@ -1676,7 +1676,7 @@ const Integrations = () => {
 												Automatic Docker Discovery
 											</h4>
 											<p className="text-xs md:text-sm text-primary-800 dark:text-primary-300 mb-3">
-												The PatchMon Go agent automatically discovers Docker
+												The Monux Go agent automatically discovers Docker
 												when it's available on your host and collects
 												comprehensive inventory information:
 											</p>
@@ -1713,7 +1713,7 @@ const Integrations = () => {
 									</h4>
 									<ol className="list-decimal list-inside space-y-3 text-xs md:text-sm text-secondary-700 dark:text-secondary-300">
 										<li>
-											Install the PatchMon Go agent on your host (see the Hosts
+											Install the Monux Go agent on your host (see the Hosts
 											page for installation instructions)
 										</li>
 										<li>
@@ -1722,7 +1722,7 @@ const Integrations = () => {
 										</li>
 										<li>
 											During each collection cycle, the agent gathers Docker
-											inventory data and sends it to the PatchMon server
+											inventory data and sends it to the Monux server
 										</li>
 										<li>
 											View your complete Docker inventory (containers, images,
@@ -1766,7 +1766,7 @@ const Integrations = () => {
 										<div className="text-xs md:text-sm text-blue-800 dark:text-blue-200">
 											<p className="font-semibold mb-2">Requirements:</p>
 											<ul className="list-disc list-inside space-y-1 ml-2">
-												<li>PatchMon Go agent must be installed and running</li>
+												<li>Monux Go agent must be installed and running</li>
 												<li>Docker daemon must be installed and running</li>
 												<li>
 													Agent must have access to the Docker socket (
@@ -1846,7 +1846,7 @@ const Integrations = () => {
 											Compliance Scanning
 										</h3>
 										<p className="text-xs md:text-sm text-secondary-600 dark:text-secondary-400">
-											Security compliance scanning is built into the PatchMon Go
+											Security compliance scanning is built into the Monux Go
 											agent
 										</p>
 									</div>
@@ -1958,7 +1958,7 @@ const Integrations = () => {
 												Automatic Security Compliance Scanning
 											</h4>
 											<p className="text-xs md:text-sm text-primary-800 dark:text-primary-300 mb-3">
-												The PatchMon Go agent includes built-in compliance
+												The Monux Go agent includes built-in compliance
 												scanning capabilities that automatically assess your
 												hosts against industry security benchmarks:
 											</p>
@@ -2004,7 +2004,7 @@ const Integrations = () => {
 									</h4>
 									<ol className="list-decimal list-inside space-y-3 text-xs md:text-sm text-secondary-700 dark:text-secondary-300">
 										<li>
-											Install the PatchMon Go agent on your host (see the Hosts
+											Install the Monux Go agent on your host (see the Hosts
 											page for installation instructions)
 										</li>
 										<li>
@@ -2020,7 +2020,7 @@ const Integrations = () => {
 										</li>
 										<li>
 											Compliance scans run periodically and results are sent to
-											the PatchMon server
+											the Monux server
 										</li>
 										<li>
 											View compliance scores, failing rules, and remediation
@@ -2113,7 +2113,7 @@ const Integrations = () => {
 										<div className="text-xs md:text-sm text-blue-800 dark:text-blue-200">
 											<p className="font-semibold mb-2">Requirements:</p>
 											<ul className="list-disc list-inside space-y-1 ml-2">
-												<li>PatchMon Go agent must be installed and running</li>
+												<li>Monux Go agent must be installed and running</li>
 												<li>
 													Agent must run as root for full compliance scanning
 													capabilities
@@ -2150,7 +2150,7 @@ const Integrations = () => {
 
 								<div className="bg-secondary-50 dark:bg-secondary-800/50 rounded-lg border border-secondary-200 dark:border-secondary-700 p-4 md:p-6">
 									<p className="text-sm text-secondary-600 dark:text-secondary-400 mb-4">
-										Export your PatchMon host list in the{" "}
+										Export your Monux host list in the{" "}
 										<a
 											href="https://docs.checkmk.com/latest/en/hosts_setup.html#import"
 											target="_blank"
@@ -2199,7 +2199,7 @@ const Integrations = () => {
 									</div>
 									<p className="text-xs text-secondary-500 dark:text-secondary-500 mb-4">
 										When enabled, the CSV includes all attributes from the
-										Checkmk import docs (section 6.1). PatchMon only fills
+										Checkmk import docs (section 6.1). Monux only fills
 										hostname, alias, IPv4, and agent; other columns are empty
 										for you to edit in Checkmk or before re-import.
 									</p>
@@ -2871,9 +2871,9 @@ const Integrations = () => {
 														const base64Creds = btoa(
 															`${new_token.token_key}:${new_token.token_secret}`,
 														);
-														const config = `- PatchMon:
+														const config = `- Monux:
     href: ${server_url}
-    description: PatchMon Statistics
+    description: Monux Statistics
     icon: ${server_url}/assets/favicon.svg
     widget:
       type: customapi
@@ -2910,9 +2910,9 @@ const Integrations = () => {
 													const base64Creds = btoa(
 														`${new_token.token_key}:${new_token.token_secret}`,
 													);
-													return `- PatchMon:
+													return `- Monux:
     href: ${server_url}
-    description: PatchMon Statistics
+    description: Monux Statistics
     icon: ${server_url}/assets/favicon.svg
     widget:
       type: customapi

@@ -346,6 +346,14 @@ app.get("/health", (_req, res) => {
 	res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Serve custom branding uploads (logos, favicon) from a dedicated directory
+// that survives frontend rebuilds and has correct permissions.
+// Served under /api/v1/branding so nginx proxies it through the /api/ location block.
+const brandingDir = process.env.BRANDING_DIR || process.env.ASSETS_DIR || require("node:path").join(__dirname, "../../branding");
+const fsSync = require("node:fs");
+fsSync.mkdirSync(brandingDir, { recursive: true });
+app.use("/api/v1/branding", express.static(brandingDir, { maxAge: "1h" }));
+
 // API routes
 const apiVersion = process.env.API_VERSION || "v1";
 

@@ -16,7 +16,7 @@ get_binary_version() {
         chmod +x "$binary" 2>/dev/null || true
         
         # Try to execute the binary and extract version from help output
-        # The Go binary shows version in the --help output as "PatchMon Agent v1.3.0"
+        # The Go binary shows version in the --help output as "Monux Agent v1.3.0"
         local version=$("$binary" --help 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | tr -d 'v')
         if [ -n "$version" ]; then
             echo "$version"
@@ -103,7 +103,7 @@ update_agents() {
 }
 
 # Main execution
-log "PatchMon Backend Container Starting..."
+log "Monux Backend Container Starting..."
 log "Environment: ${NODE_ENV:-production}"
 
 # Add workspace node_modules to PATH for workspace binaries and set NODE_PATH for module resolution

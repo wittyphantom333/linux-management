@@ -27,11 +27,11 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "patchmon-agent",
-	Short:   "PatchMon Agent for package monitoring",
+	Short:   "Monux Agent for package monitoring",
 	Version: pkgversion.Version,
-	Long: `PatchMon Agent v` + pkgversion.Version + `
+	Long: `Monux Agent v` + pkgversion.Version + `
 
-A monitoring agent that sends package information to PatchMon.`,
+A monitoring agent that sends package information to Monux.`,
 	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 		initialiseAgent()
 		updateLogLevel(cmd)

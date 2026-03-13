@@ -150,7 +150,7 @@ class DockerImageUpdateCheck {
 			path: tokenUrl.pathname + tokenUrl.search,
 			method: "GET",
 			headers: {
-				"User-Agent": "PatchMon/1.0",
+				"User-Agent": "Monux/1.0",
 			},
 		};
 
@@ -208,7 +208,7 @@ class DockerImageUpdateCheck {
 					"application/vnd.oci.image.manifest.v1+json",
 					"application/vnd.oci.image.index.v1+json",
 				].join(", "),
-				"User-Agent": "PatchMon/1.0",
+				"User-Agent": "Monux/1.0",
 			},
 		};
 

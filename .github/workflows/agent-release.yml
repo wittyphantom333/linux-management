@@ -136,5 +136,5 @@ jobs:
           echo "  CGO_ENABLED: 0 (static linking)"
           echo ""
           echo "✅ Binary built and verified successfully"
-          echo "📝 Note: Manually attach tested binaries from PatchMon/agents/ to the GitHub release"
+          echo "📝 Note: Manually attach tested binaries from Monux/agents/ to the GitHub release"
 

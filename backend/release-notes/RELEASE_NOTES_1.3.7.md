@@ -13,11 +13,11 @@ Very sorry for this, future versions are fixed - I built this release notes noti
 
 **Systemctl Helper Script**: In future versions (1.3.7+), a systemctl helper script will be available to assist with auto-update service restarts.
 
-**Staggered Agent Intervals**: Agents now report at staggered times to prevent overwhelming the PatchMon server. If the agent report interval is set to 60 minutes, different hosts will report at different times. This is in the `config.yml` as "report_offset: nxyz"
+**Staggered Agent Intervals**: Agents now report at staggered times to prevent overwhelming the Monux server. If the agent report interval is set to 60 minutes, different hosts will report at different times. This is in the `config.yml` as "report_offset: nxyz"
 
 **Reboot Detection Information**: Reboot detection information is now stored in the database. When the "Reboot Required" flag is displayed, hovering over it will show the specific reason why a reboot is needed (Reboot feature still needs work and it will be much better in 1.3.8)
 
-**JSON Report Output**: The `patchmon-agent report --json` command now outputs the complete report payload to the console in JSON format instead of sending it to the PatchMon server. This is very useful for integrating PatchMon agent data with other tools and for diagnostic purposes.
+**JSON Report Output**: The `patchmon-agent report --json` command now outputs the complete report payload to the console in JSON format instead of sending it to the Monux server. This is very useful for integrating Monux agent data with other tools and for diagnostic purposes.
 
 **Persistent Docker Toggle**: Docker integration toggle state is now persisted in the database, eliminating in-memory configuration issues. No more losing Docker settings on container restarts (thanks to the community for initiating this feature).
 

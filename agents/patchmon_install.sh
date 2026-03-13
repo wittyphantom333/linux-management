@@ -1,5 +1,5 @@
 #!/bin/sh
-# PatchMon Agent Installation Script
+# Monux Agent Installation Script
 # POSIX-compliant shell script (works with dash, ash, bash, etc.)
 # Usage: curl -s {PATCHMON_URL}/api/v1/hosts/install -H "X-API-ID: {API_ID}" -H "X-API-KEY: {API_KEY}" | sh
 
@@ -151,7 +151,7 @@ get_machine_id() {
 
 # Parse arguments from environment (passed via HTTP headers)
 if [ -z "$PATCHMON_URL" ] || [ -z "$API_ID" ] || [ -z "$API_KEY" ]; then
-    error "Missing required parameters. This script should be called via the PatchMon web interface."
+    error "Missing required parameters. This script should be called via the Monux web interface."
 fi
 
 # Default PATCHMON_OS to linux if not set (backward compatibility when os param not in URL)
@@ -207,7 +207,7 @@ fi
 MACHINE_ID=$(get_machine_id)
 export MACHINE_ID
 
-info "Starting PatchMon Agent Installation..."
+info "Starting Monux Agent Installation..."
 info "Server: $PATCHMON_URL"
 info "API ID: $(echo "$API_ID" | cut -c1-16)..."
 info "Machine ID: $(echo "$MACHINE_ID" | cut -c1-16)..."
@@ -581,7 +581,7 @@ fi
 
 # Create main config file
 cat > /etc/patchmon/config.yml << EOF
-# PatchMon Agent Configuration
+# Monux Agent Configuration
 # Generated on $(date)
 patchmon_server: "$PATCHMON_URL"
 api_version: "v1"
@@ -597,7 +597,7 @@ EOF
 
 # Create credentials file
 cat > /etc/patchmon/credentials.yml << EOF
-# PatchMon API Credentials
+# Monux API Credentials
 # Generated on $(date)
 api_id: "$API_ID"
 api_key: "$API_KEY"
@@ -606,8 +606,8 @@ EOF
 chmod 600 /etc/patchmon/config.yml
 chmod 600 /etc/patchmon/credentials.yml
 
-# Step 3: Download the PatchMon agent binary using API credentials
-info "Downloading PatchMon agent binary..."
+# Step 3: Download the Monux agent binary using API credentials
+info "Downloading Monux agent binary..."
 
 # Determine the binary filename based on platform and architecture
 BINARY_NAME="patchmon-agent-${PATCHMON_OS}-${ARCHITECTURE}"
@@ -678,19 +678,19 @@ if command -v systemctl >/dev/null 2>&1; then
     
     # Stop and disable existing service if it exists
     if systemctl is-active --quiet patchmon-agent.service 2>/dev/null; then
-        warning "Stopping existing PatchMon agent service..."
+        warning "Stopping existing Monux agent service..."
         systemctl stop patchmon-agent.service
     fi
     
     if systemctl is-enabled --quiet patchmon-agent.service 2>/dev/null; then
-        warning "Disabling existing PatchMon agent service..."
+        warning "Disabling existing Monux agent service..."
         systemctl disable patchmon-agent.service
     fi
     
     # Create systemd service file
     cat > /etc/systemd/system/patchmon-agent.service << EOF
 [Unit]
-Description=PatchMon Agent Service
+Description=Monux Agent Service
 After=network.target
 Wants=network.target
 
@@ -725,7 +725,7 @@ EOF
     
     # Check if service started successfully
     if systemctl is-active --quiet patchmon-agent.service; then
-        success "PatchMon Agent service started successfully"
+        success "Monux Agent service started successfully"
         info "WebSocket connection established"
     else
         warning "Service may have failed to start. Check status with: systemctl status patchmon-agent"
@@ -738,12 +738,12 @@ elif [ -d /etc/init.d ] && command -v rc-service >/dev/null 2>&1; then
     
     # Stop and disable existing service if it exists
     if rc-service patchmon-agent status >/dev/null 2>&1; then
-        warning "Stopping existing PatchMon agent service..."
+        warning "Stopping existing Monux agent service..."
         rc-service patchmon-agent stop
     fi
     
     if rc-update show default 2>/dev/null | grep -q "patchmon-agent"; then
-        warning "Disabling existing PatchMon agent service..."
+        warning "Disabling existing Monux agent service..."
         rc-update del patchmon-agent default
     fi
     
@@ -755,7 +755,7 @@ elif [ -d /etc/init.d ] && command -v rc-service >/dev/null 2>&1; then
 #!/sbin/openrc-run
 
 name="patchmon-agent"
-description="PatchMon Agent Service"
+description="Monux Agent Service"
 command="/usr/local/bin/patchmon-agent"
 command_args="serve"
 command_user="root"
@@ -787,7 +787,7 @@ EOF
     
     # Check if service started successfully
     if rc-service patchmon-agent status >/dev/null 2>&1; then
-        success "PatchMon Agent service started successfully"
+        success "Monux Agent service started successfully"
         info "WebSocket connection established"
     else
         warning "Service may have failed to start. Check status with: rc-service patchmon-agent status"
@@ -851,7 +851,7 @@ EOF
         service patchmon_agent start
         sleep 1
         if service patchmon_agent status 2>/dev/null | grep -q "running"; then
-            success "PatchMon Agent service started successfully"
+            success "Monux Agent service started successfully"
             info "WebSocket connection established"
         else
             warning "Service may have failed to start. Check: service patchmon_agent status"
@@ -859,7 +859,7 @@ EOF
     else
         echo "patchmon_agent_enable=\"YES\"" >> /etc/rc.conf.local 2>/dev/null || true
         "$RCD_SCRIPT" start
-        success "PatchMon Agent service configured"
+        success "Monux Agent service configured"
     fi
     SERVICE_TYPE="rc.d"
 else
@@ -875,18 +875,18 @@ else
     
     # Add crontab entry to run the agent
     (crontab -l 2>/dev/null; echo "@reboot /usr/local/bin/patchmon-agent serve >/dev/null 2>&1") | crontab -
-    info "Added crontab entry for PatchMon agent"
+    info "Added crontab entry for Monux agent"
     
     # Start the agent manually
     /usr/local/bin/patchmon-agent serve >/dev/null 2>&1 &
-    success "PatchMon Agent started in background"
+    success "Monux Agent started in background"
     info "WebSocket connection established"
     
     SERVICE_TYPE="crontab"
 fi
 
 # Installation complete
-success "PatchMon Agent installation completed successfully!"
+success "Monux Agent installation completed successfully!"
 echo ""
 printf "%b\n" "${GREEN}Installation Summary:${NC}"
 echo "   • Configuration directory: /etc/patchmon"
@@ -944,4 +944,4 @@ else
     echo "   • Restart service: pkill -f 'patchmon-agent serve' && /usr/local/bin/patchmon-agent serve &"
 fi
 echo ""
-success "Your system is now being monitored by PatchMon!"
+success "Your system is now being monitored by Monux!"

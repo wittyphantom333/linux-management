@@ -58,7 +58,7 @@ router.use((req, res, next) => {
 const OIDC_SESSION_PREFIX = "oidc:session:";
 
 /**
- * Map OIDC groups to PatchMon role
+ * Map OIDC groups to Monux role
  * Checks user's groups against configured group names
  *
  * Role hierarchy (checked in order):
@@ -69,7 +69,7 @@ const OIDC_SESSION_PREFIX = "oidc:session:";
  * - user: In OIDC_USER_GROUP or default
  *
  * @param {string[]} groups - Array of group names from IdP
- * @returns {string} - PatchMon role (superadmin, admin, host_manager, readonly, user, or default)
+ * @returns {string} - Monux role (superadmin, admin, host_manager, readonly, user, or default)
  */
 function mapGroupsToRole(groups) {
 	if (!groups || !Array.isArray(groups) || groups.length === 0) {

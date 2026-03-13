@@ -733,7 +733,7 @@ router.get("/script", async (req, res) => {
 
 		// Inject the token credentials, server URL, curl flags, and force flag into the script
 		const env_vars = `${shebang}
-# PatchMon Auto-Enrollment Configuration (Auto-generated)
+# Monux Auto-Enrollment Configuration (Auto-generated)
 export PATCHMON_URL="${server_url}"
 export AUTO_ENROLLMENT_KEY="${token.token_key}"
 export AUTO_ENROLLMENT_SECRET="${token_secret}"

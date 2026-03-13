@@ -31,7 +31,7 @@ const CHANNEL_TYPES = [
 			{
 				key: "username",
 				label: "Bot Username",
-				placeholder: "PatchMon",
+				placeholder: "Monux",
 				type: "text",
 			},
 			{

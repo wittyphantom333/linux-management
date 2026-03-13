@@ -54,8 +54,8 @@ router.get("/setup", authenticateToken, async (req, res) => {
 
 		// Generate a new secret
 		const secret = speakeasy.generateSecret({
-			name: `PatchMon (${req.user.username})`,
-			issuer: "PatchMon",
+			name: `Monux (${req.user.username})`,
+			issuer: "Monux",
 			length: 32,
 		});
 

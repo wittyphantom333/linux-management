@@ -1,7 +1,7 @@
 # =============================================================================
-# PatchMon Docker Compose - Build Override
+# Monux Docker Compose - Build Override
 # =============================================================================
-# Builds PatchMon from local source instead of pulling pre-built images.
+# Builds Monux from local source instead of pulling pre-built images.
 # Use alongside the production compose file:
 #
 #   cp env.example .env

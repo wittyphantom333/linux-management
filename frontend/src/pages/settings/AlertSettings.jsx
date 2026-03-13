@@ -404,7 +404,7 @@ const AlertTypeTableRow = ({ config, onUpdate, isSaving, usersData }) => {
 	const ALERT_TYPE_DESCRIPTIONS = {
 		host_down: "Alerts when a host stops reporting (10s grace period)",
 		host_up: "Alerts when a previously offline host reconnects",
-		server_update: "Alerts when a new PatchMon server version is available",
+		server_update: "Alerts when a new Monux server version is available",
 		agent_update: "Alerts when a new agent version is available",
 		disk_space_warning:
 			"Alerts when disk usage exceeds threshold (set in metadata)",

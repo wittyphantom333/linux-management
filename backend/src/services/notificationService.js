@@ -35,7 +35,7 @@ async function sendDiscord(channel, alert) {
 			},
 		],
 		timestamp: new Date().toISOString(),
-		footer: { text: "PatchMon Alert System" },
+		footer: { text: "Monux Alert System" },
 	};
 
 	// Attach host info from metadata when available
@@ -48,7 +48,7 @@ async function sendDiscord(channel, alert) {
 	}
 
 	const body = {
-		username: cfg.username || "PatchMon",
+		username: cfg.username || "Monux",
 		avatar_url: cfg.avatar_url || undefined,
 		embeds: [embed],
 	};
@@ -110,7 +110,7 @@ async function sendTeams(channel, alert) {
 						},
 						{
 							type: "TextBlock",
-							text: `Sent by PatchMon at ${new Date().toISOString()}`,
+							text: `Sent by Monux at ${new Date().toISOString()}`,
 							size: "Small",
 							isSubtle: true,
 							wrap: true,
@@ -159,7 +159,7 @@ async function sendWebhook(channel, alert) {
 
 	const headers = {
 		"Content-Type": "application/json",
-		"User-Agent": "PatchMon-Webhook/1.0",
+		"User-Agent": "Monux-Webhook/1.0",
 		...(cfg.headers ?? {}),
 	};
 
@@ -249,7 +249,7 @@ async function sendTestNotification(channelData) {
 		id: "test-00000000",
 		type: "test_notification",
 		severity: "informational",
-		title: "🔔 Test notification from PatchMon",
+		title: "🔔 Test notification from Monux",
 		message:
 			"If you're seeing this, your alert channel is configured correctly!",
 		metadata: { hostname: "test-host.example.com" },

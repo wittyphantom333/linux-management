@@ -1,4 +1,4 @@
-## 🎉 PatchMon 1.4.0
+## 🎉 Monux 1.4.0
 
 A major release with security compliance scanning, OIDC SSO, an alerting engine, web SSH terminal, and AI-assisted terminal support.
 
@@ -11,7 +11,7 @@ A major release with security compliance scanning, OIDC SSO, an alerting engine,
 ### 🔐 OIDC Single Sign-On
 - **OpenID Connect authentication** with Authentik, Keycloak, Okta, or any OIDC provider
 - **Automatic user provisioning** on first OIDC login
-- **Group-based role mapping** from your identity provider to PatchMon roles
+- **Group-based role mapping** from your identity provider to Monux roles
 - **Option to disable local auth** and enforce SSO-only login
 
 ### 🔔 Alerting & Reporting
@@ -21,7 +21,7 @@ A major release with security compliance scanning, OIDC SSO, an alerting engine,
 - **Per-alert-type configuration** for default severity, auto-assignment, escalation, and retention
 
 ### 💻 Web SSH Terminal
-- **Browser-based SSH** to any host from the PatchMon UI
+- **Browser-based SSH** to any host from the Monux UI
 - **Direct and proxy modes** (proxy mode routes through the agent, no SSH port exposure needed)
 
 ### 🤖 AI Terminal Assistant

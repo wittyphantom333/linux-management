@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Script to get list of hosts with pending updates from PatchMon
+# Script to get list of hosts with pending updates from Monux
 # Usage: ./get-hosts-with-updates.sh [--json] [--debug] [--filter MODE] [--url URL] [--username USER] [--password PASS]
 #
-# Compatible with PatchMon v1.3.7 (uses JWT auth + /dashboard/hosts endpoint)
+# Compatible with Monux v1.3.7 (uses JWT auth + /dashboard/hosts endpoint)
 # Will be removing this in the near future
 
 set -uo pipefail
@@ -36,8 +36,8 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
-            echo "Fetches hosts from PatchMon and shows which have pending updates."
-            echo "Uses your PatchMon login credentials (JWT auth) — works with v1.3.7+."
+            echo "Fetches hosts from Monux and shows which have pending updates."
+            echo "Uses your Monux login credentials (JWT auth) — works with v1.3.7+."
             echo ""
             echo "Options:"
             echo "  --json              Output results in JSON format"
@@ -47,9 +47,9 @@ while [[ $# -gt 0 ]]; do
             echo "                        outdated  — hosts with any pending updates"
             echo "                        security  — hosts with security updates only"
             echo "                        uptodate  — hosts that are fully up to date"
-            echo "  --url URL           PatchMon server URL (default: http://localhost:3001)"
-            echo "  --username USER     PatchMon login username"
-            echo "  --password PASS     PatchMon login password"
+            echo "  --url URL           Monux server URL (default: http://localhost:3001)"
+            echo "  --username USER     Monux login username"
+            echo "  --password PASS     Monux login password"
             echo "  --help, -h          Show this help message"
             echo ""
             echo "Environment Variables:"
@@ -81,7 +81,7 @@ esac
 
 # Validate required credentials
 if [[ -z "$USERNAME" ]] || [[ -z "$PASSWORD" ]]; then
-    echo -e "${RED}Error: PatchMon login credentials are required${NC}" >&2
+    echo -e "${RED}Error: Monux login credentials are required${NC}" >&2
     echo "Provide via --username/--password flags or PATCHMON_USERNAME/PATCHMON_PASSWORD env vars" >&2
     exit 1
 fi
@@ -113,7 +113,7 @@ debug "Filter:     $FILTER"
 # ── Step 1: Login to get JWT token ────────────────────────────────────────────
 
 if [[ "$JSON_OUTPUT" != true ]]; then
-    echo -e "${BLUE}Logging in to PatchMon...${NC}"
+    echo -e "${BLUE}Logging in to Monux...${NC}"
 fi
 
 login_tmp=$(mktemp)

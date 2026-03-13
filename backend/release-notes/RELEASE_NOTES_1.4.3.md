@@ -1,4 +1,4 @@
-## 🎉 PatchMon 1.4.3
+## 🎉 Monux 1.4.3
 
 ## 🔧 Configuration Management (New Integration)
 
@@ -20,4 +20,4 @@
 
 ## Thank you
 
-I appreciate the whole community for helping with PRs and help testing areas of PatchMon <3
+I appreciate the whole community for helping with PRs and help testing areas of Monux <3

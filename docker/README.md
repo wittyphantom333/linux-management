@@ -1,8 +1,8 @@
-# PatchMon Docker
+# Monux Docker
 
 ## Overview
 
-PatchMon is a containerised application that monitors system patches and updates. The application consists of four main services:
+Monux is a containerised application that monitors system patches and updates. The application consists of four main services:
 
 - **Database**: PostgreSQL 17
 - **Redis**: Redis 7 for BullMQ job queues and caching
@@ -16,7 +16,7 @@ PatchMon is a containerised application that monitors system patches and updates
 
 ### Tags
 
-- `latest`: The latest stable release of PatchMon
+- `latest`: The latest stable release of Monux
 - `x.y.z`: Full version tags (e.g. `1.2.3`) - Use this for exact version pinning.
 - `x.y`: Minor version tags (e.g. `1.2`) - Use this to get the latest patch release in a minor version series.
 - `x`: Major version tags (e.g. `1`) - Use this to get the latest minor and patch release in a major version series.
@@ -62,7 +62,7 @@ The `docker-compose.yml` reads all configuration from your `.env` file. You do n
 
 By default, the compose file uses the `latest` tag for both backend and frontend images.
 
-This means you can update PatchMon to the latest version as easily as:
+This means you can update Monux to the latest version as easily as:
 
 ```bash
 docker compose pull
@@ -76,7 +76,7 @@ This command will:
 
 ### Version-Specific Updates
 
-If you'd like to pin your Docker deployment of PatchMon to a specific version, you can do this in the compose file.
+If you'd like to pin your Docker deployment of Monux to a specific version, you can do this in the compose file.
 
 When you do this, updating to a new version requires manually updating the image tags in the compose file yourself:
 
@@ -114,7 +114,7 @@ All configuration is managed through the `.env` file. See `env.example` for a fu
 | `SERVER_PROTOCOL` | Protocol for agent connections (`http` or `https`) |
 | `SERVER_HOST` | Hostname for agent connections |
 | `SERVER_PORT` | Port for agent connections |
-| `CORS_ORIGIN` | Full URL used to access PatchMon in the browser |
+| `CORS_ORIGIN` | Full URL used to access Monux in the browser |
 
 ### Optional Variables
 
@@ -151,7 +151,7 @@ The compose file creates four Docker volumes:
 
 * `postgres_data`: PostgreSQL's data directory.
 * `redis_data`: Redis's data directory.
-* `agent_files`: PatchMon's agent files.
+* `agent_files`: Monux's agent files.
 * `branding_assets`: Custom branding files (logos, favicons) - optional, new in 1.4.0.
 
 If you wish to bind any of their respective container paths to a host path rather than a Docker volume, you can do so in the Docker Compose file.
@@ -164,7 +164,7 @@ If you wish to bind any of their respective container paths to a host path rathe
 ## Docker Swarm Deployment
 
 > [!NOTE]
-> This section covers deploying PatchMon to a Docker Swarm cluster. For standard Docker Compose deployments on a single host, use the production deployment guide above.
+> This section covers deploying Monux to a Docker Swarm cluster. For standard Docker Compose deployments on a single host, use the production deployment guide above.
 
 ### Network Configuration
 
@@ -180,7 +180,7 @@ All services (database, redis, backend, and frontend) connect to this internal n
 
 **Important**: If you're using an external reverse proxy network (like `traefik-net`), ensure that:
 
-1. All PatchMon services remain on the `patchmon-internal` network for internal communication
+1. All Monux services remain on the `patchmon-internal` network for internal communication
 2. The frontend service (NGINX) can be configured to also bind to the reverse proxy network if needed
 3. Service names resolve correctly within the same network
 
@@ -236,7 +236,7 @@ This typically occurs when:
 
 # Development
 
-This section is for developers who want to contribute to PatchMon or run it in development mode.
+This section is for developers who want to contribute to Monux or run it in development mode.
 
 ## Development Setup
 

@@ -396,14 +396,14 @@ const Layout = ({ children }) => {
 		if (path === "/users") return "Users";
 		if (path === "/permissions") return "Permissions";
 		if (path === "/settings") return "Settings";
-		if (path === "/options") return "PatchMon Options";
+		if (path === "/options") return "Monux Options";
 		if (path === "/audit-log") return "Audit Log";
 		if (path === "/settings/profile") return "My Profile";
 		if (path.startsWith("/hosts/")) return "Host Details";
 		if (path.startsWith("/packages/")) return "Package Details";
 		if (path.startsWith("/settings/")) return "Settings";
 
-		return "PatchMon";
+		return "Monux";
 	};
 
 	const handleLogout = async () => {
@@ -678,7 +678,7 @@ const Layout = ({ children }) => {
 						</div>
 						<div className="flex flex-shrink-0 items-center justify-center px-4">
 							<Link to="/" className="flex items-center">
-								<Logo className="h-10 w-auto" alt="PatchMon Logo" />
+								<Logo className="h-10 w-auto" alt="Monux Logo" />
 							</Link>
 						</div>
 						<nav className="mt-8 flex-1 space-y-6 px-2">
@@ -1000,7 +1000,7 @@ const Layout = ({ children }) => {
 													})()}`
 												: "/assets/favicon.svg"
 										}
-										alt="PatchMon"
+										alt="Monux"
 										className="h-12 w-12 object-contain"
 										onError={(e) => {
 											e.target.src = "/assets/favicon.svg";
@@ -1009,7 +1009,7 @@ const Layout = ({ children }) => {
 								</Link>
 							) : (
 								<Link to="/" className="flex items-center">
-									<Logo className="h-10 w-auto" alt="PatchMon Logo" />
+									<Logo className="h-10 w-auto" alt="Monux Logo" />
 								</Link>
 							)}
 						</div>

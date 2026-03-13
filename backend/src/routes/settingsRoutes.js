@@ -555,18 +555,18 @@ router.post(
 			const path = require("node:path");
 
 			// Create assets directory if it doesn't exist
-			// Priority: 1. ASSETS_DIR env var (Docker), 2. Development/public, 3. Production/dist
+			// Use a dedicated branding directory outside of dist/ so uploads
+			// survive frontend rebuilds and avoid permission issues.
+			// Priority: 1. BRANDING_DIR env var, 2. ASSETS_DIR env var (Docker), 3. {projectRoot}/branding
 			let assetsDir;
-			if (process.env.ASSETS_DIR) {
+			if (process.env.BRANDING_DIR) {
+				assetsDir = process.env.BRANDING_DIR;
+			} else if (process.env.ASSETS_DIR) {
 				// Docker: Use ASSETS_DIR environment variable (mounted volume)
 				assetsDir = process.env.ASSETS_DIR;
 			} else {
-				// Local development: save to public/assets (served by Vite)
-				// Local production: save to dist/assets (served by built app)
-				const isDevelopment = process.env.NODE_ENV !== "production";
-				assetsDir = isDevelopment
-					? path.join(__dirname, "../../../frontend/public/assets")
-					: path.join(__dirname, "../../../frontend/dist/assets");
+				// Self-hosted / dev: use {projectRoot}/branding
+				assetsDir = path.join(__dirname, "../../../branding");
 			}
 			const resolvedAssetsDir = path.resolve(assetsDir);
 			await fs.mkdir(resolvedAssetsDir, { recursive: true });
@@ -664,7 +664,7 @@ router.post(
 
 			// Update settings with new logo path
 			const settings = await getSettings();
-			const logoPath = `/assets/${sanitizedFileName}`;
+			const logoPath = `/api/v1/branding/${sanitizedFileName}`;
 
 			const updateData = {};
 			if (logoType === "dark") {

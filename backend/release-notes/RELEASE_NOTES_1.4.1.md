@@ -1,4 +1,4 @@
-## 🎉 PatchMon 1.4.1
+## 🎉 Monux 1.4.1
 
 A maintenance release with OIDC improvements, FreeBSD agent support, installer fixes, and various bug fixes and improvements.
 
@@ -7,7 +7,7 @@ A maintenance release with OIDC improvements, FreeBSD agent support, installer f
 - Hot fixes for edge cases in SSO flows
 
 ### 🖥️ FreeBSD Agent Support
-- **Native FreeBSD agent support** — run the PatchMon agent on FreeBSD hosts
+- **Native FreeBSD agent support** — run the Monux agent on FreeBSD hosts
 - Initial FreeBSD support via community contribution
 
 ### 📦 Native Installer Upgrade Fixes

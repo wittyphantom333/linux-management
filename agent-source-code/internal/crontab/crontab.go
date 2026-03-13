@@ -92,7 +92,7 @@ func (m *Manager) GetSchedule() string {
 	return strings.Join(fields[:5], " ")
 }
 
-// Remove removes the PatchMon agent's cron file
+// Remove removes the Monux agent's cron file
 func (m *Manager) Remove() error {
 	if err := os.Remove(config.CronFilePath); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

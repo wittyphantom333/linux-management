@@ -28,7 +28,7 @@ var diagnosticsCmd = &cobra.Command{
 func showDiagnostics() error {
 	cfg := cfgManager.GetConfig()
 
-	fmt.Printf("PatchMon Agent Diagnostics v%s\n\n", pkgversion.Version)
+	fmt.Printf("Monux Agent Diagnostics v%s\n\n", pkgversion.Version)
 
 	// System Information
 	fmt.Printf("System Information:\n")

@@ -1,6 +1,6 @@
 // SSH Terminal WebSocket Service
 const logger = require("../utils/logger");
-// Allows users to SSH into hosts from the PatchMon UI
+// Allows users to SSH into hosts from the Monux UI
 // Auth: One-time ticket (preferred) or JWT token (legacy) via query parameter
 
 const WebSocket = require("ws");

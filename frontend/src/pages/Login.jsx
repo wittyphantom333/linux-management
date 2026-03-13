@@ -578,7 +578,7 @@ const Login = () => {
 								<div>
 									<img
 										src="/assets/logo_dark.png"
-										alt="PatchMon"
+										alt="Monux"
 										className="h-16 mb-4"
 									/>
 									<p className="text-sm text-blue-200 font-medium tracking-wide uppercase">
@@ -807,7 +807,7 @@ const Login = () => {
 											})()}`
 										: "/assets/favicon.svg"
 								}
-								alt="PatchMon Logo"
+								alt="Monux Logo"
 								className="h-16 w-16"
 								onError={(e) => {
 									e.target.src = "/assets/favicon.svg";
@@ -815,7 +815,7 @@ const Login = () => {
 							/>
 						</div>
 						<h2 className="mt-6 text-center text-3xl font-extrabold text-secondary-900 dark:text-secondary-100">
-							{isSignupMode ? "Create PatchMon Account" : "Sign in to PatchMon"}
+							{isSignupMode ? "Create Monux Account" : "Sign in to Monux"}
 						</h2>
 						<p className="mt-2 text-center text-sm text-secondary-600 dark:text-secondary-400">
 							Monitor and manage your Linux package updates
@@ -1083,7 +1083,7 @@ const Login = () => {
 													}`
 												: "/assets/favicon.svg"
 										}
-										alt="PatchMon Logo"
+										alt="Monux Logo"
 										className="h-16 w-16"
 										onError={(e) => {
 											e.target.src = "/assets/favicon.svg";

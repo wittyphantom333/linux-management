@@ -1,4 +1,4 @@
-// Package client provides HTTP client functionality for communicating with the PatchMon server
+// Package client provides HTTP client functionality for communicating with the Monux server
 package client
 
 import (
@@ -16,7 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Client handles HTTP communications with the PatchMon server
+// Client handles HTTP communications with the Monux server
 type Client struct {
 	client      *resty.Client
 	config      *models.Config

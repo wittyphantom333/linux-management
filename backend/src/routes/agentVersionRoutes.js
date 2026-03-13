@@ -18,7 +18,7 @@ router.get(
 				{
 					timeout: 10000,
 					headers: {
-						"User-Agent": "PatchMon-Server/1.0",
+						"User-Agent": "Monux-Server/1.0",
 						Accept: "application/vnd.github.v3+json",
 					},
 				},

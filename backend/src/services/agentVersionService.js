@@ -176,7 +176,7 @@ class AgentVersionService {
 
 					// Try multiple version patterns
 					const versionPatterns = [
-						/PatchMon Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
+						/Monux Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
 						/patchmon-agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
 						/version ([0-9]+\.[0-9]+\.[0-9]+)/i,
 						/v([0-9]+\.[0-9]+\.[0-9]+)/i,
@@ -554,7 +554,7 @@ class AgentVersionService {
 			const response = await axios.get(this.githubApiUrl, {
 				timeout: 10000,
 				headers: {
-					"User-Agent": "PatchMon-Server/1.0",
+					"User-Agent": "Monux-Server/1.0",
 					Accept: "application/vnd.github.v3+json",
 				},
 			});
@@ -764,7 +764,7 @@ class AgentVersionService {
 			const response = await axios.get(this.githubApiUrl, {
 				timeout: 10000,
 				headers: {
-					"User-Agent": "PatchMon-Server/1.0",
+					"User-Agent": "Monux-Server/1.0",
 					Accept: "application/vnd.github.v3+json",
 				},
 			});
@@ -841,7 +841,7 @@ class AgentVersionService {
 					{
 						timeout: 10000,
 						headers: {
-							"User-Agent": "PatchMon-Server/1.0",
+							"User-Agent": "Monux-Server/1.0",
 							Accept: "application/vnd.github.v3+json",
 						},
 					},
@@ -930,7 +930,7 @@ class AgentVersionService {
 			const response = await axios.get(this.githubApiUrl, {
 				timeout: 10000,
 				headers: {
-					"User-Agent": "PatchMon-Server/1.0",
+					"User-Agent": "Monux-Server/1.0",
 					Accept: "application/vnd.github.v3+json",
 				},
 			});

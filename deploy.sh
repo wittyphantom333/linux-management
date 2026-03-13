@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# PatchMon Deployment Script (Build from Source)
+# Monux Deployment Script (Build from Source)
 # =============================================================================
-# Deploys PatchMon on a Linux server by cloning the repository, building
+# Deploys Monux on a Linux server by cloning the repository, building
 # Docker images from source, and launching all services.
 #
 # Usage:
@@ -428,7 +428,7 @@ fi
 # -----------------------------------------------------------------------------
 # Build & launch containers
 # -----------------------------------------------------------------------------
-header "Building and starting PatchMon"
+header "Building and starting Monux"
 
 # Export COMPOSE_FILE so docker compose picks up both files for this run
 export COMPOSE_FILE="docker-compose.yml:docker-compose.build.yml"
@@ -536,7 +536,7 @@ printf "${NC}"
 
 echo ""
 info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-info "  PatchMon is running at: ${BOLD}${CORS_ORIGIN}${NC}"
+info "  Monux is running at: ${BOLD}${CORS_ORIGIN}${NC}"
 info ""
 info "  Install directory  : $INSTALL_DIR"
 info "  Docker Compose dir : $INSTALL_DIR/docker"
@@ -562,7 +562,7 @@ echo ""
 # Save credentials to a file readable only by root
 CREDS_FILE="$INSTALL_DIR/.credentials"
 {
-    echo "# PatchMon Credentials — generated $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "# Monux Credentials — generated $(date '+%Y-%m-%d %H:%M:%S')"
     echo "# KEEP THIS FILE SECURE — delete after noting the values."
     echo ""
     echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"

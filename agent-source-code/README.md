@@ -1,6 +1,6 @@
-# PatchMon Agent
+# Monux Agent
 
-PatchMon's monitoring agent collects and reports package, system, hardware, and network information to the PatchMon server. It runs as a long-lived service with a persistent WebSocket connection for real-time communication.
+Monux's monitoring agent collects and reports package, system, hardware, and network information to the Monux server. It runs as a long-lived service with a persistent WebSocket connection for real-time communication.
 
 ## Supported Platforms
 
@@ -104,7 +104,7 @@ integrations:
 
 | Field | Description |
 |---|---|
-| `patchmon_server` | PatchMon server URL |
+| `patchmon_server` | Monux server URL |
 | `api_version` | API version (default `v1`) |
 | `credentials_file` | Path to credentials file |
 | `log_file` | Path to log file |
@@ -154,7 +154,7 @@ patchmon-agent [command] [flags]
 
 The `serve` command is how the agent is intended to run in production. It:
 
-- Maintains a persistent **WebSocket connection** to the PatchMon server
+- Maintains a persistent **WebSocket connection** to the Monux server
 - Sends periodic **package and system reports** on a configurable interval
 - **Staggers report times** using a deterministic offset derived from the API ID to avoid thundering herd
 - Receives and acts on **real-time server commands** (report now, update agent, toggle integrations, run compliance scans, etc.)
@@ -175,7 +175,7 @@ If no init system is detected, it falls back to a helper script for safe restart
 
 ## Integrations
 
-Integrations are managed from the PatchMon web interface and synced to the agent via WebSocket. They can also be configured manually in `config.yml`.
+Integrations are managed from the Monux web interface and synced to the agent via WebSocket. They can also be configured manually in `config.yml`.
 
 ### Docker
 
@@ -246,7 +246,7 @@ Logs are written to `/etc/patchmon/logs/patchmon-agent.log` with rotation (max 1
 ```
 2026-02-18T10:30:00 level=info msg="Collecting package information..."
 2026-02-18T10:30:01 level=info msg="Found packages" count=156
-2026-02-18T10:30:02 level=info msg="Sending report to PatchMon server..."
+2026-02-18T10:30:02 level=info msg="Sending report to Monux server..."
 2026-02-18T10:30:03 level=info msg="Report sent successfully"
 ```
 
@@ -343,7 +343,7 @@ cmd/patchmon-agent/
     serve.go                    serve command (service mode, WebSocket, integrations)
 internal/
   config/                       Configuration and credentials management
-  client/                       HTTP client for PatchMon API
+  client/                       HTTP client for Monux API
   packages/                     Package managers (apt, dnf, pacman, apk, freebsd)
   repositories/                 Repository detection (apt, dnf, pacman, apk, freebsd)
   system/                       OS detection, system info, reboot status

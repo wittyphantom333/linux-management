@@ -1,5 +1,5 @@
 #!/bin/bash
-# PatchMon Diagnostics Collection Script
+# Monux Diagnostics Collection Script
 # Collects system information, logs, and configuration for troubleshooting
 # Usage: sudo bash diagnostics.sh [instance-name]
 
@@ -55,7 +55,7 @@ sanitize_sensitive() {
         sed -E 's|mongodb://([^:]+):([^@]+)@|mongodb://\1:[REDACTED]@|g'
 }
 
-# Function to detect PatchMon installations
+# Function to detect Monux installations
 detect_installations() {
     local installations=()
     
@@ -75,7 +75,7 @@ detect_installations() {
             continue
         fi
         
-        # Check if it's a PatchMon installation
+        # Check if it's a Monux installation
         if [ -f "$dir/backend/package.json" ]; then
             if grep -q "patchmon" "$dir/backend/package.json" 2>/dev/null; then
                 installations+=("$dirname")
@@ -91,7 +91,7 @@ select_installation() {
     local installations=($(detect_installations))
     
     if [ ${#installations[@]} -eq 0 ]; then
-        print_error "No PatchMon installations found in /opt" >&2
+        print_error "No Monux installations found in /opt" >&2
         exit 1
     fi
     
@@ -156,7 +156,7 @@ main() {
     ORIGINAL_DIR=$(pwd)
     
     echo -e "${BLUE}====================================================${NC}"
-    echo -e "${BLUE}        PatchMon Diagnostics Collection${NC}"
+    echo -e "${BLUE}        Monux Diagnostics Collection${NC}"
     echo -e "${BLUE}====================================================${NC}"
     echo ""
     
@@ -178,7 +178,7 @@ main() {
     # Initialize the diagnostics file with header
     cat > "$diag_file" << EOF
 ===================================================
-PatchMon Diagnostics Report
+Monux Diagnostics Report
 ===================================================
 Instance: $instance_name
 Generated: $(date)
@@ -215,13 +215,13 @@ $(ip -br addr)
 EOF
     
     # ========================================
-    # 2. PatchMon Instance Information
+    # 2. Monux Instance Information
     # ========================================
     print_info "Collecting instance information..."
     
     cat >> "$diag_file" << EOF
 
-=== PatchMon Instance Information ===
+=== Monux Instance Information ===
 
 === Directory Structure ===
 $(ls -lah "$instance_dir" 2>/dev/null || echo "Cannot access directory")
@@ -555,7 +555,7 @@ EOF
 Process Information
 ===================================================
 
-=== PatchMon Node Processes ===
+=== Monux Node Processes ===
 $(ps aux | grep -E "node.*$instance_dir|PID" | grep -v grep || echo "No processes found")
 
 === Top Processes (CPU) ===

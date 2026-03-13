@@ -14,7 +14,7 @@ const question = (query) =>
 
 async function setupAdminUser() {
 	try {
-		console.log("🔐 Setting up PatchMon Admin User");
+		console.log("🔐 Setting up Monux Admin User");
 		console.log("=====================================\n");
 
 		// Check if any users exist

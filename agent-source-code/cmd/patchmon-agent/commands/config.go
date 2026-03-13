@@ -15,14 +15,14 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Configuration management commands",
-	Long:  "Manage configuration settings for the PatchMon agent.",
+	Long:  "Manage configuration settings for the Monux agent.",
 }
 
 // configShowCmd shows current configuration
 var configShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show current configuration",
-	Long:  "Display the current configuration settings for the PatchMon agent.",
+	Long:  "Display the current configuration settings for the Monux agent.",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		return showConfig()
 	},
@@ -32,7 +32,7 @@ var configShowCmd = &cobra.Command{
 var configSetAPICmd = &cobra.Command{
 	Use:   "set-api <API_ID> <API_KEY> <SERVER_URL>",
 	Short: "Configure API credentials for this host",
-	Long: `Configure API credentials for the PatchMon server.
+	Long: `Configure API credentials for the Monux server.
 
 Example:
   patchmon-agent config set-api patchmon_1a2b3c4d abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890 http://patchmon.example.com`,

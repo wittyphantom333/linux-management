@@ -47,7 +47,7 @@ func requestBurst() {
 var reportCmd = &cobra.Command{
 	Use:   "report",
 	Short: "Report system and package information to server",
-	Long:  "Collect and report system, package, and repository information to the PatchMon server.",
+	Long:  "Collect and report system, package, and repository information to the Monux server.",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		if err := checkRoot(); err != nil {
 			return err
@@ -236,7 +236,7 @@ func sendReport(outputJSON bool, forceCM ...bool) error {
 	}
 
 	// Send report
-	logger.Info("Sending report to PatchMon server...")
+	logger.Info("Sending report to Monux server...")
 	httpClient := client.New(cfgManager, logger)
 	ctx := context.Background()
 	response, err := httpClient.SendUpdate(ctx, payload)
@@ -253,13 +253,13 @@ func sendReport(outputJSON bool, forceCM ...bool) error {
 			"current": response.AutoUpdate.CurrentVersion,
 			"latest":  response.AutoUpdate.LatestVersion,
 			"message": response.AutoUpdate.Message,
-		}).Info("PatchMon agent update detected")
+		}).Info("Monux agent update detected")
 
-		logger.Info("Automatically updating PatchMon agent to latest version...")
+		logger.Info("Automatically updating Monux agent to latest version...")
 		if err := updateAgent(); err != nil {
-			logger.WithError(err).Warn("PatchMon agent update failed, but data was sent successfully")
+			logger.WithError(err).Warn("Monux agent update failed, but data was sent successfully")
 		} else {
-			logger.Info("PatchMon agent update completed successfully")
+			logger.Info("Monux agent update completed successfully")
 			// updateAgent() will exit the process after restart, so we won't reach here
 			// But if it does return, skip the update check to prevent loops
 			return nil
@@ -299,9 +299,9 @@ func sendReport(outputJSON bool, forceCM ...bool) error {
 				}).Info("Update available, automatically updating...")
 
 				if err := updateAgent(); err != nil {
-					logger.WithError(err).Warn("PatchMon agent update failed, but data was sent successfully")
+					logger.WithError(err).Warn("Monux agent update failed, but data was sent successfully")
 				} else {
-					logger.Info("PatchMon agent update completed successfully")
+					logger.Info("Monux agent update completed successfully")
 					// updateAgent() will exit after restart, so this won't be reached
 				}
 			} else if versionInfo.AutoUpdateDisabled && versionInfo.LatestVersion != versionInfo.CurrentVersion {
