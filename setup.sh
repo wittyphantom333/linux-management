@@ -1866,10 +1866,12 @@ create_agent_version() {
         exit 1
     fi
 
-    # Make agent binaries executable
+    # Make agent binaries executable and ensure correct ownership
     if [ -d "$APP_DIR/agents" ]; then
-        chmod +x "$APP_DIR/agents/patchmon-agent-linux-"* 2>/dev/null || true
-        chmod +x "$APP_DIR/agents/patchmon-agent-freebsd-"* 2>/dev/null || true
+        chmod -R 755 "$APP_DIR/agents" 2>/dev/null || true
+        if [ -n "$INSTANCE_USER" ] && id "$INSTANCE_USER" >/dev/null 2>&1; then
+            chown -R "$INSTANCE_USER:$INSTANCE_USER" "$APP_DIR/agents"
+        fi
         print_status "Agent binaries made executable"
     fi
 
@@ -3217,6 +3219,19 @@ update_installation() {
     print_info "Pulling latest code from branch: $DEPLOYMENT_BRANCH"
     cd "$instance_dir"
     
+    # Preserve custom branding: if user has custom logos in frontend/public/assets,
+    # back them up before git pull (which resets them to repo defaults).
+    local branding_dir="$instance_dir/branding"
+    mkdir -p "$branding_dir"
+    for logo_file in logo_dark.png logo_light.png logo_dark.svg logo_light.svg logo_square.svg favicon.svg; do
+        local asset="$instance_dir/frontend/public/assets/$logo_file"
+        local branding_copy="$branding_dir/$logo_file"
+        # Only back up if the asset exists AND there's no branding copy already
+        if [ -f "$asset" ] && [ ! -f "$branding_copy" ]; then
+            cp "$asset" "$branding_copy"
+        fi
+    done
+
     # Clean up any untracked files that might conflict with incoming changes
     print_info "Cleaning up untracked files to prevent merge conflicts..."
     git clean -fd 2>/dev/null || true
@@ -3252,10 +3267,25 @@ update_installation() {
     print_info "Building frontend..."
     npm run build
     
-    # Make agent binaries executable
+    # Make agent binaries executable and fix ownership
     if [ -d "$instance_dir/agents" ]; then
-        chmod +x "$instance_dir/agents/patchmon-agent-linux-"* 2>/dev/null || true
-        print_status "Agent binaries made executable"
+        # Detect the user the service runs as from the systemd unit file
+        local svc_user=""
+        if [ -n "$service_name" ] && [ -f "/etc/systemd/system/${service_name}.service" ]; then
+            svc_user=$(grep -oP '^User=\K.*' "/etc/systemd/system/${service_name}.service" 2>/dev/null || true)
+        fi
+        # Fallback: use stat to find the owner of the backend directory
+        if [ -z "$svc_user" ]; then
+            svc_user=$(stat -c '%U' "$instance_dir/backend" 2>/dev/null || echo "")
+        fi
+
+        chmod -R 755 "$instance_dir/agents" 2>/dev/null || true
+        if [ -n "$svc_user" ] && id "$svc_user" >/dev/null 2>&1; then
+            chown -R "$svc_user:$svc_user" "$instance_dir/agents"
+            print_status "Agent binaries made executable and owned by $svc_user"
+        else
+            print_status "Agent binaries made executable"
+        fi
     fi
     
     # Run database migrations with self-healing

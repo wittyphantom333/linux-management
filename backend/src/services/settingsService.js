@@ -211,6 +211,77 @@ function invalidateCache() {
 	cachedSettings = null;
 }
 
+/**
+ * Auto-discover custom branding files in the branding/ directory and update
+ * settings if they still point to the built-in defaults (/assets/...).
+ *
+ * This covers two scenarios:
+ *  1. The user placed files directly in the branding directory on the server.
+ *  2. The user uploaded via Settings > Branding on a previous run, but the DB
+ *     row was recreated (e.g. migration) and the defaults were restored.
+ *
+ * Only upgrades paths that currently match the Prisma @default values.
+ */
+async function autoDiscoverBranding() {
+	const fs = require("node:fs");
+	const path = require("node:path");
+	const brandingDir =
+		process.env.BRANDING_DIR ||
+		process.env.ASSETS_DIR ||
+		path.join(__dirname, "../../../branding");
+
+	// Map: settings field → { default DB value, filename(s) to look for in branding dir }
+	const checks = [
+		{
+			field: "logo_dark",
+			defaults: ["/assets/logo_dark.png", null],
+			fileNames: ["logo_dark.png", "logo_dark.svg", "logo_dark.jpg"],
+		},
+		{
+			field: "logo_light",
+			defaults: ["/assets/logo_light.png", null],
+			fileNames: ["logo_light.png", "logo_light.svg", "logo_light.jpg"],
+		},
+		{
+			field: "favicon",
+			defaults: ["/assets/logo_square.svg", "/assets/favicon.svg", null],
+			fileNames: ["logo_square.svg", "favicon.svg"],
+		},
+	];
+
+	try {
+		const settings = await getSettings();
+		if (!settings) return;
+
+		const updates = {};
+		for (const check of checks) {
+			const currentVal = settings[check.field];
+			// Only replace if the setting is a default/null value
+			if (!check.defaults.includes(currentVal)) continue;
+
+			for (const fileName of check.fileNames) {
+				const fullPath = path.join(brandingDir, fileName);
+				if (fs.existsSync(fullPath)) {
+					updates[check.field] = `/api/v1/branding/${fileName}`;
+					logger.info(
+						`🎨 Auto-discovered branding file: ${fileName} → ${check.field}`,
+					);
+					break;
+				}
+			}
+		}
+
+		if (Object.keys(updates).length > 0) {
+			await updateSettings(settings.id, updates);
+			logger.info(
+				`🎨 Updated ${Object.keys(updates).length} branding path(s) from branding directory`,
+			);
+		}
+	} catch (err) {
+		logger.warn("Failed to auto-discover branding:", err.message);
+	}
+}
+
 module.exports = {
 	initSettings,
 	getSettings,
@@ -218,4 +289,5 @@ module.exports = {
 	updateSettings,
 	invalidateCache,
 	syncEnvironmentToSettings, // Export for startup use
+	autoDiscoverBranding,
 };

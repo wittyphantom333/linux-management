@@ -105,25 +105,38 @@ func (s *OpenSCAPScanner) GetContentPackageVersion() string {
 	}
 
 	// Fall back to package manager version
-	var cmd *exec.Cmd
-
 	switch s.osInfo.Family {
 	case "debian":
-		cmd = exec.Command("dpkg-query", "-W", "-f=${Version}", "ssg-base")
+		// Try ssg-base first, then ssg-debderived (Ubuntu/Debian often only
+		// have the content installed via ssg-debderived, not ssg-base).
+		for _, pkg := range []string{"ssg-base", "ssg-debderived"} {
+			cmd := exec.Command("dpkg-query", "-W", "-f=${Version}", pkg)
+			output, err := cmd.Output()
+			if err == nil {
+				v := strings.TrimSpace(string(output))
+				if v != "" {
+					return v
+				}
+			}
+		}
 	case "rhel":
-		cmd = exec.Command("rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "scap-security-guide")
+		cmd := exec.Command("rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "scap-security-guide")
+		if output, err := cmd.Output(); err == nil {
+			v := strings.TrimSpace(string(output))
+			if v != "" {
+				return v
+			}
+		}
 	case "suse":
-		cmd = exec.Command("rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "scap-security-guide")
+		cmd := exec.Command("rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "scap-security-guide")
+		if output, err := cmd.Output(); err == nil {
+			v := strings.TrimSpace(string(output))
+			if v != "" {
+				return v
+			}
+		}
 	default:
 		return ""
-	}
-
-	output, err := cmd.Output()
-	if err == nil {
-		v := strings.TrimSpace(string(output))
-		if v != "" {
-			return v
-		}
 	}
 
 	// Final fallback: if content files exist, report "installed" so the scanner
@@ -274,16 +287,19 @@ func (s *OpenSCAPScanner) GetScannerDetails() *models.ComplianceScannerDetails {
 	// Check if SSG needs upgrade
 	ssgNeedsUpgrade := false
 	ssgUpgradeMessage := ""
-	if minVersion != "" && contentVersion != "" {
+	if minVersion != "" && contentVersion != "" && contentVersion != "unknown" {
 		if compareVersions(contentVersion, minVersion) < 0 {
 			ssgNeedsUpgrade = true
 			ssgUpgradeMessage = fmt.Sprintf("ssg-base %s is installed, but %s %s requires v%s+ for proper CIS/STIG content.",
 				contentVersion, s.osInfo.Name, s.osInfo.Version, minVersion)
 		}
 	} else if minVersion != "" && contentVersion == "" {
-		ssgNeedsUpgrade = true
-		ssgUpgradeMessage = fmt.Sprintf("ssg-base is not installed. %s %s requires ssg-base v%s+ for CIS/STIG scanning.",
-			s.osInfo.Name, s.osInfo.Version, minVersion)
+		// Only warn if no content version AND no content file exists
+		if contentFile == "" {
+			ssgNeedsUpgrade = true
+			ssgUpgradeMessage = fmt.Sprintf("ssg-base is not installed. %s %s requires ssg-base v%s+ for CIS/STIG scanning.",
+				s.osInfo.Name, s.osInfo.Version, minVersion)
+		}
 	}
 
 	// Check for content mismatch

@@ -5,8 +5,126 @@ const path = require("node:path");
 const os = require("node:os");
 const { exec, spawn } = require("node:child_process");
 const { promisify } = require("node:util");
-const _execAsync = promisify(exec);
+const execAsync = promisify(exec);
 // DNS module removed — version checking now uses GitHub API
+
+/**
+ * Download a stream to a final destination, working around permission issues.
+ *
+ * Strategy:
+ *  1. Write to a temp file inside os.tmpdir() (always writable).
+ *  2. chmod +x the temp file.
+ *  3. Try fs.rename()        – fast, atomic, same-fs only.
+ *  4. If EXDEV/EACCES, try  fs.copyFile() + fs.chmod(), then unlink temp.
+ *  5. If still EACCES, shell out to `cp -f` (handles some edge cases).
+ *  6. If ALL of those fail, try `sudo cp -f` as a last resort (works when
+ *     the process user has passwordless sudo, e.g. Docker entrypoint).
+ */
+async function downloadToFile(stream, destPath, label) {
+	const tmpPath = path.join(
+		os.tmpdir(),
+		`patchmon-download-${Date.now()}-${path.basename(destPath)}`,
+	);
+
+	const writer = require("node:fs").createWriteStream(tmpPath);
+	let downloadedBytes = 0;
+
+	stream.on("data", (chunk) => {
+		downloadedBytes += chunk.length;
+	});
+
+	stream.pipe(writer);
+
+	await new Promise((resolve, reject) => {
+		let done = false;
+		const finish = (err) => {
+			if (done) return;
+			done = true;
+			if (err) {
+				writer.destroy();
+				reject(err);
+			} else {
+				resolve();
+			}
+		};
+		writer.on("finish", () => finish(null));
+		writer.on("error", (err) => finish(err));
+		stream.on("error", (err) => finish(err));
+	});
+
+	logger.info(
+		`📥 Downloaded ${downloadedBytes} bytes for ${label} to ${tmpPath}`,
+	);
+
+	// Verify temp file
+	const tmpStats = await fs.stat(tmpPath);
+	if (tmpStats.size === 0) {
+		await fs.unlink(tmpPath).catch(() => {});
+		throw new Error(`Downloaded file is empty: ${label}`);
+	}
+
+	// Make executable
+	await fs.chmod(tmpPath, 0o755);
+
+	// --- Move into final location ---
+	// Strategy 1: rename (atomic, same filesystem)
+	try {
+		await fs.rename(tmpPath, destPath);
+		logger.info(`✅ Placed ${label} via rename`);
+		return { size: tmpStats.size, bytes: downloadedBytes };
+	} catch (renameErr) {
+		logger.warn(
+			`⚠️ rename() failed for ${label}: ${renameErr.code || renameErr.message}`,
+		);
+	}
+
+	// Strategy 2: copyFile (cross-device, or when rename can't overwrite target)
+	try {
+		// Try removing the target first so copyFile can create it fresh
+		await fs.unlink(destPath).catch(() => {});
+		await fs.copyFile(tmpPath, destPath);
+		await fs.chmod(destPath, 0o755);
+		await fs.unlink(tmpPath).catch(() => {});
+		logger.info(`✅ Placed ${label} via copyFile`);
+		return { size: tmpStats.size, bytes: downloadedBytes };
+	} catch (copyErr) {
+		logger.warn(
+			`⚠️ copyFile() failed for ${label}: ${copyErr.code || copyErr.message}`,
+		);
+	}
+
+	// Strategy 3: shell cp -f (may succeed where Node fs doesn't)
+	try {
+		await execAsync(
+			`cp -f "${tmpPath}" "${destPath}" && chmod 755 "${destPath}"`,
+		);
+		await fs.unlink(tmpPath).catch(() => {});
+		logger.info(`✅ Placed ${label} via cp -f`);
+		return { size: tmpStats.size, bytes: downloadedBytes };
+	} catch (cpErr) {
+		logger.warn(`⚠️ cp -f failed for ${label}: ${cpErr.message}`);
+	}
+
+	// Strategy 4: sudo cp (last resort — works in Docker or with NOPASSWD sudo)
+	try {
+		await execAsync(
+			`sudo cp -f "${tmpPath}" "${destPath}" && sudo chmod 755 "${destPath}"`,
+		);
+		await fs.unlink(tmpPath).catch(() => {});
+		logger.info(`✅ Placed ${label} via sudo cp`);
+		return { size: tmpStats.size, bytes: downloadedBytes };
+	} catch (sudoErr) {
+		logger.error(
+			`❌ All placement strategies failed for ${label}: ${sudoErr.message}`,
+		);
+		// Clean up temp file
+		await fs.unlink(tmpPath).catch(() => {});
+		throw new Error(
+			`Permission denied: cannot write to ${destPath}. ` +
+				`Ensure the agents directory and its contents are writable by the backend process user.`,
+		);
+	}
+}
 
 // Simple semver comparison function
 function compareVersions(version1, version2) {
@@ -51,6 +169,13 @@ class AgentVersionService {
 			// Ensure agents directory exists
 			await fs.mkdir(this.agentsDir, { recursive: true });
 
+			// Fix ownership/permissions on existing agent binaries.
+			// After a `git pull` run as root the files may be owned by root
+			// while the backend runs as a non-root user.  This makes future
+			// downloads fail with EACCES.  Try chmod first (works if we own them),
+			// then fall back to a shell chown/chmod (works if we have sudo).
+			await this._fixAgentPermissions();
+
 			logger.info("🔍 Testing GitHub API connectivity for agent version...");
 
 			// Get current agent version by executing the binary
@@ -79,6 +204,54 @@ class AgentVersionService {
 				"❌ Failed to initialize Agent Version Service:",
 				error.message,
 			);
+		}
+	}
+
+	/**
+	 * Attempt to make the agents directory and every file inside it writable
+	 * and executable by the current process user.  This is necessary when the
+	 * repo was cloned/pulled by root but the backend runs as a service user.
+	 */
+	async _fixAgentPermissions() {
+		try {
+			const entries = await fs.readdir(this.agentsDir);
+			const targets = [
+				this.agentsDir,
+				...entries.map((e) => path.join(this.agentsDir, e)),
+			];
+
+			let needsSudo = false;
+
+			for (const target of targets) {
+				try {
+					await fs.chmod(target, 0o755);
+				} catch (_e) {
+					needsSudo = true;
+				}
+			}
+
+			if (needsSudo) {
+				logger.info(
+					"⚠️ Some agent files are not owned by this user — trying sudo chown...",
+				);
+				try {
+					const currentUser = os.userInfo().username;
+					await execAsync(
+						`sudo chown -R ${currentUser}:${currentUser} "${this.agentsDir}" && sudo chmod -R 755 "${this.agentsDir}"`,
+					);
+					logger.info("✅ Fixed agent directory permissions via sudo");
+				} catch (sudoErr) {
+					logger.warn(
+						"⚠️ Could not fix agent permissions (no sudo?). " +
+							"Downloads may fail if existing binaries are owned by another user. " +
+							`Error: ${sudoErr.message}`,
+					);
+				}
+			} else {
+				logger.info("✅ Agent directory permissions OK");
+			}
+		} catch (_e) {
+			// Directory empty or doesn't exist yet — nothing to fix
 		}
 	}
 
@@ -362,104 +535,9 @@ class AgentVersionService {
 						maxBodyLength: Infinity,
 					});
 
-					// Remove existing file first to avoid EACCES on overwrite
-					try {
-						await fs.unlink(binaryPath);
-						logger.info(`🗑️ Removed existing ${assetName}`);
-					} catch (_unlinkErr) {
-						// File doesn't exist yet — that's fine
-					}
+					await downloadToFile(response.data, binaryPath, assetName);
 
-					logger.info(`📝 Creating write stream for ${binaryPath}...`);
-					const writer = require("node:fs").createWriteStream(binaryPath);
-
-					// Track download progress
-					let downloadedBytes = 0;
-					const _totalBytes = asset.size || 0;
-
-					// Set up error handlers before piping
-					response.data.on("error", (err) => {
-						logger.error(
-							`❌ Download stream error for ${assetName}:`,
-							err.message,
-						);
-						writer.destroy();
-					});
-
-					response.data.on("data", (chunk) => {
-						downloadedBytes += chunk.length;
-						// No progress updates during download to avoid spam
-						// Only send start/success/fail notifications
-					});
-
-					// Pipe the stream
-					response.data.pipe(writer);
-
-					// Wait for the stream to finish
-					await new Promise((resolve, reject) => {
-						let resolved = false;
-
-						writer.on("finish", () => {
-							if (!resolved) {
-								resolved = true;
-								logger.info(
-									`📥 Downloaded ${downloadedBytes} bytes for ${assetName}`,
-								);
-								resolve();
-							}
-						});
-
-						writer.on("close", () => {
-							if (!resolved) {
-								resolved = true;
-								logger.info(
-									`📥 Stream closed, downloaded ${downloadedBytes} bytes for ${assetName}`,
-								);
-								resolve();
-							}
-						});
-
-						writer.on("error", (err) => {
-							if (!resolved) {
-								resolved = true;
-								logger.error(`❌ Write error for ${assetName}:`, err.message);
-								reject(err);
-							}
-						});
-
-						response.data.on("error", (err) => {
-							if (!resolved) {
-								resolved = true;
-								logger.error(
-									`❌ Download error for ${assetName}:`,
-									err.message,
-								);
-								writer.destroy();
-								reject(err);
-							}
-						});
-					});
-
-					// Verify file was written
-					try {
-						const stats = await fs.stat(binaryPath);
-						logger.info(`✅ File verified: ${assetName} (${stats.size} bytes)`);
-
-						if (stats.size === 0) {
-							throw new Error(`Downloaded file is empty: ${assetName}`);
-						}
-					} catch (statError) {
-						logger.error(
-							`❌ File verification failed for ${assetName}:`,
-							statError.message,
-						);
-						throw new Error(`File verification failed: ${statError.message}`);
-					}
-
-					// Make executable
-					await fs.chmod(binaryPath, "755");
-
-					// Verify executable permission
+					// Verify final file
 					const statsAfter = await fs.stat(binaryPath);
 					const isExecutable = (statsAfter.mode & 0o111) !== 0;
 					if (!isExecutable) {
@@ -603,23 +681,7 @@ class AgentVersionService {
 				timeout: 60000,
 			});
 
-			// Remove existing file first to avoid EACCES on overwrite
-			try {
-				await fs.unlink(binaryPath);
-			} catch (_unlinkErr) {
-				// File doesn't exist yet — that's fine
-			}
-
-			const writer = require("node:fs").createWriteStream(binaryPath);
-			downloadResponse.data.pipe(writer);
-
-			await new Promise((resolve, reject) => {
-				writer.on("finish", resolve);
-				writer.on("error", reject);
-			});
-
-			// Make executable
-			await fs.chmod(binaryPath, "755");
+			await downloadToFile(downloadResponse.data, binaryPath, assetName);
 
 			logger.info(`✅ Downloaded: ${assetName}`);
 			return binaryPath;
