@@ -1,0 +1,56 @@
+name: Auto-Create Agent Release
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'agent-source-code/internal/pkgversion/version.go'
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-release:
+    name: Create Release if Version Changed
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Need full history for tag comparison
+
+      - name: Extract version from source
+        id: version
+        run: |
+          VERSION=$(grep -oP 'const Version = "\K[^"]+' agent-source-code/internal/pkgversion/version.go)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Detected version: ${VERSION} (tag: v${VERSION})"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.version.outputs.tag }} already exists — skipping"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.version.outputs.tag }} is new — will create release"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check_tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          echo "Creating release ${TAG}..."
+          gh release create "${TAG}" \
+            --repo "${{ github.repository }}" \
+            --title "Agent ${TAG}" \
+            --generate-notes \
+            --target "${{ github.sha }}"
+          echo "✅ Release ${TAG} created — agent-release workflow will build binaries"
