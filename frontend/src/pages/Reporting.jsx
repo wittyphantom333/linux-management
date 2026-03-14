@@ -40,7 +40,7 @@ const Reporting = () => {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [severityFilter, setSeverityFilter] = useState("all");
 	const [typeFilter, setTypeFilter] = useState("all");
-	const [statusFilter, setStatusFilter] = useState("all");
+	const [statusFilter, setStatusFilter] = useState("active");
 	const [assignmentFilter, setAssignmentFilter] = useState("all");
 	const [sortField, setSortField] = useState("created_at");
 	const [sortDirection, setSortDirection] = useState("desc");
