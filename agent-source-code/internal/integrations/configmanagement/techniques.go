@@ -313,7 +313,7 @@ func (pe *PolicyExecutor) methodPackageAbsent(_ context.Context, params map[stri
 
 // methodServiceRunning ensures a service is enabled and running.
 // Parameters: "name" (required)
-func (pe *PolicyExecutor) methodServiceRunning(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodServiceRunning(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	name := params["name"]
 	if name == "" {
 		return nil, fmt.Errorf("service_running requires 'name' parameter")
@@ -342,7 +342,7 @@ func (pe *PolicyExecutor) methodServiceRunning(ctx context.Context, params map[s
 
 // methodServiceStopped ensures a service is stopped.
 // Parameters: "name" (required)
-func (pe *PolicyExecutor) methodServiceStopped(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodServiceStopped(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	name := params["name"]
 	if name == "" {
 		return nil, fmt.Errorf("service_stopped requires 'name' parameter")
@@ -373,7 +373,7 @@ func (pe *PolicyExecutor) methodServiceStopped(ctx context.Context, params map[s
 // Parameters: "name" (required)
 // NOTE: This is an action, not a desired state. It should usually be conditioned
 // on a previous method being "repaired".
-func (pe *PolicyExecutor) methodServiceRestart(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodServiceRestart(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	name := params["name"]
 	if name == "" {
 		return nil, fmt.Errorf("service_restart requires 'name' parameter")
@@ -394,7 +394,7 @@ func (pe *PolicyExecutor) methodServiceRestart(ctx context.Context, params map[s
 
 // methodCommandAudit runs a command and checks its exit code (audit only, never modifies).
 // Parameters: "command" (required), "expected_code" (default "0", also accepts legacy "compliant_code")
-func (pe *PolicyExecutor) methodCommandAudit(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodCommandAudit(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	command := params["command"]
 	if command == "" {
 		return nil, fmt.Errorf("command_audit requires 'command' parameter")
@@ -444,7 +444,7 @@ func (pe *PolicyExecutor) methodCommandAudit(ctx context.Context, params map[str
 
 // methodCommandExec runs a command to enforce a desired state.
 // Parameters: "command" (required), "expected_code" (default "0")
-func (pe *PolicyExecutor) methodCommandExec(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodCommandExec(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	command := params["command"]
 	if command == "" {
 		return nil, fmt.Errorf("command_exec requires 'command' parameter")
@@ -501,7 +501,7 @@ func (pe *PolicyExecutor) methodCommandExec(ctx context.Context, params map[stri
 // reports a compliance failure – the result is purely informational so
 // operators can inspect the output in the run details.
 // Parameters: "command" (required)
-func (pe *PolicyExecutor) methodCommandRun(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodCommandRun(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	command := params["command"]
 	if command == "" {
 		return nil, fmt.Errorf("command_run requires 'command' parameter")
@@ -530,7 +530,7 @@ func (pe *PolicyExecutor) methodCommandRun(ctx context.Context, params map[strin
 
 // methodUserPresent ensures a user account exists.
 // Parameters: "name" (required, also accepts legacy "username"), "uid" (optional), "shell" (optional), "home" (optional)
-func (pe *PolicyExecutor) methodUserPresent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodUserPresent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	username := params["name"]
 	if username == "" {
 		username = params["username"] // legacy fallback
@@ -576,7 +576,7 @@ func (pe *PolicyExecutor) methodUserPresent(ctx context.Context, params map[stri
 
 // methodUserAbsent ensures a user account does NOT exist.
 // Parameters: "name" (required, also accepts legacy "username")
-func (pe *PolicyExecutor) methodUserAbsent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodUserAbsent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	username := params["name"]
 	if username == "" {
 		username = params["username"] // legacy fallback
@@ -611,7 +611,7 @@ func (pe *PolicyExecutor) methodUserAbsent(ctx context.Context, params map[strin
 
 // methodDirectoryPresent ensures a directory exists.
 // Parameters: "path" (required), "mode" (optional, octal)
-func (pe *PolicyExecutor) methodDirectoryPresent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodDirectoryPresent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	path := params["path"]
 	if path == "" {
 		return nil, fmt.Errorf("directory_present requires 'path' parameter")
@@ -653,7 +653,7 @@ func (pe *PolicyExecutor) methodDirectoryPresent(ctx context.Context, params map
 // Works for both root and normal users. In enforce mode it will create the
 // ~/.ssh directory (0700) and authorized_keys file (0600) if they don't exist,
 // with ownership set to the target user.
-func (pe *PolicyExecutor) methodSSHKeyPresent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodSSHKeyPresent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	username := params["user"]
 	if username == "" {
 		return nil, fmt.Errorf("ssh_key_present requires 'user' parameter")
@@ -775,7 +775,7 @@ func (pe *PolicyExecutor) methodSSHKeyPresent(ctx context.Context, params map[st
 
 // methodFileAbsent ensures a file does NOT exist.
 // Parameters: "path" (required)
-func (pe *PolicyExecutor) methodFileAbsent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodFileAbsent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	path := params["path"]
 	if path == "" {
 		return nil, fmt.Errorf("file_absent requires 'path' parameter")
@@ -811,7 +811,7 @@ func (pe *PolicyExecutor) methodFileAbsent(ctx context.Context, params map[strin
 
 // methodDirectoryAbsent ensures a directory does NOT exist.
 // Parameters: "path" (required), "recursive" (optional, "true"|"false", default "false")
-func (pe *PolicyExecutor) methodDirectoryAbsent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodDirectoryAbsent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	path := params["path"]
 	if path == "" {
 		return nil, fmt.Errorf("directory_absent requires 'path' parameter")
@@ -859,7 +859,7 @@ func (pe *PolicyExecutor) methodDirectoryAbsent(ctx context.Context, params map[
 
 // methodServiceEnabled ensures a service is enabled to start at boot.
 // Parameters: "name" (required)
-func (pe *PolicyExecutor) methodServiceEnabled(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodServiceEnabled(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	name := params["name"]
 	if name == "" {
 		return nil, fmt.Errorf("service_enabled requires 'name' parameter")
@@ -888,7 +888,7 @@ func (pe *PolicyExecutor) methodServiceEnabled(ctx context.Context, params map[s
 
 // methodServiceDisabled ensures a service is disabled (will not start at boot).
 // Parameters: "name" (required)
-func (pe *PolicyExecutor) methodServiceDisabled(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodServiceDisabled(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	name := params["name"]
 	if name == "" {
 		return nil, fmt.Errorf("service_disabled requires 'name' parameter")
@@ -917,7 +917,7 @@ func (pe *PolicyExecutor) methodServiceDisabled(ctx context.Context, params map[
 
 // methodFileReplaceLines performs regex find/replace across all lines of a file.
 // Parameters: "path" (required), "pattern" (required — regex), "replacement" (required)
-func (pe *PolicyExecutor) methodFileReplaceLines(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodFileReplaceLines(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	path := params["path"]
 	pattern := params["pattern"]
 	replacement := params["replacement"]
@@ -970,7 +970,7 @@ func (pe *PolicyExecutor) methodFileReplaceLines(ctx context.Context, params map
 // Parameters: "key" (required — e.g. "vm.swappiness"), "value" (required),
 //
 //	"persistent" (optional, "true"|"false", default "true" — write to /etc/sysctl.d)
-func (pe *PolicyExecutor) methodSysctlValue(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodSysctlValue(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	key := params["key"]
 	value := params["value"]
 	if key == "" || value == "" {
