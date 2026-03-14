@@ -150,7 +150,7 @@ func (pe *PolicyExecutor) methodFileKeyValue(_ context.Context, params map[strin
 
 // methodFilePermissions ensures a file has the correct ownership and permissions.
 // Parameters: "path", "mode" (octal, e.g. "0644"), "owner" (optional), "group" (optional)
-func (pe *PolicyExecutor) methodFilePermissions(ctx context.Context, params map[string]string, policyMode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodFilePermissions(_ context.Context, params map[string]string, policyMode string) (*models.ConfigMethodResult, error) {
 	path := params["path"]
 	if path == "" {
 		return nil, fmt.Errorf("file_permissions requires 'path' parameter")
@@ -236,7 +236,7 @@ func (pe *PolicyExecutor) methodFilePermissions(ctx context.Context, params map[
 
 // methodPackagePresent ensures a package is installed.
 // Parameters: "name" (required), "version" (optional)
-func (pe *PolicyExecutor) methodPackagePresent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodPackagePresent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	name := params["name"]
 	if name == "" {
 		return nil, fmt.Errorf("package_present requires 'name' parameter")
@@ -284,7 +284,7 @@ func (pe *PolicyExecutor) methodPackagePresent(ctx context.Context, params map[s
 
 // methodPackageAbsent ensures a package is NOT installed.
 // Parameters: "name" (required)
-func (pe *PolicyExecutor) methodPackageAbsent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodPackageAbsent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	name := params["name"]
 	if name == "" {
 		return nil, fmt.Errorf("package_absent requires 'name' parameter")
