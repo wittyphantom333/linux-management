@@ -16,6 +16,9 @@ const SEVERITY_EMOJI = {
 	low: "⚪",
 };
 
+const RESOLVED_COLOR = 0x22c55e; // green
+const RESOLVED_EMOJI = "✅";
+
 // ─── Discord ─────────────────────────────────────────────────────────────────
 async function sendDiscord(channel, alert) {
 	const color = SEVERITY_COLORS[alert.severity] ?? 0x6b7280;
@@ -264,7 +267,228 @@ async function sendTestNotification(channelData) {
 	await sender(channelData, testAlert);
 }
 
+// ─── Resolved notification senders ───────────────────────────────────────────
+
+async function sendDiscordResolved(channel, alert) {
+	const cfg = channel.config ?? {};
+
+	const embed = {
+		title: `${RESOLVED_EMOJI}  Resolved: ${alert.title}`,
+		description: `This alert has been resolved.`,
+		color: RESOLVED_COLOR,
+		fields: [
+			{ name: "Type", value: alert.type, inline: true },
+			{
+				name: "Original Severity",
+				value: alert.severity?.toUpperCase() ?? "UNKNOWN",
+				inline: true,
+			},
+		],
+		timestamp: new Date().toISOString(),
+		footer: { text: "Monux Alert System" },
+	};
+
+	if (alert.metadata?.hostname || alert.metadata?.host_name) {
+		embed.fields.push({
+			name: "Host",
+			value: alert.metadata.hostname || alert.metadata.host_name,
+			inline: true,
+		});
+	}
+
+	const body = {
+		username: cfg.username || "Monux",
+		avatar_url: cfg.avatar_url || undefined,
+		embeds: [embed],
+	};
+
+	const resp = await fetch(channel.webhook_url, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+
+	if (!resp.ok) {
+		const text = await resp.text().catch(() => "");
+		throw new Error(`Discord ${resp.status}: ${text}`);
+	}
+}
+
+async function sendTeamsResolved(channel, alert) {
+	const card = {
+		type: "message",
+		attachments: [
+			{
+				contentType: "application/vnd.microsoft.card.adaptive",
+				contentUrl: null,
+				content: {
+					$schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+					type: "AdaptiveCard",
+					version: "1.4",
+					body: [
+						{
+							type: "TextBlock",
+							size: "Large",
+							weight: "Bolder",
+							text: `${RESOLVED_EMOJI} Resolved: ${alert.title}`,
+							wrap: true,
+						},
+						{
+							type: "TextBlock",
+							text: "This alert has been resolved.",
+							wrap: true,
+							spacing: "Small",
+						},
+						{
+							type: "FactSet",
+							facts: [
+								{ title: "Type", value: alert.type },
+								{
+									title: "Original Severity",
+									value: alert.severity?.toUpperCase() ?? "UNKNOWN",
+								},
+								...(alert.metadata?.hostname || alert.metadata?.host_name
+									? [
+											{
+												title: "Host",
+												value:
+													alert.metadata.hostname || alert.metadata.host_name,
+											},
+										]
+									: []),
+							],
+						},
+						{
+							type: "TextBlock",
+							text: `Resolved at ${new Date().toISOString()}`,
+							size: "Small",
+							isSubtle: true,
+							wrap: true,
+							spacing: "Medium",
+						},
+					],
+				},
+			},
+		],
+	};
+
+	const resp = await fetch(channel.webhook_url, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(card),
+	});
+
+	if (!resp.ok) {
+		const text = await resp.text().catch(() => "");
+		throw new Error(`Teams ${resp.status}: ${text}`);
+	}
+}
+
+async function sendWebhookResolved(channel, alert) {
+	const cfg = channel.config ?? {};
+
+	const payload = {
+		event: "alert.resolved",
+		alert: {
+			id: alert.id,
+			type: alert.type,
+			severity: alert.severity,
+			title: alert.title,
+			message: alert.message,
+			metadata: alert.metadata ?? {},
+			created_at: alert.created_at,
+			resolved_at: new Date().toISOString(),
+		},
+		channel: {
+			id: channel.id,
+			name: channel.name,
+		},
+		sent_at: new Date().toISOString(),
+	};
+
+	const headers = {
+		"Content-Type": "application/json",
+		"User-Agent": "Monux-Webhook/1.0",
+		...(cfg.headers ?? {}),
+	};
+
+	if (cfg.secret) {
+		const crypto = require("node:crypto");
+		const hmac = crypto
+			.createHmac("sha256", cfg.secret)
+			.update(JSON.stringify(payload))
+			.digest("hex");
+		headers["X-PatchMon-Signature"] = `sha256=${hmac}`;
+	}
+
+	const resp = await fetch(channel.webhook_url, {
+		method: "POST",
+		headers,
+		body: JSON.stringify(payload),
+	});
+
+	if (!resp.ok) {
+		const text = await resp.text().catch(() => "");
+		throw new Error(`Webhook ${resp.status}: ${text}`);
+	}
+}
+
+const RESOLVED_SENDERS = {
+	discord: sendDiscordResolved,
+	teams: sendTeamsResolved,
+	webhook: sendWebhookResolved,
+};
+
+/**
+ * Dispatch a "resolved" notification for an alert to all matching, enabled channels.
+ * Called when an alert is resolved or marked done.
+ */
+async function dispatchAlertResolved(alert) {
+	try {
+		const channels = await prisma.alert_channels.findMany({
+			where: { enabled: true },
+		});
+
+		if (channels.length === 0) return;
+
+		for (const ch of channels) {
+			// ── severity filter ──
+			if (ch.severity_filter && Array.isArray(ch.severity_filter)) {
+				if (!ch.severity_filter.includes(alert.severity)) continue;
+			}
+
+			// ── type filter ──
+			if (ch.type_filter && Array.isArray(ch.type_filter)) {
+				if (!ch.type_filter.includes(alert.type)) continue;
+			}
+
+			const sender = RESOLVED_SENDERS[ch.channel_type];
+			if (!sender) {
+				logger.warn(
+					`⚠️ Unknown channel type "${ch.channel_type}" for channel ${ch.id}`,
+				);
+				continue;
+			}
+
+			try {
+				await sender(ch, alert);
+				logger.info(
+					`📨 Resolved alert ${alert.id} notification sent to ${ch.channel_type} channel "${ch.name}"`,
+				);
+			} catch (err) {
+				logger.error(
+					`❌ Failed to send resolved notification for alert ${alert.id} to channel "${ch.name}" (${ch.channel_type}):`,
+					err.message,
+				);
+			}
+		}
+	} catch (err) {
+		logger.error("❌ dispatchAlertResolved top-level error:", err);
+	}
+}
+
 module.exports = {
 	dispatchAlert,
+	dispatchAlertResolved,
 	sendTestNotification,
 };

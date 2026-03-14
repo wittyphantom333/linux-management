@@ -388,47 +388,6 @@ function init(server, prismaClient) {
 											logger.info(
 												`✅ Resolved host_down alert ${existingAlert.id} for ${apiId} (host reconnected)`,
 											);
-
-											// Create a host_up informational alert so users know the host is back
-											const hostUpConfig =
-												await alertConfigService.getAlertConfigByType(
-													"host_up",
-												);
-											if (hostUpConfig?.is_enabled) {
-												const hostName =
-													host.friendly_name || host.hostname || host.api_id;
-												const downAt =
-													existingAlert.created_at ||
-													existingAlert.metadata?.created_at;
-												const downtimeSec = downAt
-													? Math.round(
-															(Date.now() - new Date(downAt).getTime()) / 1000,
-														)
-													: null;
-												const downtimeStr = downtimeSec
-													? downtimeSec < 60
-														? `${downtimeSec}s`
-														: downtimeSec < 3600
-															? `${Math.round(downtimeSec / 60)}m`
-															: `${Math.round(downtimeSec / 3600)}h ${Math.round((downtimeSec % 3600) / 60)}m`
-													: "unknown";
-
-												await alertService.createAlert(
-													"host_up",
-													hostUpConfig.default_severity || "informational",
-													`Host ${hostName} is back online`,
-													`Host "${hostName}" reconnected via WebSocket after being offline for ${downtimeStr}.`,
-													{
-														host_id: host.id,
-														host_name: hostName,
-														downtime_seconds: downtimeSec,
-														resolved_alert_id: existingAlert.id,
-													},
-												);
-												logger.info(
-													`✅ Created host_up alert for ${hostName} (${apiId})`,
-												);
-											}
 										} catch (resolveError) {
 											logger.error(
 												`❌ Failed to resolve alert ${existingAlert.id}:`,

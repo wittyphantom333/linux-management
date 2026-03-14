@@ -1,7 +1,10 @@
 const { prisma } = require("./automation/shared/prisma");
 const logger = require("../utils/logger");
 const { v4: uuidv4 } = require("uuid");
-const { dispatchAlert } = require("./notificationService");
+const {
+	dispatchAlert,
+	dispatchAlertResolved,
+} = require("./notificationService");
 
 /**
  * Alert Service
@@ -267,7 +270,7 @@ class AlertService {
 				logger.info(
 					`[alert-service] Marking alert ${alertId} as ${actionName} - setting is_active=false, resolved_at=now`,
 				);
-				await prisma.alerts.update({
+				const resolvedAlert = await prisma.alerts.update({
 					where: { id: alertId },
 					data: {
 						is_active: false,
@@ -279,6 +282,9 @@ class AlertService {
 				logger.info(
 					`[alert-service] ✅ Alert ${alertId} marked as ${actionName}`,
 				);
+
+				// Fire-and-forget: dispatch resolved notification to all matching channels
+				dispatchAlertResolved(resolvedAlert).catch(() => {});
 			} else if (
 				["assigned", "silenced", "unsilenced", "acknowledged"].includes(
 					actionName,

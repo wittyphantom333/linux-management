@@ -21,7 +21,6 @@ import { adminUsersAPI, alertsAPI, formatRelativeTime } from "../utils/api";
 /** Human-readable labels for alert types */
 const ALERT_TYPE_LABELS = {
 	host_down: "Host Down",
-	host_up: "Host Back Up",
 	server_update: "Server Update",
 	agent_update: "Agent Update",
 	disk_space_warning: "Disk Space",
