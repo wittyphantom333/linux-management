@@ -25,6 +25,35 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   BRANDING HOOK
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function useBranding() {
+	const [branding, setBranding] = useState(null);
+	useEffect(() => {
+		fetch("/api/v1/settings/login-settings")
+			.then((r) => (r.ok ? r.json() : null))
+			.then((d) => d?.branding && setBranding(d.branding))
+			.catch(() => {});
+	}, []);
+	return branding;
+}
+
+function brandedLogo(branding) {
+	if (!branding?.logo_dark) return "/assets/logo_dark.png";
+	const parts = branding.logo_dark.split("/");
+	const filename = parts.pop();
+	const dir = parts.join("/");
+	const encoded = dir
+		? `${dir}/${encodeURIComponent(filename)}`
+		: encodeURIComponent(filename);
+	const v = branding.updated_at
+		? new Date(branding.updated_at).getTime()
+		: Date.now();
+	return `${encoded}?v=${v}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    UTILITIES
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -122,6 +151,7 @@ function GridCanvas() {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function Nav() {
+	const branding = useBranding();
 	const [scrolled, setScrolled] = useState(false);
 	const [open, setOpen] = useState(false);
 
@@ -146,7 +176,14 @@ function Nav() {
 			<div className="max-w-7xl mx-auto flex items-center justify-between h-16 px-5 lg:px-8">
 				{/* Logo */}
 				<Link to="/" className="flex items-center gap-2.5 group">
-					<img src="/assets/logo_dark.png" alt="" className="h-7 w-auto" />
+					<img
+						src={brandedLogo(branding)}
+						alt=""
+						className="h-7 w-auto"
+						onError={(e) => {
+							e.target.src = "/assets/logo_dark.png";
+						}}
+					/>
 					<span className="text-[15px] font-semibold text-white tracking-tight">
 						Monux
 					</span>
@@ -1056,6 +1093,7 @@ function CTA() {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function Footer() {
+	const branding = useBranding();
 	const cols = [
 		{
 			title: "Product",
@@ -1111,7 +1149,14 @@ function Footer() {
 					{/* Brand */}
 					<div>
 						<div className="flex items-center gap-2.5 mb-4">
-							<img src="/assets/logo_dark.png" alt="" className="h-7 w-auto" />
+							<img
+								src={brandedLogo(branding)}
+								alt=""
+								className="h-7 w-auto"
+								onError={(e) => {
+									e.target.src = "/assets/logo_dark.png";
+								}}
+							/>
 							<span className="text-sm font-semibold text-white">Monux</span>
 						</div>
 						<p className="text-[13px] text-white/30 leading-relaxed max-w-[220px]">

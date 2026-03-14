@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import {
 	AlertCircle,
 	ArrowLeft,
@@ -13,7 +12,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DiscordIcon from "../components/DiscordIcon";
 import { useAuth } from "../contexts/AuthContext";
-import { authAPI, isCorsError, settingsAPI } from "../utils/api";
+import { authAPI, isCorsError } from "../utils/api";
 
 const Login = () => {
 	const usernameId = useId();
@@ -58,11 +57,8 @@ const Login = () => {
 
 	const navigate = useNavigate();
 
-	// Fetch settings for favicon
-	const { data: settings } = useQuery({
-		queryKey: ["settings"],
-		queryFn: () => settingsAPI.get().then((res) => res.data),
-	});
+	// Branding state from public login-settings endpoint
+	const [branding, setBranding] = useState(null);
 
 	// Animated dot-grid canvas (matches landing page)
 	const drawGrid = useCallback(() => {
@@ -128,6 +124,9 @@ const Login = () => {
 					setSignupEnabled(data.signup_enabled || false);
 					if (data.discord) {
 						setDiscordConfig(data.discord);
+					}
+					if (data.branding) {
+						setBranding(data.branding);
 					}
 				}
 			} catch (error) {
@@ -413,17 +412,17 @@ const Login = () => {
 						<div className="mx-auto h-14 w-14 flex items-center justify-center mb-4">
 							<img
 								src={
-									settings?.favicon
+									branding?.favicon
 										? `${(() => {
-												const parts = settings.favicon.split("/");
+												const parts = branding.favicon.split("/");
 												const filename = parts.pop();
 												const directory = parts.join("/");
 												const encodedPath = directory
 													? `${directory}/${encodeURIComponent(filename)}`
 													: encodeURIComponent(filename);
 												return `${encodedPath}?v=${
-													settings?.updated_at
-														? new Date(settings.updated_at).getTime()
+													branding?.updated_at
+														? new Date(branding.updated_at).getTime()
 														: Date.now()
 												}`;
 											})()}`

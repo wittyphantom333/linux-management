@@ -433,6 +433,12 @@ router.get("/login-settings", async (_req, res) => {
 				enabled: discordEnabled,
 				buttonText: discordButtonText,
 			},
+			branding: {
+				logo_dark: settings.logo_dark || null,
+				logo_light: settings.logo_light || null,
+				favicon: settings.favicon || null,
+				updated_at: settings.updated_at || null,
+			},
 		});
 	} catch (error) {
 		logger.error("Failed to fetch login settings:", error);
