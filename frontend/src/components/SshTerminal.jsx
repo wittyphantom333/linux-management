@@ -43,31 +43,59 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	const IDLE_WARNING_MS = 1 * 60 * 1000; // 1 minute warning before disconnect
 	const [showInstallCommands, setShowInstallCommands] = useState(false);
 
-	// SSH key install state
-	const [showKeyInstall, setShowKeyInstall] = useState(false);
-	const [sshPublicKey, setSshPublicKey] = useState("");
-	const [keyInstallMessage, setKeyInstallMessage] = useState(null);
-	const canInstallSshKeys = permissions?.can_install_ssh_keys === true;
+	// Saved SSH credentials state
+	const [showSaveCredentials, setShowSaveCredentials] = useState(false);
+	const [credentialMessage, setCredentialMessage] = useState(null);
+	const [useSavedCredentials, setUseSavedCredentials] = useState(false);
+	const autoConnectAttemptedRef = useRef(false);
+	const canManageHosts = permissions?.can_manage_hosts === true;
 
-	const installSshKeyMutation = useMutation({
-		mutationFn: ({ publicKey, username }) =>
-			adminHostsAPI.installSshKey(host.id, publicKey, username),
-		onSuccess: (res) => {
-			setKeyInstallMessage({
+	// Load saved SSH credentials for this host
+	const { data: savedCredentials, refetch: refetchCredentials } = useQuery({
+		queryKey: ["sshCredentials", host?.id],
+		queryFn: () =>
+			adminHostsAPI.getSshCredentials(host.id).then((res) => res.data),
+		enabled: !!host?.id,
+		staleTime: 30000,
+	});
+
+	const saveCredentialsMutation = useMutation({
+		mutationFn: (credentials) =>
+			adminHostsAPI.saveSshCredentials(host.id, credentials),
+		onSuccess: () => {
+			setCredentialMessage({
 				type: "success",
-				text: res.data?.message || "SSH key installed successfully.",
+				text: "SSH credentials saved. Terminal will auto-connect next time.",
 			});
-			setSshPublicKey("");
-			setTimeout(() => setKeyInstallMessage(null), 8000);
+			refetchCredentials();
+			setTimeout(() => setCredentialMessage(null), 5000);
 		},
 		onError: (err) => {
-			setKeyInstallMessage({
+			setCredentialMessage({
 				type: "error",
-				text:
-					err.response?.data?.error ||
-					"Failed to install SSH key. Make sure the agent is connected.",
+				text: err.response?.data?.error || "Failed to save SSH credentials.",
 			});
-			setTimeout(() => setKeyInstallMessage(null), 8000);
+			setTimeout(() => setCredentialMessage(null), 5000);
+		},
+	});
+
+	const deleteCredentialsMutation = useMutation({
+		mutationFn: () => adminHostsAPI.deleteSshCredentials(host.id),
+		onSuccess: () => {
+			setCredentialMessage({
+				type: "success",
+				text: "Saved credentials removed.",
+			});
+			refetchCredentials();
+			setUseSavedCredentials(false);
+			setTimeout(() => setCredentialMessage(null), 5000);
+		},
+		onError: (err) => {
+			setCredentialMessage({
+				type: "error",
+				text: err.response?.data?.error || "Failed to remove credentials.",
+			});
+			setTimeout(() => setCredentialMessage(null), 5000);
 		},
 	});
 
@@ -128,6 +156,41 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 			}
 		}
 	};
+
+	// Auto-connect when saved credentials are available and terminal opens
+	const connectSshRef = useRef(null);
+	useEffect(() => {
+		if (
+			savedCredentials?.has_saved_credentials &&
+			!isConnected &&
+			!isConnecting &&
+			!autoConnectAttemptedRef.current &&
+			(embedded || isOpen)
+		) {
+			autoConnectAttemptedRef.current = true;
+			// Pre-fill config from saved credentials
+			setSshConfig((prev) => ({
+				...prev,
+				username: savedCredentials.username || prev.username,
+				port: savedCredentials.port || prev.port,
+				authMethod: savedCredentials.auth_method || prev.authMethod,
+			}));
+			setUseSavedCredentials(true);
+			// Small delay to let state settle before connecting
+			const timer = setTimeout(() => {
+				if (connectSshRef.current) {
+					connectSshRef.current(true);
+				}
+			}, 200);
+			return () => clearTimeout(timer);
+		}
+	}, [savedCredentials, isOpen, embedded, isConnected, isConnecting]);
+
+	// Reset auto-connect flag when host changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run when host changes
+	useEffect(() => {
+		autoConnectAttemptedRef.current = false;
+	}, [host?.id]);
 
 	// Fetch server URL and settings for agent install command
 	const { data: serverUrlData } = useQuery({
@@ -399,7 +462,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	}, [isConnected]);
 
 	// Connect to SSH via WebSocket
-	const connectSsh = async () => {
+	const connectSsh = async (useSaved = false) => {
 		if (!host) return;
 
 		// Close existing WebSocket connection if any
@@ -409,14 +472,16 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 			wsRef.current = null;
 		}
 
-		// Validate credentials based on auth method
-		if (sshConfig.authMethod === "password" && !sshConfig.password) {
-			setError("Password is required");
-			return;
-		}
-		if (sshConfig.authMethod === "key" && !sshConfig.privateKey) {
-			setError("Private key is required");
-			return;
+		// Validate credentials based on auth method (skip if using saved credentials)
+		if (!useSaved) {
+			if (sshConfig.authMethod === "password" && !sshConfig.password) {
+				setError("Password is required");
+				return;
+			}
+			if (sshConfig.authMethod === "key" && !sshConfig.privateKey) {
+				setError("Private key is required");
+				return;
+			}
 		}
 
 		setIsConnecting(true);
@@ -489,19 +554,26 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 						rows: fitAddonRef.current?.proposeDimensions()?.rows || 24,
 					};
 
+					// If using saved credentials, tell the backend to load them
+					if (useSaved) {
+						connectData.use_saved_credentials = true;
+					}
+
 					// Add proxy configuration if proxy mode
 					if (sshConfig.connectionMode === "proxy") {
 						connectData.proxy_host = sshConfig.proxyHost || "localhost";
 						connectData.proxy_port = sshConfig.proxyPort || 22;
 					}
 
-					// Add authentication data based on selected method
-					if (sshConfig.authMethod === "password") {
-						connectData.password = sshConfig.password;
-					} else if (sshConfig.authMethod === "key") {
-						connectData.privateKey = sshConfig.privateKey;
-						if (sshConfig.passphrase) {
-							connectData.passphrase = sshConfig.passphrase;
+					// Add authentication data based on selected method (only if not using saved)
+					if (!useSaved) {
+						if (sshConfig.authMethod === "password") {
+							connectData.password = sshConfig.password;
+						} else if (sshConfig.authMethod === "key") {
+							connectData.privateKey = sshConfig.privateKey;
+							if (sshConfig.passphrase) {
+								connectData.passphrase = sshConfig.passphrase;
+							}
 						}
 					}
 
@@ -670,6 +742,9 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 			setIsConnecting(false);
 		}
 	};
+
+	// Keep ref in sync for auto-connect useEffect
+	connectSshRef.current = connectSsh;
 
 	// Close install commands dropdown when clicking outside
 	useEffect(() => {
@@ -1325,72 +1400,109 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 								</button>
 							)}
 
-							{/* Install SSH Key Section */}
-							{canInstallSshKeys && (
+							{/* Save Credentials Section */}
+							{canManageHosts && (
 								<div className="border-t border-secondary-700 pt-4 mt-2">
 									<button
 										type="button"
-										onClick={() => setShowKeyInstall(!showKeyInstall)}
+										onClick={() => setShowSaveCredentials(!showSaveCredentials)}
 										className="flex items-center gap-2 text-xs text-secondary-400 hover:text-secondary-200 transition-colors"
 									>
 										<Key className="h-3.5 w-3.5" />
-										<span>Install SSH Public Key on Host</span>
+										<span>
+											{savedCredentials?.has_saved_credentials
+												? "Saved Credentials (auto-connect enabled)"
+												: "Save Credentials for Auto-Connect"}
+										</span>
 										<ChevronDown
-											className={`h-3 w-3 transition-transform ${showKeyInstall ? "rotate-180" : ""}`}
+											className={`h-3 w-3 transition-transform ${showSaveCredentials ? "rotate-180" : ""}`}
 										/>
 									</button>
-									{showKeyInstall && (
+									{showSaveCredentials && (
 										<div className="mt-3 space-y-3">
 											<p className="text-xs text-secondary-400">
-												Install an SSH public key into{" "}
-												<code className="bg-secondary-700 px-1 rounded">
-													~{sshConfig.username || "root"}/.ssh/authorized_keys
-												</code>{" "}
-												on this host via the agent. This enables passwordless
-												SSH login.
+												Save current credentials to auto-connect next time you
+												open the terminal. Credentials are encrypted at rest.
 											</p>
-											<textarea
-												value={sshPublicKey}
-												onChange={(e) => setSshPublicKey(e.target.value)}
-												className="w-full px-3 py-2 text-sm bg-secondary-700 border border-secondary-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono resize-none"
-												placeholder="ssh-ed25519 AAAA... user@host"
-												rows={3}
-											/>
-											<button
-												type="button"
-												onClick={() =>
-													installSshKeyMutation.mutate({
-														publicKey: sshPublicKey,
-														username: sshConfig.username || "root",
-													})
-												}
-												disabled={
-													!sshPublicKey.trim() ||
-													installSshKeyMutation.isPending
-												}
-												className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm bg-amber-600 hover:bg-amber-700 text-white font-medium rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-											>
-												{installSshKeyMutation.isPending ? (
-													<>
-														<Loader2 className="h-3.5 w-3.5 animate-spin" />
-														Installing...
-													</>
-												) : (
-													<>
-														<Key className="h-3.5 w-3.5" />
-														Install Key for {sshConfig.username || "root"}
-													</>
+											{savedCredentials?.has_saved_credentials && (
+												<div className="p-2 bg-secondary-700/50 rounded text-xs text-secondary-300 space-y-1">
+													<div>
+														<span className="text-secondary-400">User:</span>{" "}
+														{savedCredentials.username || "root"}
+													</div>
+													<div>
+														<span className="text-secondary-400">Port:</span>{" "}
+														{savedCredentials.port || 22}
+													</div>
+													<div>
+														<span className="text-secondary-400">Auth:</span>{" "}
+														{savedCredentials.auth_method === "key"
+															? "SSH Key"
+															: "Password"}
+													</div>
+												</div>
+											)}
+											<div className="flex gap-2">
+												<button
+													type="button"
+													onClick={() => {
+														const creds = {
+															username: sshConfig.username || "root",
+															port: sshConfig.port || 22,
+															authMethod: sshConfig.authMethod,
+														};
+														if (sshConfig.authMethod === "password") {
+															creds.password = sshConfig.password;
+														} else if (sshConfig.authMethod === "key") {
+															creds.privateKey = sshConfig.privateKey;
+														}
+														saveCredentialsMutation.mutate(creds);
+													}}
+													disabled={
+														saveCredentialsMutation.isPending ||
+														(sshConfig.authMethod === "password" &&
+															!sshConfig.password) ||
+														(sshConfig.authMethod === "key" &&
+															!sshConfig.privateKey)
+													}
+													className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white font-medium rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+												>
+													{saveCredentialsMutation.isPending ? (
+														<>
+															<Loader2 className="h-3.5 w-3.5 animate-spin" />
+															Saving...
+														</>
+													) : (
+														<>
+															<Key className="h-3.5 w-3.5" />
+															{savedCredentials?.has_saved_credentials
+																? "Update Credentials"
+																: "Save Credentials"}
+														</>
+													)}
+												</button>
+												{savedCredentials?.has_saved_credentials && (
+													<button
+														type="button"
+														onClick={() => deleteCredentialsMutation.mutate()}
+														disabled={deleteCredentialsMutation.isPending}
+														className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white font-medium rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+													>
+														{deleteCredentialsMutation.isPending
+															? "Removing..."
+															: "Remove"}
+													</button>
 												)}
-											</button>
-											{keyInstallMessage && (
+											</div>
+											{credentialMessage && (
 												<div
 													className={`p-2 rounded text-xs ${
-														keyInstallMessage.type === "success"
+														credentialMessage.type === "success"
 															? "bg-green-900/50 border border-green-700 text-green-200"
 															: "bg-red-900/50 border border-red-700 text-red-200"
 													}`}
 												>
-													{keyInstallMessage.text}
+													{credentialMessage.text}
 												</div>
 											)}
 										</div>
@@ -1407,7 +1519,9 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 						<div className="flex items-center gap-2 text-sm">
 							<Loader2 className="h-4 w-4 text-primary-400 animate-spin" />
 							<span className="text-secondary-300">
-								Connecting to SSH server...
+								{useSavedCredentials
+									? "Auto-connecting with saved credentials..."
+									: "Connecting to SSH server..."}
 							</span>
 						</div>
 					</div>

@@ -94,61 +94,66 @@ model host_repositories {
 }
 
 model hosts {
-  id                       String                   @id
-  machine_id               String?
-  friendly_name            String
-  ip                       String?
-  os_type                  String
-  os_version               String
-  architecture             String?
-  last_update              DateTime                 @default(now())
-  status                   String                   @default("active")
-  created_at               DateTime                 @default(now())
-  updated_at               DateTime
-  api_id                   String                   @unique
-  api_key                  String                   @unique
-  agent_version            String?
-  auto_update              Boolean                  @default(true)
-  cpu_cores                Int?
-  cpu_model                String?
-  disk_details             Json?
-  dns_servers              Json?
-  gateway_ip               String?
-  hostname                 String?
-  kernel_version           String?
-  installed_kernel_version String?
-  load_average             Json?
-  network_interfaces       Json?
-  ram_installed            Float?
-  selinux_status           String?
-  swap_size                Float?
-  system_uptime            String?
-  notes                    String?
-  needs_reboot             Boolean?                 @default(false)
-  reboot_reason            String?
-  docker_enabled           Boolean                  @default(false)
-  compliance_enabled       Boolean                  @default(false)
-  compliance_on_demand_only Boolean                 @default(true)
-  compliance_openscap_enabled Boolean               @default(true)  // individually enable/disable OpenSCAP scanning
-  compliance_docker_bench_enabled Boolean            @default(false) // individually enable/disable Docker Bench scanning
-  compliance_scanner_status Json?                  // last known scanner status from agent (status, message, components, scanner_info)
-  compliance_scanner_updated_at DateTime?           // when agent last reported compliance scanner status
-  configmanagement_enabled Boolean                  @default(true)
-  patchmanagement_enabled Boolean                   @default(false)
-  host_down_alerts_enabled Boolean?                 // null = inherit from global config, true = enabled, false = disabled
-  expected_platform       String?                  // linux | freebsd | windows (for OS-specific install command)
-  host_packages            host_packages[]
-  host_repositories        host_repositories[]
-  host_group_memberships   host_group_memberships[]
-  update_history           update_history[]
-  job_history              job_history[]
-  docker_volumes           docker_volumes[]
-  docker_networks          docker_networks[]
-  compliance_scans         compliance_scans[]
-  cm_policy_runs           cm_policy_runs[]
-  cm_job_hosts             cm_job_hosts[]
-  patch_job_hosts          patch_job_hosts[]
-  agent_logs               agent_logs[]
+  id                              String                   @id
+  machine_id                      String?
+  friendly_name                   String
+  ip                              String?
+  os_type                         String
+  os_version                      String
+  architecture                    String?
+  last_update                     DateTime                 @default(now())
+  status                          String                   @default("active")
+  created_at                      DateTime                 @default(now())
+  updated_at                      DateTime
+  api_id                          String                   @unique
+  api_key                         String                   @unique
+  agent_version                   String?
+  auto_update                     Boolean                  @default(true)
+  cpu_cores                       Int?
+  cpu_model                       String?
+  disk_details                    Json?
+  dns_servers                     Json?
+  gateway_ip                      String?
+  hostname                        String?
+  kernel_version                  String?
+  installed_kernel_version        String?
+  load_average                    Json?
+  network_interfaces              Json?
+  ram_installed                   Float?
+  selinux_status                  String?
+  swap_size                       Float?
+  system_uptime                   String?
+  notes                           String?
+  needs_reboot                    Boolean?                 @default(false)
+  reboot_reason                   String?
+  docker_enabled                  Boolean                  @default(false)
+  compliance_enabled              Boolean                  @default(false)
+  compliance_on_demand_only       Boolean                  @default(true)
+  compliance_openscap_enabled     Boolean                  @default(true) // individually enable/disable OpenSCAP scanning
+  compliance_docker_bench_enabled Boolean                  @default(false) // individually enable/disable Docker Bench scanning
+  compliance_scanner_status       Json? // last known scanner status from agent (status, message, components, scanner_info)
+  compliance_scanner_updated_at   DateTime? // when agent last reported compliance scanner status
+  configmanagement_enabled        Boolean                  @default(true)
+  patchmanagement_enabled         Boolean                  @default(false)
+  host_down_alerts_enabled        Boolean? // null = inherit from global config, true = enabled, false = disabled
+  expected_platform               String? // linux | freebsd | windows (for OS-specific install command)
+  ssh_username                    String? // Saved SSH username for terminal auto-login
+  ssh_port                        Int? // Saved SSH port for terminal auto-login
+  ssh_auth_method                 String? // "password" or "key"
+  ssh_password                    String? // Encrypted SSH password
+  ssh_private_key                 String? // Encrypted SSH private key
+  host_packages                   host_packages[]
+  host_repositories               host_repositories[]
+  host_group_memberships          host_group_memberships[]
+  update_history                  update_history[]
+  job_history                     job_history[]
+  docker_volumes                  docker_volumes[]
+  docker_networks                 docker_networks[]
+  compliance_scans                compliance_scans[]
+  cm_policy_runs                  cm_policy_runs[]
+  cm_job_hosts                    cm_job_hosts[]
+  patch_job_hosts                 patch_job_hosts[]
+  agent_logs                      agent_logs[]
 
   @@index([machine_id])
   @@index([friendly_name])
@@ -194,26 +199,26 @@ model repositories {
 }
 
 model role_permissions {
-  id                    String   @id
-  role                  String   @unique
-  can_view_dashboard    Boolean  @default(true)
-  can_view_hosts        Boolean  @default(true)
-  can_manage_hosts      Boolean  @default(false)
-  can_view_packages     Boolean  @default(true)
-  can_manage_packages   Boolean  @default(false)
-  can_view_users        Boolean  @default(false)
-  can_manage_users      Boolean  @default(false)
-  can_manage_superusers Boolean  @default(false)
-  can_view_reports              Boolean  @default(true)
-  can_export_data               Boolean  @default(false)
-  can_manage_settings           Boolean  @default(false)
-  can_view_config_management    Boolean  @default(true)
-  can_manage_config_management  Boolean  @default(false)
-  can_view_patch_management     Boolean  @default(true)
-  can_manage_patch_management   Boolean  @default(false)
-  can_install_ssh_keys          Boolean  @default(false)
-  created_at                    DateTime @default(now())
-  updated_at                    DateTime
+  id                           String   @id
+  role                         String   @unique
+  can_view_dashboard           Boolean  @default(true)
+  can_view_hosts               Boolean  @default(true)
+  can_manage_hosts             Boolean  @default(false)
+  can_view_packages            Boolean  @default(true)
+  can_manage_packages          Boolean  @default(false)
+  can_view_users               Boolean  @default(false)
+  can_manage_users             Boolean  @default(false)
+  can_manage_superusers        Boolean  @default(false)
+  can_view_reports             Boolean  @default(true)
+  can_export_data              Boolean  @default(false)
+  can_manage_settings          Boolean  @default(false)
+  can_view_config_management   Boolean  @default(true)
+  can_manage_config_management Boolean  @default(false)
+  can_view_patch_management    Boolean  @default(true)
+  can_manage_patch_management  Boolean  @default(false)
+  can_install_ssh_keys         Boolean  @default(false)
+  created_at                   DateTime @default(now())
+  updated_at                   DateTime
 }
 
 model settings {
@@ -226,7 +231,7 @@ model settings {
   updated_at                   DateTime
   update_interval              Int       @default(60)
   auto_update                  Boolean   @default(false)
-  default_compliance_mode      String   @default("on-demand") // "disabled", "on-demand", "enabled"
+  default_compliance_mode      String    @default("on-demand") // "disabled", "on-demand", "enabled"
   github_repo_url              String    @default("https://github.com/wittyphantom333/linux-management.git")
   ssh_key_path                 String?
   repository_type              String    @default("public")
@@ -247,13 +252,13 @@ model settings {
   ai_enabled                   Boolean   @default(false)
   ai_provider                  String    @default("openrouter") // openrouter, anthropic, openai, gemini
   ai_model                     String?
-  ai_api_key                   String?   // Encrypted API key
+  ai_api_key                   String? // Encrypted API key
   // Alerts system settings
   alerts_enabled               Boolean   @default(true) // Master switch for alerts system
   // Discord OAuth settings
   discord_oauth_enabled        Boolean   @default(false)
   discord_client_id            String?
-  discord_client_secret        String?   // Encrypted via encrypt()
+  discord_client_secret        String? // Encrypted via encrypt()
   discord_redirect_uri         String?
   discord_button_text          String?   @default("Login with Discord")
 }
@@ -306,7 +311,7 @@ model users {
   last_name                 String?
   theme_preference          String?                     @default("dark")
   color_theme               String?                     @default("cyber_blue")
-  ui_preferences            Json?                       // e.g. { hosts_column_config: [...] }
+  ui_preferences            Json? // e.g. { hosts_column_config: [...] }
   oidc_sub                  String?                     @unique
   oidc_provider             String?
   avatar_url                String?
@@ -319,10 +324,10 @@ model users {
   user_sessions             user_sessions[]
   auto_enrollment_tokens    auto_enrollment_tokens[]
   release_notes_acceptances release_notes_acceptances[]
-  alerts_assigned           alerts[]                @relation("AlertAssignedTo")
-  alerts_resolved           alerts[]                 @relation("AlertResolvedBy")
-  alert_history             alert_history[]          @relation("AlertHistoryUser")
-  alert_config_auto_assign  alert_config[]           @relation("AlertConfigAutoAssign")
+  alerts_assigned           alerts[]                    @relation("AlertAssignedTo")
+  alerts_resolved           alerts[]                    @relation("AlertResolvedBy")
+  alert_history             alert_history[]             @relation("AlertHistoryUser")
+  alert_config_auto_assign  alert_config[]              @relation("AlertConfigAutoAssign")
 
   @@index([role])
   @@index([last_login])
@@ -568,23 +573,23 @@ model compliance_profiles {
 }
 
 model compliance_scans {
-  id            String    @id @default(uuid())
-  host_id       String
-  profile_id    String
-  started_at    DateTime
-  completed_at  DateTime?
-  status        String // "running", "completed", "failed"
-  total_rules   Int       @default(0)
-  passed        Int       @default(0)
-  failed        Int       @default(0)
+  id             String    @id @default(uuid())
+  host_id        String
+  profile_id     String
+  started_at     DateTime
+  completed_at   DateTime?
+  status         String // "running", "completed", "failed"
+  total_rules    Int       @default(0)
+  passed         Int       @default(0)
+  failed         Int       @default(0)
   warnings       Int       @default(0)
   skipped        Int       @default(0)
   not_applicable Int       @default(0)
   score          Float? // Percentage 0-100
-  error_message String?   @db.Text // Error details when status is "failed"
-  raw_output    String?   @db.Text
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
+  error_message  String?   @db.Text // Error details when status is "failed"
+  raw_output     String?   @db.Text
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
   hosts               hosts                @relation(fields: [host_id], references: [id], onDelete: Cascade)
   compliance_profiles compliance_profiles  @relation(fields: [profile_id], references: [id], onDelete: Cascade)
@@ -645,21 +650,21 @@ model compliance_results {
 // ==========================================
 
 model alerts {
-  id                String         @id @default(uuid())
-  type              String         // e.g., "server_update", "agent_update", "host_down"
-  severity          String         // "informational", "warning", "error", "critical"
-  title             String
-  message           String
-  metadata          Json?
-  is_active         Boolean        @default(true)
-  assigned_to_user_id String?      @db.Text
-  resolved_at       DateTime?
-  resolved_by_user_id String?      @db.Text
-  created_at        DateTime       @default(now())
-  updated_at        DateTime       @updatedAt
-  alert_history     alert_history[]
-  users_assigned    users?         @relation("AlertAssignedTo", fields: [assigned_to_user_id], references: [id], onDelete: SetNull)
-  users_resolved    users?         @relation("AlertResolvedBy", fields: [resolved_by_user_id], references: [id], onDelete: SetNull)
+  id                  String          @id @default(uuid())
+  type                String // e.g., "server_update", "agent_update", "host_down"
+  severity            String // "informational", "warning", "error", "critical"
+  title               String
+  message             String
+  metadata            Json?
+  is_active           Boolean         @default(true)
+  assigned_to_user_id String?         @db.Text
+  resolved_at         DateTime?
+  resolved_by_user_id String?         @db.Text
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+  alert_history       alert_history[]
+  users_assigned      users?          @relation("AlertAssignedTo", fields: [assigned_to_user_id], references: [id], onDelete: SetNull)
+  users_resolved      users?          @relation("AlertResolvedBy", fields: [resolved_by_user_id], references: [id], onDelete: SetNull)
 
   @@index([type])
   @@index([severity])
@@ -669,14 +674,14 @@ model alerts {
 }
 
 model alert_history {
-  id        String   @id @default(uuid())
-  alert_id  String
-  user_id   String? // Made nullable for system actions like 'created'
-  action    String   // Action type: "done", "silenced", "unsilenced", "resolved", "created", "acknowledged", etc.
-  metadata  Json?
+  id         String   @id @default(uuid())
+  alert_id   String
+  user_id    String? // Made nullable for system actions like 'created'
+  action     String // Action type: "done", "silenced", "unsilenced", "resolved", "created", "acknowledged", etc.
+  metadata   Json?
   created_at DateTime @default(now())
-  alerts    alerts   @relation(fields: [alert_id], references: [id], onDelete: Cascade)
-  users     users?   @relation("AlertHistoryUser", fields: [user_id], references: [id], onDelete: Cascade) // Optional user relation
+  alerts     alerts   @relation(fields: [alert_id], references: [id], onDelete: Cascade)
+  users      users?   @relation("AlertHistoryUser", fields: [user_id], references: [id], onDelete: Cascade) // Optional user relation
 
   @@index([alert_id])
   @@index([user_id])
@@ -686,14 +691,14 @@ model alert_history {
 }
 
 model alert_actions {
-  id              String   @id @default(uuid())
-  name            String   @unique // Action identifier: "done", "silenced", "unsilenced", etc.
-  display_name    String   // Human-readable name: "Mark as Done", "Silence", etc.
-  description     String?  @db.Text
-  is_state_action Boolean  @default(false) // Whether this action represents a state change
+  id                String   @id @default(uuid())
+  name              String   @unique // Action identifier: "done", "silenced", "unsilenced", etc.
+  display_name      String // Human-readable name: "Mark as Done", "Silence", etc.
+  description       String?  @db.Text
+  is_state_action   Boolean  @default(false) // Whether this action represents a state change
   severity_override String? // If this action changes severity (optional)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
   @@index([name])
   @@index([is_state_action])
@@ -708,16 +713,16 @@ model alert_config {
   auto_assign_user_id     String?  @db.Text
   auto_assign_rule        String?
   auto_assign_conditions  Json?
-  retention_days           Int?
-  auto_resolve_after_days  Int?
-  cleanup_resolved_only    Boolean  @default(true)
-  notification_enabled     Boolean  @default(true)
-  escalation_enabled       Boolean  @default(false)
-  escalation_after_hours   Int?
-  metadata                 Json?
-  created_at               DateTime @default(now())
-  updated_at               DateTime @updatedAt
-  users_auto_assign        users?   @relation("AlertConfigAutoAssign", fields: [auto_assign_user_id], references: [id], onDelete: SetNull)
+  retention_days          Int?
+  auto_resolve_after_days Int?
+  cleanup_resolved_only   Boolean  @default(true)
+  notification_enabled    Boolean  @default(true)
+  escalation_enabled      Boolean  @default(false)
+  escalation_after_hours  Int?
+  metadata                Json?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  users_auto_assign       users?   @relation("AlertConfigAutoAssign", fields: [auto_assign_user_id], references: [id], onDelete: SetNull)
 
   @@index([alert_type])
   @@index([is_enabled])
@@ -726,13 +731,13 @@ model alert_config {
 
 model alert_channels {
   id              String   @id @default(uuid())
-  name            String   // User-defined label, e.g. "Ops Discord"
-  channel_type    String   // "discord", "webhook", "teams"
+  name            String // User-defined label, e.g. "Ops Discord"
+  channel_type    String // "discord", "webhook", "teams"
   webhook_url     String   @db.Text
   enabled         Boolean  @default(true)
-  severity_filter Json?    // e.g. ["critical","warning"] — null = all
-  type_filter     Json?    // e.g. ["host_down","security_updates"] — null = all
-  config          Json?    // per-type extras (e.g. username, avatar_url, headers)
+  severity_filter Json? // e.g. ["critical","warning"] — null = all
+  type_filter     Json? // e.g. ["host_down","security_updates"] — null = all
+  config          Json? // per-type extras (e.g. username, avatar_url, headers)
   created_by      String?
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
@@ -751,10 +756,10 @@ model cm_techniques {
   name        String
   description String?  @db.Text
   version     String   @default("1.0")
-  category    String?                     // files, packages, services, users, commands, security
-  parameters  Json?                       // Array of ConfigTechniqueParam
-  methods     Json                        // Array of ConfigTechniqueMethod (ordered)
-  conditions  Json?                       // ConfigTechniqueCondition
+  category    String? // files, packages, services, users, commands, security
+  parameters  Json? // Array of ConfigTechniqueParam
+  methods     Json // Array of ConfigTechniqueMethod (ordered)
+  conditions  Json? // ConfigTechniqueCondition
   enabled     Boolean  @default(true)
   created_by  String?
   created_at  DateTime @default(now())
@@ -773,18 +778,18 @@ model cm_directives {
   name              String
   description       String?  @db.Text
   technique_id      String
-  technique_version String?  @default("1.0")  // Pinned technique version — directives don't auto-upgrade
+  technique_version String?  @default("1.0") // Pinned technique version — directives don't auto-upgrade
   version           String   @default("1.0")
-  priority          Int      @default(50)      // Lower = higher priority
+  priority          Int      @default(50) // Lower = higher priority
   policy_mode       String   @default("audit") // "audit" or "enforce"
-  parameters        Json?                      // Key-value map of technique param values
+  parameters        Json? // Key-value map of technique param values
   enabled           Boolean  @default(true)
-  tags              Json?                      // Key-value tags
+  tags              Json? // Key-value tags
   created_by        String?
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 
-  technique    cm_techniques @relation(fields: [technique_id], references: [id], onDelete: Cascade)
+  technique cm_techniques @relation(fields: [technique_id], references: [id], onDelete: Cascade)
 
   cm_rule_directives cm_rule_directives[]
 
@@ -800,10 +805,10 @@ model cm_rules {
   description       String?  @db.Text
   enabled           Boolean  @default(true)
   priority          Int      @default(50)
-  run_schedule      String   @default("always")  // "always" | "once" | "interval" | "cron"
-  schedule_interval Int?                          // Minutes between runs (for "interval")
-  schedule_cron     String?                       // Cron expression e.g. "0 2 * * *" (for "cron")
-  schedule_timezone String?  @default("UTC")      // IANA timezone for cron evaluation
+  run_schedule      String   @default("always") // "always" | "once" | "interval" | "cron"
+  schedule_interval Int? // Minutes between runs (for "interval")
+  schedule_cron     String? // Cron expression e.g. "0 2 * * *" (for "cron")
+  schedule_timezone String?  @default("UTC") // IANA timezone for cron evaluation
   tags              Json?
   created_by        String?
   created_at        DateTime @default(now())
@@ -842,21 +847,21 @@ model cm_rule_groups {
 
 /// Stores every policy evaluation run from an agent.
 model cm_policy_runs {
-  id                String    @id @default(uuid())
+  id                String   @id @default(uuid())
   host_id           String
   policy_id         String?
-  global_mode       String    @default("audit")
-  evaluated_at      DateTime  @default(now())
-  total_directives  Int       @default(0)
-  compliant         Int       @default(0)
-  non_compliant     Int       @default(0)
-  errors            Int       @default(0)
-  repaired          Int       @default(0)
-  not_applicable    Int       @default(0)
-  audited           Int       @default(0)
-  score             Float     @default(0)
-  directive_results Json?     // Full array of ConfigDirectiveResult
-  created_at        DateTime  @default(now())
+  global_mode       String   @default("audit")
+  evaluated_at      DateTime @default(now())
+  total_directives  Int      @default(0)
+  compliant         Int      @default(0)
+  non_compliant     Int      @default(0)
+  errors            Int      @default(0)
+  repaired          Int      @default(0)
+  not_applicable    Int      @default(0)
+  audited           Int      @default(0)
+  score             Float    @default(0)
+  directive_results Json? // Full array of ConfigDirectiveResult
+  created_at        DateTime @default(now())
 
   hosts hosts @relation(fields: [host_id], references: [id], onDelete: Cascade)
 
@@ -872,7 +877,7 @@ model cm_jobs {
   rule_id           String
   rule_name         String    @default("")
   status            String    @default("pending") // "pending" | "running" | "completed" | "completed_with_errors" | "failed"
-  triggered_by      String    @default("manual")  // "schedule" | "manual"
+  triggered_by      String    @default("manual") // "schedule" | "manual"
   triggered_by_user String?
   total_hosts       Int       @default(0)
   completed_hosts   Int       @default(0)
@@ -881,8 +886,8 @@ model cm_jobs {
   completed_at      DateTime?
   created_at        DateTime  @default(now())
 
-  rule          cm_rules       @relation(fields: [rule_id], references: [id], onDelete: Cascade)
-  cm_job_hosts  cm_job_hosts[]
+  rule         cm_rules       @relation(fields: [rule_id], references: [id], onDelete: Cascade)
+  cm_job_hosts cm_job_hosts[]
 
   @@index([rule_id])
   @@index([status])
@@ -895,7 +900,7 @@ model cm_job_hosts {
   job_id       String
   host_id      String
   status       String    @default("pending") // "pending" | "running" | "completed" | "failed"
-  run_id       String?   // FK to cm_policy_runs once the agent reports in
+  run_id       String? // FK to cm_policy_runs once the agent reports in
   started_at   DateTime?
   completed_at DateTime?
 
@@ -917,7 +922,7 @@ model patch_policies {
   id                      String   @id @default(uuid())
   name                    String   @unique
   description             String?  @db.Text
-  policy_type             String   @default("all")       // "all" | "security_only" | "selected"
+  policy_type             String   @default("all") // "all" | "security_only" | "selected"
   auto_approve            Boolean  @default(false)
   approval_timeout_hours  Int?     @default(72)
   reboot_policy           String   @default("if_needed") // "never" | "if_needed" | "always"
@@ -925,8 +930,8 @@ model patch_policies {
   post_snapshot           Boolean  @default(true)
   max_concurrent_hosts    Int      @default(5)
   stop_on_failure_percent Int      @default(30)
-  blackout_start          String?                        // HH:MM — daily blackout window start
-  blackout_end            String?                        // HH:MM — daily blackout window end
+  blackout_start          String? // HH:MM — daily blackout window start
+  blackout_end            String? // HH:MM — daily blackout window end
   enabled                 Boolean  @default(true)
   created_by              String?
   created_at              DateTime @default(now())
@@ -959,7 +964,7 @@ model patch_policy_filters {
   id          String   @id @default(uuid())
   policy_id   String
   filter_type String   @default("exclude") // "include" | "exclude"
-  match_type  String   @default("glob")    // "exact" | "glob" | "regex"
+  match_type  String   @default("glob") // "exact" | "glob" | "regex"
   pattern     String
   created_at  DateTime @default(now())
 
@@ -975,7 +980,7 @@ model patch_windows {
   description       String?   @db.Text
   policy_id         String
   schedule_type     String    @default("recurring") // "once" | "recurring"
-  schedule_cron     String?                          // 5-field cron expression
+  schedule_cron     String? // 5-field cron expression
   schedule_timezone String?   @default("UTC")
   duration_minutes  Int       @default(120)
   next_run_at       DateTime?
@@ -999,7 +1004,7 @@ model patch_jobs {
   policy_id         String
   window_id         String?
   status            String    @default("pending") // "pending" | "running" | "completed" | "completed_with_errors" | "failed" | "cancelled"
-  triggered_by      String    @default("manual")  // "schedule" | "manual"
+  triggered_by      String    @default("manual") // "schedule" | "manual"
   triggered_by_user String?
   started_at        DateTime?
   completed_at      DateTime?
@@ -1009,8 +1014,8 @@ model patch_jobs {
   skipped_hosts     Int       @default(0)
   created_at        DateTime  @default(now())
 
-  policy         patch_policies  @relation(fields: [policy_id], references: [id], onDelete: Cascade)
-  window         patch_windows?  @relation(fields: [window_id], references: [id], onDelete: SetNull)
+  policy          patch_policies    @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+  window          patch_windows?    @relation(fields: [window_id], references: [id], onDelete: SetNull)
   patch_job_hosts patch_job_hosts[]
 
   @@index([policy_id])
@@ -1028,14 +1033,14 @@ model patch_job_hosts {
   completed_at     DateTime?
   packages_updated Int       @default(0)
   packages_failed  Int       @default(0)
-  pre_snapshot     Json?     // Package state before patching
-  post_snapshot    Json?     // Package state after patching
+  pre_snapshot     Json? // Package state before patching
+  post_snapshot    Json? // Package state after patching
   error_message    String?   @db.Text
   reboot_required  Boolean   @default(false)
   reboot_completed Boolean   @default(false)
 
-  job              patch_jobs          @relation(fields: [job_id], references: [id], onDelete: Cascade)
-  host             hosts               @relation(fields: [host_id], references: [id], onDelete: Cascade)
+  job                patch_jobs           @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  host               hosts                @relation(fields: [host_id], references: [id], onDelete: Cascade)
   patch_job_packages patch_job_packages[]
 
   @@unique([job_id, host_id])
@@ -1069,11 +1074,11 @@ model patch_job_packages {
 model agent_logs {
   id          String   @id @default(uuid())
   host_id     String
-  timestamp   DateTime                // When the log entry was generated on the agent
-  level       String                  // "debug", "info", "warn", "error"
+  timestamp   DateTime // When the log entry was generated on the agent
+  level       String // "debug", "info", "warn", "error"
   source      String   @default("") // Module/component that produced the log (e.g. "configmanagement", "patchmanagement")
-  message     String   @db.Text       // The log message
-  metadata    Json?                    // Optional structured metadata (fields from logrus)
+  message     String   @db.Text // The log message
+  metadata    Json? // Optional structured metadata (fields from logrus)
   received_at DateTime @default(now()) // When the server received this entry
 
   hosts hosts @relation(fields: [host_id], references: [id], onDelete: Cascade)

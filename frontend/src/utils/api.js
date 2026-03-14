@@ -129,6 +129,11 @@ export const adminHostsAPI = {
 	rebootHost: (hostId) => api.post(`/hosts/${hostId}/reboot`),
 	installSshKey: (hostId, publicKey, username) =>
 		api.post(`/hosts/${hostId}/install-ssh-key`, { publicKey, username }),
+	getSshCredentials: (hostId) => api.get(`/hosts/${hostId}/ssh-credentials`),
+	saveSshCredentials: (hostId, credentials) =>
+		api.put(`/hosts/${hostId}/ssh-credentials`, credentials),
+	deleteSshCredentials: (hostId) =>
+		api.delete(`/hosts/${hostId}/ssh-credentials`),
 	refreshIntegrationStatus: (hostId) =>
 		api.post(`/hosts/${hostId}/refresh-integration-status`),
 	fetchReport: (hostId) => api.post(`/hosts/${hostId}/fetch-report`),

@@ -2341,6 +2341,171 @@ router.post(
 	},
 );
 
+// Save SSH credentials for a host (for terminal auto-connect)
+router.put(
+	"/:hostId/ssh-credentials",
+	authenticateToken,
+	requireManageHosts,
+	[
+		body("username")
+			.optional()
+			.isString()
+			.isLength({ max: 255 })
+			.withMessage("Username must be a string (max 255 chars)"),
+		body("port")
+			.optional()
+			.isInt({ min: 1, max: 65535 })
+			.withMessage("Port must be between 1 and 65535"),
+		body("authMethod")
+			.optional()
+			.isIn(["password", "key"])
+			.withMessage("Auth method must be 'password' or 'key'"),
+		body("password")
+			.optional()
+			.isString()
+			.withMessage("Password must be a string"),
+		body("privateKey")
+			.optional()
+			.isString()
+			.withMessage("Private key must be a string"),
+	],
+	async (req, res) => {
+		try {
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) {
+				return res.status(400).json({ errors: errors.array() });
+			}
+
+			const { hostId } = req.params;
+			const { username, port, authMethod, password, privateKey } = req.body;
+
+			const host = await prisma.hosts.findUnique({
+				where: { id: hostId },
+			});
+
+			if (!host) {
+				return res.status(404).json({ error: "Host not found" });
+			}
+
+			const updateData = {
+				ssh_username: username || null,
+				ssh_port: port || null,
+				ssh_auth_method: authMethod || null,
+				ssh_password: password ? encrypt(password) : null,
+				ssh_private_key: privateKey ? encrypt(privateKey) : null,
+				updated_at: new Date(),
+			};
+
+			await prisma.hosts.update({
+				where: { id: hostId },
+				data: updateData,
+			});
+
+			logger.info(
+				`SSH credentials saved for host ${host.friendly_name || host.hostname} (${host.id}) by ${req.user?.username || "unknown"}`,
+			);
+
+			res.json({
+				success: true,
+				message: "SSH credentials saved successfully",
+			});
+		} catch (error) {
+			logger.error("Save SSH credentials error:", error);
+			res.status(500).json({ error: "Failed to save SSH credentials" });
+		}
+	},
+);
+
+// Get saved SSH credentials for a host (returns metadata only, secrets are masked)
+router.get(
+	"/:hostId/ssh-credentials",
+	authenticateToken,
+	requireViewHosts,
+	async (req, res) => {
+		try {
+			const { hostId } = req.params;
+
+			const host = await prisma.hosts.findUnique({
+				where: { id: hostId },
+				select: {
+					id: true,
+					ssh_username: true,
+					ssh_port: true,
+					ssh_auth_method: true,
+					ssh_password: true,
+					ssh_private_key: true,
+				},
+			});
+
+			if (!host) {
+				return res.status(404).json({ error: "Host not found" });
+			}
+
+			const hasSavedCredentials = !!(
+				host.ssh_username ||
+				host.ssh_password ||
+				host.ssh_private_key
+			);
+
+			res.json({
+				has_saved_credentials: hasSavedCredentials,
+				username: host.ssh_username || null,
+				port: host.ssh_port || null,
+				auth_method: host.ssh_auth_method || null,
+				has_password: !!host.ssh_password,
+				has_private_key: !!host.ssh_private_key,
+			});
+		} catch (error) {
+			logger.error("Get SSH credentials error:", error);
+			res.status(500).json({ error: "Failed to get SSH credentials" });
+		}
+	},
+);
+
+// Delete saved SSH credentials for a host
+router.delete(
+	"/:hostId/ssh-credentials",
+	authenticateToken,
+	requireManageHosts,
+	async (req, res) => {
+		try {
+			const { hostId } = req.params;
+
+			const host = await prisma.hosts.findUnique({
+				where: { id: hostId },
+			});
+
+			if (!host) {
+				return res.status(404).json({ error: "Host not found" });
+			}
+
+			await prisma.hosts.update({
+				where: { id: hostId },
+				data: {
+					ssh_username: null,
+					ssh_port: null,
+					ssh_auth_method: null,
+					ssh_password: null,
+					ssh_private_key: null,
+					updated_at: new Date(),
+				},
+			});
+
+			logger.info(
+				`SSH credentials cleared for host ${host.friendly_name || host.hostname} (${host.id}) by ${req.user?.username || "unknown"}`,
+			);
+
+			res.json({
+				success: true,
+				message: "SSH credentials removed successfully",
+			});
+		} catch (error) {
+			logger.error("Delete SSH credentials error:", error);
+			res.status(500).json({ error: "Failed to delete SSH credentials" });
+		}
+	},
+);
+
 // Refresh integration status for specific host
 // This triggers the agent to re-scan and report its integration capabilities
 router.post(

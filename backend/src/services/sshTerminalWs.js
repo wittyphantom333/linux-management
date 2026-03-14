@@ -15,6 +15,7 @@ const { getPrismaClient } = require("../config/prisma");
 const { logAuditEvent } = require("../utils/auditLogger");
 const { redis } = require("./automation/shared/redis");
 const { reject_upgrade } = require("../utils/wsUpgradeReject");
+const { decrypt } = require("../utils/encryption");
 
 const prisma = getPrismaClient();
 
@@ -315,6 +316,48 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 									}),
 								);
 								return;
+							}
+
+							// If use_saved_credentials flag is set, load credentials from DB
+							if (data.use_saved_credentials) {
+								try {
+									const savedHost = await prisma.hosts.findUnique({
+										where: { id: host.id },
+										select: {
+											ssh_username: true,
+											ssh_port: true,
+											ssh_auth_method: true,
+											ssh_password: true,
+											ssh_private_key: true,
+										},
+									});
+
+									if (savedHost) {
+										if (savedHost.ssh_username) {
+											data.username = savedHost.ssh_username;
+										}
+										if (savedHost.ssh_port) {
+											data.port = savedHost.ssh_port;
+										}
+										if (
+											savedHost.ssh_auth_method === "password" &&
+											savedHost.ssh_password
+										) {
+											data.password = decrypt(savedHost.ssh_password);
+										}
+										if (
+											savedHost.ssh_auth_method === "key" &&
+											savedHost.ssh_private_key
+										) {
+											data.privateKey = decrypt(savedHost.ssh_private_key);
+										}
+									}
+								} catch (credErr) {
+									logger.error(
+										`[ssh-terminal] Failed to load saved credentials for host ${host.id}:`,
+										credErr,
+									);
+								}
 							}
 
 							// Check if proxy mode is requested
