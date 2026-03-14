@@ -1506,6 +1506,13 @@ server {
     location / {
         root $app_dir/frontend/dist;
         try_files \$uri \$uri/ /index.html;
+
+        # Prevent caching of index.html so new deploys are picked up immediately
+        location = /index.html {
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
     }
     
     # Bull Board proxy
@@ -1582,6 +1589,13 @@ server {
     location / {
         root $app_dir/frontend/dist;
         try_files \$uri \$uri/ /index.html;
+
+        # Prevent caching of index.html so new deploys are picked up immediately
+        location = /index.html {
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
     }
     
     # Bull Board proxy
@@ -3249,6 +3263,12 @@ update_installation() {
     print_info "Updating frontend dependencies..."
     cd "$instance_dir/frontend"
     npm install --ignore-scripts
+    
+    # Clean old frontend build artifacts before rebuilding
+    if [ -d "$instance_dir/frontend/dist/assets" ]; then
+        print_info "Cleaning old frontend build artifacts..."
+        rm -rf "$instance_dir/frontend/dist/assets"
+    fi
     
     # Build frontend
     print_info "Building frontend..."
