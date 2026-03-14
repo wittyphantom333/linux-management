@@ -317,10 +317,11 @@ func (s *OpenSCAPScanner) GetScannerDetails() *models.ComplianceScannerDetails {
 			}
 		}
 	} else if contentFile == "" && baseOSName == "ubuntu" && s.osInfo.Version >= "24.04" {
-		contentMismatch = true
-		mismatchWarning = ssgUpgradeMessage
-		if mismatchWarning == "" {
-			mismatchWarning = "No SCAP content found for Ubuntu 24.04."
+		// Only set content mismatch if we didn't already set ssg_needs_upgrade
+		// (otherwise the same message appears twice in the UI)
+		if !ssgNeedsUpgrade {
+			contentMismatch = true
+			mismatchWarning = "No SCAP content found for Ubuntu 24.04+. Install or upgrade SSG content."
 		}
 	}
 
@@ -328,16 +329,29 @@ func (s *OpenSCAPScanner) GetScannerDetails() *models.ComplianceScannerDetails {
 	profiles := s.DiscoverProfiles()
 
 	// Determine content package source
-	contentPackage := fmt.Sprintf("ssg-base %s", contentVersion)
+	var contentPackage string
 	githubVersion := s.getInstalledSSGVersion()
-	if githubVersion != "" {
+	switch {
+	case githubVersion != "":
 		contentPackage = fmt.Sprintf("SSG %s (GitHub)", githubVersion)
+	case contentVersion != "" && contentVersion != "unknown":
+		contentPackage = fmt.Sprintf("ssg-base %s", contentVersion)
+	case contentVersion == "unknown":
+		contentPackage = "ssg-base (version unknown)"
+	default:
+		contentPackage = "Not installed"
+	}
+
+	// Compute display-safe content file name (filepath.Base("") returns ".")
+	contentFileName := ""
+	if contentFile != "" {
+		contentFileName = filepath.Base(contentFile)
 	}
 
 	return &models.ComplianceScannerDetails{
 		OpenSCAPVersion:   s.version,
 		OpenSCAPAvailable: s.available,
-		ContentFile:       filepath.Base(contentFile),
+		ContentFile:       contentFileName,
 		ContentPackage:    contentPackage,
 		SSGVersion:        contentVersion,
 		SSGMinVersion:     minVersion,

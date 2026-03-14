@@ -2419,7 +2419,7 @@ const HostDetail = () => {
 										: "text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300"
 								}`}
 							>
-								Reporting
+								Alerts
 							</button>
 						)}
 						{integrationsData?.data?.integrations?.docker && (

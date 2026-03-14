@@ -3736,7 +3736,7 @@ const ComplianceTab = ({
 												Content Package
 											</span>
 											<span className="text-secondary-300 font-mono text-xs">
-												{info?.content_package || "N/A"}
+												{info?.content_package?.trim() || "N/A"}
 											</span>
 										</div>
 										<div className="flex justify-between">
@@ -3745,7 +3745,9 @@ const ComplianceTab = ({
 												className="text-secondary-300 font-mono text-xs truncate max-w-[180px]"
 												title={info?.content_file}
 											>
-												{info?.content_file || "N/A"}
+												{info?.content_file && info.content_file !== "."
+													? info.content_file
+													: "Not found"}
 											</span>
 										</div>
 										{info?.ssg_version && (
