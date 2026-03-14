@@ -6,7 +6,7 @@ const os = require("node:os");
 const { exec, spawn } = require("node:child_process");
 const { promisify } = require("node:util");
 const _execAsync = promisify(exec);
-const dns = require("node:dns").promises;
+// DNS module removed — version checking now uses GitHub API
 
 // Simple semver comparison function
 function compareVersions(version1, version2) {
@@ -29,7 +29,8 @@ class AgentVersionService {
 	constructor() {
 		this.githubApiUrl =
 			"https://api.github.com/repos/wittyphantom333/linux-management/releases";
-		this.dnsDomain = "agent.vcheck.patchmon.net";
+		this.githubLatestUrl =
+			"https://api.github.com/repos/wittyphantom333/linux-management/releases/latest";
 		this.agentsDir = path.resolve(__dirname, "../../../agents");
 		this.supportedArchitectures = [
 			"linux-amd64",
@@ -50,20 +51,12 @@ class AgentVersionService {
 			// Ensure agents directory exists
 			await fs.mkdir(this.agentsDir, { recursive: true });
 
-			logger.info("🔍 Testing DNS connectivity for agent version...");
-			try {
-				const testVersion = await this.checkVersionFromDNS(this.dnsDomain);
-				logger.info(
-					`✅ DNS lookup successful - latest agent version: ${testVersion}`,
-				);
-			} catch (testError) {
-				logger.error("❌ DNS lookup failed:", testError.message);
-			}
+			logger.info("🔍 Testing GitHub API connectivity for agent version...");
 
 			// Get current agent version by executing the binary
 			await this.getCurrentAgentVersion();
 
-			// Try to check for updates, but don't fail initialization if DNS is unavailable
+			// Try to check for updates, but don't fail initialization if GitHub API is unavailable
 			try {
 				await this.checkForUpdates();
 			} catch (updateError) {
@@ -221,30 +214,45 @@ class AgentVersionService {
 		}
 	}
 
-	async checkVersionFromDNS(domain) {
+	async checkLatestVersionFromGitHub() {
 		try {
-			const records = await dns.resolveTxt(domain);
-			if (!records || records.length === 0) {
-				throw new Error(`No TXT records found for ${domain}`);
+			const response = await axios.get(this.githubLatestUrl, {
+				timeout: 15000,
+				headers: {
+					"User-Agent": "PatchMon-Server/1.0",
+					Accept: "application/vnd.github.v3+json",
+				},
+			});
+
+			const tagName = response.data?.tag_name;
+			if (!tagName) {
+				throw new Error("No tag_name in latest release response");
 			}
-			// TXT records are arrays of strings, get first record's first string
-			const version = records[0][0].trim().replace(/^["']|["']$/g, "");
-			// Validate version format (semantic versioning)
+
+			// Strip leading 'v' prefix if present
+			const version = tagName.replace(/^v/i, "").trim();
+
+			// Validate semver format
 			if (!/^\d+\.\d+\.\d+/.test(version)) {
-				throw new Error(`Invalid version format: ${version}`);
+				throw new Error(`Invalid version format from GitHub: ${version}`);
 			}
+
 			return version;
 		} catch (error) {
-			logger.error(`DNS lookup failed for ${domain}:`, error.message);
+			if (error.response?.status === 404) {
+				logger.info("ℹ️ No published releases found on GitHub yet");
+			} else {
+				logger.error("GitHub latest release lookup failed:", error.message);
+			}
 			throw error;
 		}
 	}
 
 	async checkForUpdates() {
 		try {
-			logger.info("🔍 Checking for agent updates via DNS...");
+			logger.info("🔍 Checking for agent updates via GitHub API...");
 
-			this.latestVersion = await this.checkVersionFromDNS(this.dnsDomain);
+			this.latestVersion = await this.checkLatestVersionFromGitHub();
 			this.lastChecked = new Date();
 
 			logger.info(`📦 Latest agent version: ${this.latestVersion}`);
@@ -713,16 +721,16 @@ class AgentVersionService {
 			hasUpdate = true;
 			updateStatus = "no-agent";
 		} else if (this.currentVersion && !this.latestVersion) {
-			// We have a current version but no latest version (DNS unavailable)
+			// We have a current version but no latest version (GitHub API unavailable)
 			hasUpdate = false;
-			updateStatus = "dns-unavailable";
+			updateStatus = "github-unavailable";
 		} else if (!this.currentVersion && !this.latestVersion) {
 			updateStatus = "no-data";
 		}
 
 		return {
 			currentVersion: this.currentVersion,
-			latestVersion: this.latestVersion, // Always return DNS version, not local
+			latestVersion: this.latestVersion, // From GitHub latest release
 			hasUpdate: hasUpdate,
 			updateStatus: updateStatus,
 			lastChecked: this.lastChecked,
@@ -747,7 +755,7 @@ class AgentVersionService {
 				throw new Error("No latest version available to download");
 			}
 
-			// Download the specific version from DNS
+			// Download the specific version from GitHub
 			return await this.downloadVersion(this.latestVersion, progressCallback);
 		} catch (error) {
 			logger.error("❌ Failed to download latest update:", error.message);
