@@ -394,7 +394,7 @@ func (pe *PolicyExecutor) methodServiceRestart(_ context.Context, params map[str
 
 // methodCommandAudit runs a command and checks its exit code (audit only, never modifies).
 // Parameters: "command" (required), "expected_code" (default "0", also accepts legacy "compliant_code")
-func (pe *PolicyExecutor) methodCommandAudit(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodCommandAudit(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	command := params["command"]
 	if command == "" {
 		return nil, fmt.Errorf("command_audit requires 'command' parameter")
@@ -444,7 +444,7 @@ func (pe *PolicyExecutor) methodCommandAudit(_ context.Context, params map[strin
 
 // methodCommandExec runs a command to enforce a desired state.
 // Parameters: "command" (required), "expected_code" (default "0")
-func (pe *PolicyExecutor) methodCommandExec(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodCommandExec(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	command := params["command"]
 	if command == "" {
 		return nil, fmt.Errorf("command_exec requires 'command' parameter")
@@ -501,7 +501,7 @@ func (pe *PolicyExecutor) methodCommandExec(_ context.Context, params map[string
 // reports a compliance failure – the result is purely informational so
 // operators can inspect the output in the run details.
 // Parameters: "command" (required)
-func (pe *PolicyExecutor) methodCommandRun(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodCommandRun(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	command := params["command"]
 	if command == "" {
 		return nil, fmt.Errorf("command_run requires 'command' parameter")
@@ -530,7 +530,7 @@ func (pe *PolicyExecutor) methodCommandRun(_ context.Context, params map[string]
 
 // methodUserPresent ensures a user account exists.
 // Parameters: "name" (required, also accepts legacy "username"), "uid" (optional), "shell" (optional), "home" (optional)
-func (pe *PolicyExecutor) methodUserPresent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodUserPresent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	username := params["name"]
 	if username == "" {
 		username = params["username"] // legacy fallback
@@ -576,7 +576,7 @@ func (pe *PolicyExecutor) methodUserPresent(_ context.Context, params map[string
 
 // methodUserAbsent ensures a user account does NOT exist.
 // Parameters: "name" (required, also accepts legacy "username")
-func (pe *PolicyExecutor) methodUserAbsent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodUserAbsent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	username := params["name"]
 	if username == "" {
 		username = params["username"] // legacy fallback
@@ -970,7 +970,7 @@ func (pe *PolicyExecutor) methodFileReplaceLines(_ context.Context, params map[s
 // Parameters: "key" (required — e.g. "vm.swappiness"), "value" (required),
 //
 //	"persistent" (optional, "true"|"false", default "true" — write to /etc/sysctl.d)
-func (pe *PolicyExecutor) methodSysctlValue(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodSysctlValue(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	key := params["key"]
 	value := params["value"]
 	if key == "" || value == "" {
