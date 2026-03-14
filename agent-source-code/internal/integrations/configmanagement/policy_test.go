@@ -672,11 +672,11 @@ func TestSSHKeyPresent(t *testing.T) {
 	pe := NewPolicyExecutor(logger)
 
 	// We'll use the current user so Lookup works in CI and without root.
-	import_os_user_current, err := currentTestUser()
+	importOsUserCurrent, err := currentTestUser()
 	if err != nil {
 		t.Skipf("cannot determine current user: %v", err)
 	}
-	username := import_os_user_current.Username
+	username := importOsUserCurrent.Username
 
 	// Create a temp dir to act as home — we'll override nothing on the real fs.
 	tmpHome := t.TempDir()

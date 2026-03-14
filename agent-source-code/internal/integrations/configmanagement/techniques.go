@@ -21,7 +21,7 @@ import (
 
 // methodFileContent ensures a file has the expected content.
 // Parameters: "path" (required), "content" (required), "enforce_content" (optional, "true"|"false")
-func (pe *PolicyExecutor) methodFileContent(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodFileContent(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	path := params["path"]
 	expected := params["content"]
 	if path == "" || expected == "" {
@@ -68,7 +68,7 @@ func (pe *PolicyExecutor) methodFileContent(ctx context.Context, params map[stri
 
 // methodFileKeyValue ensures a file contains a key=value entry.
 // Parameters: "path", "key", "value", "separator" (default "=")
-func (pe *PolicyExecutor) methodFileKeyValue(ctx context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
+func (pe *PolicyExecutor) methodFileKeyValue(_ context.Context, params map[string]string, mode string) (*models.ConfigMethodResult, error) {
 	path := params["path"]
 	key := params["key"]
 	value := params["value"]
@@ -491,7 +491,7 @@ func (pe *PolicyExecutor) methodCommandExec(ctx context.Context, params map[stri
 
 	return &models.ConfigMethodResult{
 		Status:  "repaired",
-		Message: fmt.Sprintf("Command executed successfully"),
+		Message: "Command executed successfully",
 		Actual:  truncate(string(output), 4000),
 	}, nil
 }
@@ -749,7 +749,7 @@ func (pe *PolicyExecutor) methodSSHKeyPresent(ctx context.Context, params map[st
 	if err != nil {
 		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to open %s: %v", authKeysPath, err)}, nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if _, err := f.WriteString(appendContent); err != nil {
 		return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("failed to write key to %s: %v", authKeysPath, err)}, nil

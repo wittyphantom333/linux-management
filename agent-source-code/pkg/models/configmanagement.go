@@ -9,7 +9,6 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -19,6 +18,7 @@ import (
 // column type (which may contain mixed types) always deserialise successfully.
 type ParamMap map[string]string
 
+// UnmarshalJSON implements json.Unmarshaler, coercing non-string values to strings.
 func (p *ParamMap) UnmarshalJSON(data []byte) error {
 	// Try the fast path: all values are already strings.
 	var strict map[string]string
@@ -40,12 +40,13 @@ func (p *ParamMap) UnmarshalJSON(data []byte) error {
 			continue
 		}
 		// Trim surrounding whitespace; use the raw JSON representation.
-		m[k] = fmt.Sprintf("%s", string(v))
+		m[k] = string(v)
 	}
 	*p = m
 	return nil
 }
 
+// MarshalJSON implements json.Marshaler.
 func (p ParamMap) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]string(p))
 }

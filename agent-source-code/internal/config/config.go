@@ -116,13 +116,14 @@ func (m *Manager) LoadConfig() error {
 	// This ensures config.yml always shows all integrations, even if they're disabled
 	for _, integrationName := range AvailableIntegrations {
 		if _, exists := m.config.Integrations[integrationName]; !exists {
-			if integrationName == "compliance" {
+			switch integrationName {
+			case "compliance":
 				// Default compliance to "on-demand" mode
 				m.config.Integrations[integrationName] = "on-demand"
-			} else if integrationName == "configmanagement" {
+			case "configmanagement":
 				// Default config management to enabled
 				m.config.Integrations[integrationName] = true
-			} else {
+			default:
 				m.config.Integrations[integrationName] = false
 			}
 		}

@@ -282,7 +282,7 @@ func (i *Integration) updateSinglePackage(pm string, pkg models.PatchJobPackage)
 }
 
 // updateAllPackages does a full system upgrade and captures results in bulk.
-func (i *Integration) updateAllPackages(ctx context.Context, pm string, policyType string) ([]models.PatchPackageResult, error) {
+func (i *Integration) updateAllPackages(_ context.Context, pm string, policyType string) ([]models.PatchPackageResult, error) {
 	// First, get the list of upgradable packages so we can report on each
 	upgradable := listUpgradablePackages(pm, policyType)
 
@@ -656,10 +656,10 @@ func scheduleReboot() {
 	}
 }
 
-// truncate shortens a string to at most max bytes.
-func truncate(s string, max int) string {
-	if len(s) <= max {
+// truncate shortens a string to at most maxLen bytes.
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
 		return s
 	}
-	return s[:max]
+	return s[:maxLen]
 }

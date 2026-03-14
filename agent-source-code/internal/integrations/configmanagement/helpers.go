@@ -350,19 +350,7 @@ func disableService(name string) error {
 	return exec.ErrNotFound
 }
 
-// reloadService reloads a service configuration.
-func reloadService(name string) error {
-	sm := detectServiceManager()
-	switch sm {
-	case "systemd":
-		return exec.Command("systemctl", "reload", name).Run()
-	case "openrc":
-		return exec.Command("rc-service", name, "reload").Run()
-	case "freebsd":
-		return exec.Command("service", name, "reload").Run()
-	}
-	return exec.ErrNotFound
-}
+
 
 // isSysctlPersisted checks whether a key=value is present in /etc/sysctl.d/99-patchmon.conf.
 func isSysctlPersisted(key, value string) bool {
