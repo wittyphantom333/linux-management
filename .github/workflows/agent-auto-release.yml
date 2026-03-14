@@ -14,6 +14,11 @@ jobs:
     name: Create Release if Version Changed
     runs-on: ubuntu-latest
 
+    outputs:
+      should_release: ${{ steps.check_tag.outputs.exists == 'false' }}
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -45,12 +50,86 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          VERSION="${{ steps.version.outputs.version }}"
-
           echo "Creating release ${TAG}..."
           gh release create "${TAG}" \
             --repo "${{ github.repository }}" \
             --title "Agent ${TAG}" \
             --generate-notes \
             --target "${{ github.sha }}"
-          echo "✅ Release ${TAG} created — agent-release workflow will build binaries"
+          echo "✅ Release ${TAG} created"
+
+  build:
+    name: Build Agent (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: check-and-release
+    if: needs.check-and-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: 'amd64'
+          - goos: linux
+            goarch: 'arm64'
+          - goos: linux
+            goarch: 'arm'
+          - goos: linux
+            goarch: '386'
+          - goos: freebsd
+            goarch: 'amd64'
+          - goos: freebsd
+            goarch: 'arm64'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'agent-source-code/go.mod'
+
+      - name: Download dependencies
+        working-directory: agent-source-code
+        run: go mod download
+
+      - name: Build binary
+        working-directory: agent-source-code
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarch == 'arm' && '6' || '' }}
+          CGO_ENABLED: 0
+        run: |
+          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
+          go build -buildvcs=false -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ needs.check-and-release.outputs.tag }}" -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
+
+      - name: Verify binary
+        working-directory: agent-source-code
+        run: |
+          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ ! -f "${OUTPUT_NAME}" ]; then
+            echo "❌ Error: Binary ${OUTPUT_NAME} was not created"
+            exit 1
+          fi
+          chmod +x "${OUTPUT_NAME}"
+          ls -lh "${OUTPUT_NAME}"
+          file "${OUTPUT_NAME}"
+          echo "✅ Binary ${OUTPUT_NAME} created successfully"
+
+      - name: Test binary (linux/amd64 only)
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        working-directory: agent-source-code
+        run: |
+          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
+          ./"${OUTPUT_NAME}" --version || ./"${OUTPUT_NAME}" version || echo "Version command not available (may require config)"
+
+      - name: Upload binary to release
+        working-directory: agent-source-code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
+          TAG="${{ needs.check-and-release.outputs.tag }}"
+          echo "📤 Uploading ${OUTPUT_NAME} to release ${TAG}..."
+          gh release upload "${TAG}" "${OUTPUT_NAME}" --repo "${{ github.repository }}" --clobber
+          echo "✅ Uploaded ${OUTPUT_NAME}"
