@@ -211,6 +211,7 @@ model role_permissions {
   can_manage_config_management  Boolean  @default(false)
   can_view_patch_management     Boolean  @default(true)
   can_manage_patch_management   Boolean  @default(false)
+  can_install_ssh_keys          Boolean  @default(false)
   created_at                    DateTime @default(now())
   updated_at                    DateTime
 }

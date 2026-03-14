@@ -127,6 +127,8 @@ export const adminHostsAPI = {
 		}),
 	forceAgentUpdate: (hostId) => api.post(`/hosts/${hostId}/force-agent-update`),
 	rebootHost: (hostId) => api.post(`/hosts/${hostId}/reboot`),
+	installSshKey: (hostId, publicKey, username) =>
+		api.post(`/hosts/${hostId}/install-ssh-key`, { publicKey, username }),
 	refreshIntegrationStatus: (hostId) =>
 		api.post(`/hosts/${hostId}/refresh-integration-status`),
 	fetchReport: (hostId) => api.post(`/hosts/${hostId}/fetch-report`),

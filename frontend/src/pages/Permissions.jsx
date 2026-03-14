@@ -232,6 +232,12 @@ const RolePermissionsCard = ({
 			icon: Settings,
 			description: "System configuration access",
 		},
+		{
+			key: "can_install_ssh_keys",
+			label: "Install SSH Keys",
+			icon: Shield,
+			description: "Install SSH keys on hosts for auto-login",
+		},
 	];
 
 	const handlePermissionChange = (key, value) => {

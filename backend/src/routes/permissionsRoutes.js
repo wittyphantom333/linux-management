@@ -81,6 +81,7 @@ router.put(
 				can_view_reports,
 				can_export_data,
 				can_manage_settings,
+				can_install_ssh_keys,
 			} = req.body;
 
 			// Prevent modifying built-in role permissions
@@ -111,6 +112,7 @@ router.put(
 					can_view_reports: can_view_reports,
 					can_export_data: can_export_data,
 					can_manage_settings: can_manage_settings,
+					can_install_ssh_keys: can_install_ssh_keys,
 					updated_at: new Date(),
 				},
 				create: {
@@ -127,6 +129,7 @@ router.put(
 					can_view_reports: can_view_reports,
 					can_export_data: can_export_data,
 					can_manage_settings: can_manage_settings,
+					can_install_ssh_keys: can_install_ssh_keys,
 					updated_at: new Date(),
 				},
 			});

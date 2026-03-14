@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
 	Bot,
 	ChevronDown,
 	Copy,
 	Download,
 	Info,
+	Key,
 	Loader2,
 	PanelRightClose,
 	PanelRightOpen,
@@ -18,11 +19,13 @@ import {
 	X,
 } from "lucide-react";
 // Note: Auth is handled via httpOnly cookies - no need for useAuth token
+import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
-import { aiAPI, settingsAPI } from "../utils/api";
+import { adminHostsAPI, aiAPI, settingsAPI } from "../utils/api";
 
 const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	const { setSidebarCollapsed, sidebarCollapsed } = useSidebar();
+	const { permissions } = useAuth();
 	const previousSidebarStateRef = useRef(null);
 	const terminalRef = useRef(null);
 	const terminalInstanceRef = useRef(null);
@@ -39,6 +42,34 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 	const IDLE_WARNING_MS = 1 * 60 * 1000; // 1 minute warning before disconnect
 	const [showInstallCommands, setShowInstallCommands] = useState(false);
+
+	// SSH key install state
+	const [showKeyInstall, setShowKeyInstall] = useState(false);
+	const [sshPublicKey, setSshPublicKey] = useState("");
+	const [keyInstallMessage, setKeyInstallMessage] = useState(null);
+	const canInstallSshKeys = permissions?.can_install_ssh_keys === true;
+
+	const installSshKeyMutation = useMutation({
+		mutationFn: ({ publicKey, username }) =>
+			adminHostsAPI.installSshKey(host.id, publicKey, username),
+		onSuccess: (res) => {
+			setKeyInstallMessage({
+				type: "success",
+				text: res.data?.message || "SSH key installed successfully.",
+			});
+			setSshPublicKey("");
+			setTimeout(() => setKeyInstallMessage(null), 8000);
+		},
+		onError: (err) => {
+			setKeyInstallMessage({
+				type: "error",
+				text:
+					err.response?.data?.error ||
+					"Failed to install SSH key. Make sure the agent is connected.",
+			});
+			setTimeout(() => setKeyInstallMessage(null), 8000);
+		},
+	});
 
 	// AI Assistant state
 	const [aiPanelOpen, setAiPanelOpen] = useState(false);
@@ -1292,6 +1323,79 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 								>
 									Connect
 								</button>
+							)}
+
+							{/* Install SSH Key Section */}
+							{canInstallSshKeys && (
+								<div className="border-t border-secondary-700 pt-4 mt-2">
+									<button
+										type="button"
+										onClick={() => setShowKeyInstall(!showKeyInstall)}
+										className="flex items-center gap-2 text-xs text-secondary-400 hover:text-secondary-200 transition-colors"
+									>
+										<Key className="h-3.5 w-3.5" />
+										<span>Install SSH Public Key on Host</span>
+										<ChevronDown
+											className={`h-3 w-3 transition-transform ${showKeyInstall ? "rotate-180" : ""}`}
+										/>
+									</button>
+									{showKeyInstall && (
+										<div className="mt-3 space-y-3">
+											<p className="text-xs text-secondary-400">
+												Install an SSH public key into{" "}
+												<code className="bg-secondary-700 px-1 rounded">
+													~{sshConfig.username || "root"}/.ssh/authorized_keys
+												</code>{" "}
+												on this host via the agent. This enables passwordless
+												SSH login.
+											</p>
+											<textarea
+												value={sshPublicKey}
+												onChange={(e) => setSshPublicKey(e.target.value)}
+												className="w-full px-3 py-2 text-sm bg-secondary-700 border border-secondary-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono resize-none"
+												placeholder="ssh-ed25519 AAAA... user@host"
+												rows={3}
+											/>
+											<button
+												type="button"
+												onClick={() =>
+													installSshKeyMutation.mutate({
+														publicKey: sshPublicKey,
+														username: sshConfig.username || "root",
+													})
+												}
+												disabled={
+													!sshPublicKey.trim() ||
+													installSshKeyMutation.isPending
+												}
+												className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm bg-amber-600 hover:bg-amber-700 text-white font-medium rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+											>
+												{installSshKeyMutation.isPending ? (
+													<>
+														<Loader2 className="h-3.5 w-3.5 animate-spin" />
+														Installing...
+													</>
+												) : (
+													<>
+														<Key className="h-3.5 w-3.5" />
+														Install Key for {sshConfig.username || "root"}
+													</>
+												)}
+											</button>
+											{keyInstallMessage && (
+												<div
+													className={`p-2 rounded text-xs ${
+														keyInstallMessage.type === "success"
+															? "bg-green-900/50 border border-green-700 text-green-200"
+															: "bg-red-900/50 border border-red-700 text-red-200"
+													}`}
+												>
+													{keyInstallMessage.text}
+												</div>
+											)}
+										</div>
+									)}
+								</div>
 							)}
 						</div>
 					</div>

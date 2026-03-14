@@ -68,6 +68,7 @@ const requireViewPatchManagement = requirePermission(
 const requireManagePatchManagement = requirePermission(
 	"can_manage_patch_management",
 );
+const requireInstallSshKeys = requirePermission("can_install_ssh_keys");
 
 module.exports = {
 	requirePermission,
@@ -85,4 +86,5 @@ module.exports = {
 	requireManageConfigManagement,
 	requireViewPatchManagement,
 	requireManagePatchManagement,
+	requireInstallSshKeys,
 };

@@ -765,6 +765,35 @@ function pushUpgradeSSG(apiId) {
 	return false;
 }
 
+function pushInstallSshKey(apiId, publicKey, username) {
+	logger.info(`[agent-ws] pushInstallSshKey called for api_id=${apiId}`);
+	const ws = apiIdToSocket.get(apiId);
+	if (ws && ws.readyState === WebSocket.OPEN) {
+		const payload = JSON.stringify({
+			type: "install_ssh_key",
+			public_key: publicKey,
+			username: username || "root",
+		});
+		try {
+			ws.send(payload);
+			logger.info(
+				`[agent-ws] Sent install_ssh_key for ${apiId} (user: ${username || "root"})`,
+			);
+			return true;
+		} catch (err) {
+			logger.error(
+				`[agent-ws] Failed to send install_ssh_key to ${apiId}:`,
+				err,
+			);
+			return false;
+		}
+	}
+	logger.info(
+		`[agent-ws] Cannot send install_ssh_key - WebSocket not ready for ${apiId}`,
+	);
+	return false;
+}
+
 function pushInstallScanner(apiId) {
 	logger.info(`[agent-ws] pushInstallScanner called for api_id=${apiId}`);
 	const ws = apiIdToSocket.get(apiId);
@@ -1107,6 +1136,7 @@ module.exports = {
 	pushReinstallScanner,
 	pushRemediateRule,
 	pushDockerImageScan,
+	pushInstallSshKey,
 	// Expose read-only view of connected agents
 	getConnectedApiIds: () => Array.from(apiIdToSocket.keys()),
 	getConnectionByApiId,

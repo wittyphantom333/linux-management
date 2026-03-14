@@ -490,6 +490,15 @@ func runService() error {
 				if wsConn != nil {
 					go handleSSHProxy(m, wsConn)
 				}
+			case "install_ssh_key":
+				logger.WithField("username", m.installSshUsername).Info("Installing SSH public key...")
+				go func(publicKey, username string) {
+					if err := handleInstallSshKey(publicKey, username); err != nil {
+						logger.WithError(err).WithField("username", username).Warn("install_ssh_key failed")
+					} else {
+						logger.WithField("username", username).Info("SSH public key installed successfully")
+					}
+				}(m.installSshPublicKey, m.installSshUsername)
 			case "ssh_proxy_input":
 				globalWsConnMu.RLock()
 				wsConn := globalWsConn
@@ -1136,6 +1145,9 @@ type wsMsg struct {
 	complianceOnDemandOnly bool   // For set_compliance_on_demand_only (legacy)
 	complianceMode         string // For set_compliance_mode: "disabled", "on-demand", or "enabled"
 	forceCM                bool   // For report_now: force config management re-evaluation (bypass once-schedule)
+	// SSH key install fields
+	installSshPublicKey  string // For install_ssh_key: public key content
+	installSshUsername   string // For install_ssh_key: target username
 	// SSH proxy fields
 	sshProxySessionID  string // Unique session ID for SSH proxy
 	sshProxyHost       string // SSH target host
@@ -1479,6 +1491,8 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 			OnDemandOnly         bool   `json:"on_demand_only"`         // For set_compliance_on_demand_only (legacy)
 			Mode                 string `json:"mode"`                   // For set_compliance_mode: "disabled", "on-demand", or "enabled"
 			ForceCM              bool   `json:"force_cm"`                // For report_now: force config management re-evaluation
+			// SSH key install fields
+			PublicKey string `json:"public_key"` // For install_ssh_key: SSH public key to install
 			// SSH proxy fields
 			SessionID  string `json:"session_id"`  // SSH proxy session ID
 			Host       string `json:"host"`        // SSH proxy target host
@@ -1625,6 +1639,21 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 			out <- wsMsg{
 				kind:           "set_compliance_mode",
 				complianceMode: mode,
+			}
+		case "install_ssh_key":
+			if payload.PublicKey == "" {
+				logger.Warn("install_ssh_key received but public_key is empty")
+				continue
+			}
+			targetUser := payload.Username
+			if targetUser == "" {
+				targetUser = "root"
+			}
+			logger.WithField("username", targetUser).Info("install_ssh_key received")
+			out <- wsMsg{
+				kind:               "install_ssh_key",
+				installSshPublicKey: payload.PublicKey,
+				installSshUsername:  targetUser,
 			}
 		case "ssh_proxy":
 			// Validate SSH proxy is enabled in config
@@ -2598,6 +2627,80 @@ func sendSSHProxyConnected(conn *websocket.Conn, sessionID string) {
 
 func sendSSHProxyClosed(conn *websocket.Conn, sessionID string) {
 	sendSSHProxyMessage(conn, "ssh_proxy_closed", sessionID, nil)
+}
+
+// handleInstallSshKey installs an SSH public key into the target user's authorized_keys file
+func handleInstallSshKey(publicKey, username string) error {
+	if publicKey == "" {
+		return fmt.Errorf("public key is empty")
+	}
+	if username == "" {
+		username = "root"
+	}
+
+	// Resolve user's home directory
+	var homeDir string
+	if username == "root" {
+		homeDir = "/root"
+	} else {
+		// Look up user's home directory
+		cmd := exec.Command("getent", "passwd", username)
+		output, err := cmd.Output()
+		if err != nil {
+			return fmt.Errorf("user %s not found: %w", username, err)
+		}
+		fields := strings.Split(strings.TrimSpace(string(output)), ":")
+		if len(fields) < 6 {
+			return fmt.Errorf("invalid passwd entry for user %s", username)
+		}
+		homeDir = fields[5]
+	}
+
+	sshDir := filepath.Join(homeDir, ".ssh")
+	authorizedKeysPath := filepath.Join(sshDir, "authorized_keys")
+
+	// Create .ssh directory if it doesn't exist
+	if err := os.MkdirAll(sshDir, 0700); err != nil {
+		return fmt.Errorf("failed to create %s: %w", sshDir, err)
+	}
+
+	// Ensure the key has a trailing newline
+	key := strings.TrimSpace(publicKey) + "\n"
+
+	// Check if the key already exists in authorized_keys
+	existing, err := os.ReadFile(authorizedKeysPath)
+	if err == nil {
+		if strings.Contains(string(existing), strings.TrimSpace(publicKey)) {
+			logger.WithField("username", username).Info("SSH public key already exists in authorized_keys, skipping")
+			return nil
+		}
+	}
+
+	// Append the key to authorized_keys
+	f, err := os.OpenFile(authorizedKeysPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open %s: %w", authorizedKeysPath, err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			_ = err
+		}
+	}()
+
+	if _, err := f.WriteString(key); err != nil {
+		return fmt.Errorf("failed to write key to %s: %w", authorizedKeysPath, err)
+	}
+
+	// Fix ownership if non-root user
+	if username != "root" {
+		// Use chown command so we don't need to import os/user for UID/GID lookup
+		chownCmd := exec.Command("chown", "-R", username+":"+username, sshDir)
+		if err := chownCmd.Run(); err != nil {
+			logger.WithError(err).WithField("username", username).Warn("Failed to chown .ssh directory (key was still installed)")
+		}
+	}
+
+	return nil
 }
 
 // handleSSHProxy establishes SSH connection and manages proxy session

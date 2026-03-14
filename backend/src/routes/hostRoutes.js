@@ -14,6 +14,7 @@ const {
 	requireViewHosts,
 	requireManageHosts,
 	requireManageSettings,
+	requireInstallSshKeys,
 } = require("../middleware/permissions");
 const { queueManager, QUEUE_NAMES } = require("../services/automation");
 const {
@@ -2265,6 +2266,75 @@ router.post(
 			logger.error("Reboot host error:", error);
 			res.status(500).json({
 				error: "Failed to send reboot command",
+				details: error.message || "Unknown error occurred",
+			});
+		}
+	},
+);
+
+// Install SSH public key on host - sends key to agent for installation into authorized_keys
+router.post(
+	"/:hostId/install-ssh-key",
+	authenticateToken,
+	requireInstallSshKeys,
+	async (req, res) => {
+		try {
+			const { hostId } = req.params;
+			const { publicKey, username } = req.body;
+
+			if (!publicKey || typeof publicKey !== "string") {
+				return res
+					.status(400)
+					.json({ error: "publicKey is required and must be a string" });
+			}
+
+			// Basic SSH public key format validation
+			const trimmedKey = publicKey.trim();
+			if (
+				!trimmedKey.startsWith("ssh-") &&
+				!trimmedKey.startsWith("ecdsa-") &&
+				!trimmedKey.startsWith("sk-")
+			) {
+				return res.status(400).json({
+					error:
+						"Invalid SSH public key format. Key must start with ssh-rsa, ssh-ed25519, ecdsa-sha2, or similar.",
+				});
+			}
+
+			const targetUser = username || "root";
+
+			const host = await prisma.hosts.findUnique({
+				where: { id: hostId },
+			});
+
+			if (!host) {
+				return res.status(404).json({ error: "Host not found" });
+			}
+
+			if (!isConnected(host.api_id)) {
+				return res.status(400).json({ error: "Agent is not connected" });
+			}
+
+			const { pushInstallSshKey } = require("../services/agentWs");
+			const sent = pushInstallSshKey(host.api_id, trimmedKey, targetUser);
+			if (!sent) {
+				return res
+					.status(500)
+					.json({ error: "Failed to send SSH key install command to agent" });
+			}
+
+			logger.info(
+				`SSH key install requested for host ${host.friendly_name || host.hostname} (${host.id}) user=${targetUser} by ${req.user?.username || "unknown"}`,
+			);
+
+			res.json({
+				success: true,
+				message: `SSH public key sent to agent for installation into ${targetUser}'s authorized_keys.`,
+			});
+		} catch (error) {
+			logger.error("Install SSH key error:", error);
+			res.status(500).json({
+				error: "Failed to send SSH key install command",
 				details: error.message || "Unknown error occurred",
 			});
 		}
