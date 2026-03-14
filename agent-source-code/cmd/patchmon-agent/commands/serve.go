@@ -491,14 +491,14 @@ func runService() error {
 					go handleSSHProxy(m, wsConn)
 				}
 			case "install_ssh_key":
-				logger.WithField("username", m.installSshUsername).Info("Installing SSH public key...")
+				logger.WithField("username", m.installSSHUsername).Info("Installing SSH public key...")
 				go func(publicKey, username string) {
-					if err := handleInstallSshKey(publicKey, username); err != nil {
+					if err := handleInstallSSHKey(publicKey, username); err != nil {
 						logger.WithError(err).WithField("username", username).Warn("install_ssh_key failed")
 					} else {
 						logger.WithField("username", username).Info("SSH public key installed successfully")
 					}
-				}(m.installSshPublicKey, m.installSshUsername)
+				}(m.installSSHPublicKey, m.installSSHUsername)
 			case "ssh_proxy_input":
 				globalWsConnMu.RLock()
 				wsConn := globalWsConn
@@ -1146,8 +1146,8 @@ type wsMsg struct {
 	complianceMode         string // For set_compliance_mode: "disabled", "on-demand", or "enabled"
 	forceCM                bool   // For report_now: force config management re-evaluation (bypass once-schedule)
 	// SSH key install fields
-	installSshPublicKey  string // For install_ssh_key: public key content
-	installSshUsername   string // For install_ssh_key: target username
+	installSSHPublicKey  string // For install_ssh_key: public key content
+	installSSHUsername   string // For install_ssh_key: target username
 	// SSH proxy fields
 	sshProxySessionID  string // Unique session ID for SSH proxy
 	sshProxyHost       string // SSH target host
@@ -1652,8 +1652,8 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 			logger.WithField("username", targetUser).Info("install_ssh_key received")
 			out <- wsMsg{
 				kind:               "install_ssh_key",
-				installSshPublicKey: payload.PublicKey,
-				installSshUsername:  targetUser,
+				installSSHPublicKey: payload.PublicKey,
+				installSSHUsername:  targetUser,
 			}
 		case "ssh_proxy":
 			// Validate SSH proxy is enabled in config
@@ -2630,7 +2630,7 @@ func sendSSHProxyClosed(conn *websocket.Conn, sessionID string) {
 }
 
 // handleInstallSshKey installs an SSH public key into the target user's authorized_keys file
-func handleInstallSshKey(publicKey, username string) error {
+func handleInstallSSHKey(publicKey, username string) error {
 	if publicKey == "" {
 		return fmt.Errorf("public key is empty")
 	}
