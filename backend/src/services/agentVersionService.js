@@ -362,6 +362,14 @@ class AgentVersionService {
 						maxBodyLength: Infinity,
 					});
 
+					// Remove existing file first to avoid EACCES on overwrite
+					try {
+						await fs.unlink(binaryPath);
+						logger.info(`🗑️ Removed existing ${assetName}`);
+					} catch (_unlinkErr) {
+						// File doesn't exist yet — that's fine
+					}
+
 					logger.info(`📝 Creating write stream for ${binaryPath}...`);
 					const writer = require("node:fs").createWriteStream(binaryPath);
 
@@ -594,6 +602,13 @@ class AgentVersionService {
 				responseType: "stream",
 				timeout: 60000,
 			});
+
+			// Remove existing file first to avoid EACCES on overwrite
+			try {
+				await fs.unlink(binaryPath);
+			} catch (_unlinkErr) {
+				// File doesn't exist yet — that's fine
+			}
 
 			const writer = require("node:fs").createWriteStream(binaryPath);
 			downloadResponse.data.pipe(writer);
