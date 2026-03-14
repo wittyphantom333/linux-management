@@ -95,7 +95,8 @@ func (s *OpenSCAPScanner) GetContentFilePath() string {
 }
 
 // GetContentPackageVersion returns the SSG content version
-// First checks for GitHub-installed version, then falls back to package manager
+// First checks for GitHub-installed version, then falls back to package manager,
+// and finally tries to infer version from actual content file names.
 func (s *OpenSCAPScanner) GetContentPackageVersion() string {
 	// First check for GitHub-installed version marker
 	githubVersion := s.getInstalledSSGVersion()
@@ -118,10 +119,25 @@ func (s *OpenSCAPScanner) GetContentPackageVersion() string {
 	}
 
 	output, err := cmd.Output()
-	if err != nil {
-		return ""
+	if err == nil {
+		v := strings.TrimSpace(string(output))
+		if v != "" {
+			return v
+		}
 	}
-	return strings.TrimSpace(string(output))
+
+	// Final fallback: if content files exist, report "installed" so the scanner
+	// doesn't claim ssg-base is missing when it's actually present from a
+	// previous GitHub install whose .ssg-version marker was lost.
+	contentFile := s.getContentFile()
+	if contentFile != "" {
+		if _, statErr := os.Stat(contentFile); statErr == nil {
+			s.logger.Debug("SSG content file exists but no version marker found; reporting as 'unknown'")
+			return "unknown"
+		}
+	}
+
+	return ""
 }
 
 // DiscoverProfiles returns all available profiles from the SCAP content file
@@ -356,8 +372,28 @@ func compareVersions(v1, v2 string) int {
 }
 
 // EnsureInstalled installs OpenSCAP and SCAP content if not present
-// Also upgrades existing packages to ensure latest content is available
+// Also upgrades existing packages to ensure latest content is available.
+// If the initial install fails, performs a full cleanup and retries once.
 func (s *OpenSCAPScanner) EnsureInstalled() error {
+	err := s.ensureInstalledOnce()
+	if err != nil {
+		s.logger.WithError(err).Warn("Initial install attempt failed, performing cleanup and retrying...")
+		// Full cleanup — remove packages AND GitHub-installed content
+		if cleanupErr := s.FullCleanup(); cleanupErr != nil {
+			s.logger.WithError(cleanupErr).Warn("Cleanup before retry encountered errors (continuing anyway)")
+		}
+		// Re-detect OS and availability after cleanup
+		s.osInfo = s.detectOS()
+		s.checkAvailability()
+		// Retry
+		s.logger.Info("Retrying OpenSCAP installation after cleanup...")
+		return s.ensureInstalledOnce()
+	}
+	return nil
+}
+
+// ensureInstalledOnce performs a single installation attempt.
+func (s *OpenSCAPScanner) ensureInstalledOnce() error {
 	s.logger.Info("Ensuring OpenSCAP is installed with latest SCAP content...")
 
 	// Create context with timeout for package operations
@@ -2125,7 +2161,7 @@ func (s *OpenSCAPScanner) extractTitle(ruleID string) string {
 }
 
 // Cleanup removes OpenSCAP and related packages
-// Note: This is optional - packages can be left installed if desired
+// Note: This only removes system packages. Use FullCleanup() to also remove GitHub-installed content.
 func (s *OpenSCAPScanner) Cleanup() error {
 	if !s.available {
 		s.logger.Debug("OpenSCAP not installed, nothing to clean up")
@@ -2149,10 +2185,10 @@ func (s *OpenSCAPScanner) Cleanup() error {
 
 	switch s.osInfo.Family {
 	case "debian":
-		removeCmd = exec.CommandContext(ctx, "apt-get", "remove", "-y", "-qq",
+		removeCmd = exec.CommandContext(ctx, "apt-get", "purge", "-y", "-qq",
 			"-o", "Dpkg::Options::=--force-confdef",
 			"-o", "Dpkg::Options::=--force-confold",
-			"openscap-scanner", "ssg-debderived", "ssg-base")
+			"openscap-scanner", "openscap-common", "ssg-debderived", "ssg-base")
 		removeCmd.Env = nonInteractiveEnv
 	case "rhel":
 		if _, err := exec.LookPath("dnf"); err == nil {
@@ -2182,5 +2218,41 @@ func (s *OpenSCAPScanner) Cleanup() error {
 	s.available = false
 	s.version = ""
 
+	return nil
+}
+
+// FullCleanup removes OpenSCAP packages AND GitHub-installed SSG content files.
+// This enables a clean reinstall from scratch.
+func (s *OpenSCAPScanner) FullCleanup() error {
+	// Remove system packages first (ignore the availability check — force it)
+	s.logger.Info("Performing full OpenSCAP cleanup (packages + GitHub content)...")
+
+	// Temporarily mark as available so Cleanup() proceeds
+	wasAvailable := s.available
+	s.available = true
+	if err := s.Cleanup(); err != nil {
+		s.logger.WithError(err).Warn("Package cleanup encountered errors")
+	}
+	s.available = wasAvailable
+
+	// Remove GitHub-installed content files
+	versionFile := filepath.Join(scapContentDir, ".ssg-version")
+	if err := os.Remove(versionFile); err != nil && !os.IsNotExist(err) {
+		s.logger.WithError(err).Debug("Failed to remove .ssg-version marker")
+	}
+
+	// Remove all ssg-*-ds.xml files from content dir (GitHub-installed)
+	matches, err := filepath.Glob(filepath.Join(scapContentDir, "ssg-*-ds.xml"))
+	if err == nil {
+		for _, f := range matches {
+			if removeErr := os.Remove(f); removeErr != nil {
+				s.logger.WithError(removeErr).WithField("file", f).Debug("Failed to remove content file")
+			}
+		}
+	}
+
+	s.available = false
+	s.version = ""
+	s.logger.Info("Full OpenSCAP cleanup completed")
 	return nil
 }

@@ -637,12 +637,18 @@ class QueueManager {
 					return;
 				}
 
-				if (type !== "install_compliance_tools") {
+				if (
+					type !== "install_compliance_tools" &&
+					type !== "reinstall_compliance_tools"
+				) {
 					logger.warn(`[Compliance] Unknown job type: ${type}`);
 					return;
 				}
+
+				const isReinstall = type === "reinstall_compliance_tools";
+				const logPrefix = isReinstall ? "reinstall" : "install";
 				logger.info(
-					`[Compliance] Processing install_compliance_tools for host ${hostId} (${api_id})`,
+					`[Compliance] Processing ${type} for host ${hostId} (${api_id})`,
 				);
 
 				let historyRecord = null;
@@ -659,7 +665,7 @@ class QueueManager {
 							id: uuidv4(),
 							job_id: job.id,
 							queue_name: QUEUE_NAMES.COMPLIANCE,
-							job_name: "install_compliance_tools",
+							job_name: type,
 							host_id: host.id,
 							api_id: host.api_id,
 							status: "active",
@@ -681,20 +687,22 @@ class QueueManager {
 						`[Compliance] Agent connection check for ${api_id}: ${connected ? "connected" : "not connected"}`,
 					);
 					if (!connected) {
-						throw new Error("Agent is not connected. Cannot run install.");
+						throw new Error(`Agent is not connected. Cannot run ${logPrefix}.`);
 					}
 
 					await job.updateData({
 						...job.data,
-						message: "Sending install command to agent...",
+						message: `Sending ${logPrefix} command to agent...`,
 						install_events: [],
 					});
 					await job.updateProgress(5);
 
-					const sent = agentWs.pushInstallScanner(api_id);
+					const sent = isReinstall
+						? agentWs.pushReinstallScanner(api_id)
+						: agentWs.pushInstallScanner(api_id);
 					if (!sent) {
 						throw new Error(
-							"Failed to send install_scanner command to agent (WebSocket not ready or send failed).",
+							`Failed to send ${logPrefix}_scanner command to agent (WebSocket not ready or send failed).`,
 						);
 					}
 

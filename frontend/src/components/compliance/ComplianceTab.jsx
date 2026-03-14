@@ -435,6 +435,26 @@ const ComplianceTab = ({
 		},
 	});
 
+	// Reinstall scanner mutation (full uninstall + fresh install)
+	const reinstallScannerMutation = useMutation({
+		mutationFn: () => complianceAPI.reinstallScanner(hostId),
+		onSuccess: () => {
+			refetchStatus();
+			refetchInstallJob();
+			const interval = setInterval(() => {
+				refetchStatus();
+				refetchInstallJob();
+			}, 2500);
+			setTimeout(() => clearInterval(interval), 120000);
+		},
+		onError: (error) => {
+			const msg =
+				error.response?.data?.error || "Failed to send reinstall command";
+			setSSGUpgradeMessage({ type: "error", text: msg });
+			setTimeout(() => setSSGUpgradeMessage(null), 6000);
+		},
+	});
+
 	// Install job status (progress + install_events) — keep polling while job is active so checklist stays visible
 	const integration_status = integrationStatus?.status?.status;
 	const { data: installJobData, refetch: refetchInstallJob } = useQuery({
@@ -4205,8 +4225,17 @@ const ComplianceTab = ({
 		!openscap_ready &&
 		isConnected &&
 		!installScannerMutation.isPending &&
+		!reinstallScannerMutation.isPending &&
 		!status_installing &&
 		!install_job_in_progress;
+
+	const show_reinstall_button =
+		isConnected &&
+		!installScannerMutation.isPending &&
+		!reinstallScannerMutation.isPending &&
+		!status_installing &&
+		!install_job_in_progress &&
+		(status?.status === "error" || (openscap_ready && !show_install_button));
 
 	// Prefer install-job events when in progress (worker merges from Redis); fallback to status.install_events
 	const install_events =
@@ -4268,17 +4297,30 @@ const ComplianceTab = ({
 							</span>
 						)}
 					</div>
-					{show_install_button && (
-						<button
-							type="button"
-							onClick={() => installScannerMutation.mutate()}
-							disabled={!isConnected || installScannerMutation.isPending}
-							className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-						>
-							<Package className="h-4 w-4" />
-							Install scanner
-						</button>
-					)}
+					<div className="flex items-center gap-2">
+						{show_install_button && (
+							<button
+								type="button"
+								onClick={() => installScannerMutation.mutate()}
+								disabled={!isConnected || installScannerMutation.isPending}
+								className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								<Package className="h-4 w-4" />
+								Install scanner
+							</button>
+						)}
+						{show_reinstall_button && (
+							<button
+								type="button"
+								onClick={() => reinstallScannerMutation.mutate()}
+								disabled={!isConnected || reinstallScannerMutation.isPending}
+								className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								<RefreshCw className="h-4 w-4" />
+								Reinstall scanner
+							</button>
+						)}
+					</div>
 					{show_install_progress && install_events.length === 0 && (
 						<span className="text-sm text-blue-400">
 							Starting installation…

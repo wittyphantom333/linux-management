@@ -2294,6 +2294,52 @@ router.post("/install-scanner/:hostId", async (req, res) => {
 });
 
 /**
+ * POST /api/v1/compliance/reinstall-scanner/:hostId
+ * Fully uninstall then reinstall the compliance scanner on the agent.
+ * Uses direct WS push (the agent handles progress events like install).
+ */
+router.post("/reinstall-scanner/:hostId", async (req, res) => {
+	try {
+		const { hostId } = req.params;
+
+		if (!isValidUUID(hostId)) {
+			return res.status(400).json({ error: "Invalid host ID format" });
+		}
+
+		const host = await prisma.hosts.findUnique({
+			where: { id: hostId },
+		});
+
+		if (!host) {
+			return res.status(404).json({ error: "Host not found" });
+		}
+
+		if (!agentWs.isConnected(host.api_id)) {
+			return res.status(400).json({ error: "Host is not connected" });
+		}
+
+		const queue = queueManager.queues[QUEUE_NAMES.COMPLIANCE];
+		const job = await queue.add(
+			"reinstall_compliance_tools",
+			{ hostId, api_id: host.api_id, type: "reinstall_compliance_tools" },
+			{ attempts: 1 },
+		);
+
+		const jobKey = `${COMPLIANCE_INSTALL_JOB_PREFIX}${hostId}`;
+		await redis.setex(jobKey, COMPLIANCE_INSTALL_JOB_TTL, job.id);
+
+		res.json({
+			job_id: job.id,
+			host_id: hostId,
+			message: "Reinstall job queued",
+		});
+	} catch (error) {
+		logger.error("[Compliance] Error enqueueing reinstall scanner:", error);
+		res.status(500).json({ error: "Failed to enqueue reinstall scanner" });
+	}
+});
+
+/**
  * POST /api/v1/compliance/upgrade-ssg/:hostId
  * Trigger SSG content package upgrade on the agent
  */

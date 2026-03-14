@@ -788,6 +788,29 @@ function pushInstallScanner(apiId) {
 	return false;
 }
 
+function pushReinstallScanner(apiId) {
+	logger.info(`[agent-ws] pushReinstallScanner called for api_id=${apiId}`);
+	const ws = apiIdToSocket.get(apiId);
+	if (ws && ws.readyState === WebSocket.OPEN) {
+		const payload = JSON.stringify({ type: "reinstall_scanner" });
+		try {
+			ws.send(payload);
+			logger.info(`[agent-ws] Triggered reinstall scanner for ${apiId}`);
+			return true;
+		} catch (err) {
+			logger.error(
+				`[agent-ws] Failed to send reinstall_scanner to ${apiId}:`,
+				err,
+			);
+			return false;
+		}
+	}
+	logger.info(
+		`[agent-ws] Cannot send reinstall_scanner - WebSocket not ready for ${apiId}`,
+	);
+	return false;
+}
+
 function pushDockerImageScan(apiId, options = {}) {
 	const ws = apiIdToSocket.get(apiId);
 	if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1081,6 +1104,7 @@ module.exports = {
 	pushRebootHost,
 	pushUpgradeSSG,
 	pushInstallScanner,
+	pushReinstallScanner,
 	pushRemediateRule,
 	pushDockerImageScan,
 	// Expose read-only view of connected agents

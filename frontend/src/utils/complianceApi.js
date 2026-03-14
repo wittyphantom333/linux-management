@@ -56,6 +56,10 @@ export const complianceAPI = {
 	// Install scanner (OpenSCAP + SSG) on the agent via BullMQ job
 	installScanner: (hostId) => api.post(`/compliance/install-scanner/${hostId}`),
 
+	// Reinstall scanner (full uninstall + fresh install) via BullMQ job
+	reinstallScanner: (hostId) =>
+		api.post(`/compliance/reinstall-scanner/${hostId}`),
+
 	// Get install job status for progress polling
 	getInstallJobStatus: (hostId) =>
 		api.get(`/compliance/install-job/${hostId}`).then((res) => res.data),

@@ -417,6 +417,15 @@ func runService() error {
 						logger.Info("Install scanner completed successfully")
 					}
 				}()
+			case "reinstall_scanner":
+				logger.Info("Reinstall scanner requested (full cleanup + install)...")
+				go func() {
+					if err := runReinstallScanner(); err != nil {
+						logger.WithError(err).Warn("reinstall_scanner failed")
+					} else {
+						logger.Info("Reinstall scanner completed successfully")
+					}
+				}()
 			case "remediate_rule":
 				logger.WithField("rule_id", m.ruleID).Info("Remediating single rule...")
 				go func(ruleID string) {
@@ -685,6 +694,155 @@ func runInstallScanner() error {
 	// Step 5: Complete
 	addEvent("complete", "done", "Installation complete - scanner is ready")
 	sendStatus("ready", "OpenSCAP and SSG content installed and ready", scannerDetails)
+
+	return nil
+}
+
+// runReinstallScanner performs a full cleanup then reinstalls OpenSCAP and SSG content.
+// Reports granular progress events just like runInstallScanner.
+func runReinstallScanner() error {
+	httpClient := client.New(cfgManager, logger)
+	ctx := context.Background()
+	enabled := cfgManager.IsIntegrationEnabled("compliance")
+
+	events := make([]models.InstallEvent, 0, 10)
+
+	addEvent := func(step, status, message string) {
+		events = append(events, models.InstallEvent{
+			Step:      step,
+			Status:    status,
+			Message:   message,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+	}
+
+	sendStatus := func(overallStatus, message string, scannerInfo *models.ComplianceScannerDetails) {
+		_ = httpClient.SendIntegrationSetupStatus(ctx, &models.IntegrationSetupStatus{
+			Integration:   "compliance",
+			Enabled:       enabled,
+			Status:        overallStatus,
+			Message:       message,
+			InstallEvents: events,
+			ScannerInfo:   scannerInfo,
+		})
+	}
+
+	// Step 1: Uninstall existing scanner
+	addEvent("uninstall", "in_progress", "Removing existing OpenSCAP installation...")
+	sendStatus("installing", "Removing existing OpenSCAP installation...", nil)
+
+	openscapScanner := compliance.NewOpenSCAPScanner(logger)
+	if err := openscapScanner.FullCleanup(); err != nil {
+		logger.WithError(err).Warn("Cleanup encountered errors, continuing with reinstall...")
+	}
+	events[len(events)-1] = models.InstallEvent{
+		Step:      "uninstall",
+		Status:    "done",
+		Message:   "Previous installation removed",
+		Timestamp: events[len(events)-1].Timestamp,
+	}
+
+	// Step 2: Fresh install — reuse runInstallScanner logic but with a fresh scanner instance
+	addEvent("detect_os", "in_progress", "Detecting operating system...")
+	sendStatus("installing", "Detecting operating system...", nil)
+
+	// Create a fresh scanner instance after cleanup
+	openscapScanner = compliance.NewOpenSCAPScanner(logger)
+	osInfo := openscapScanner.GetOSInfo()
+	osDesc := fmt.Sprintf("%s %s (%s)", osInfo.Name, osInfo.Version, osInfo.Family)
+	if osInfo.Name == "" {
+		osDesc = "unknown OS"
+	}
+	events[len(events)-1] = models.InstallEvent{
+		Step:      "detect_os",
+		Status:    "done",
+		Message:   fmt.Sprintf("Detected %s", osDesc),
+		Timestamp: events[len(events)-1].Timestamp,
+	}
+
+	// Step 3: Install OpenSCAP packages
+	addEvent("install_openscap", "in_progress", "Installing OpenSCAP packages...")
+	sendStatus("installing", "Installing OpenSCAP packages...", nil)
+
+	if err := openscapScanner.EnsureInstalled(); err != nil {
+		logger.WithError(err).Warn("EnsureInstalled failed during reinstall")
+		events[len(events)-1] = models.InstallEvent{
+			Step:      "install_openscap",
+			Status:    "failed",
+			Message:   fmt.Sprintf("OpenSCAP installation failed: %s", err.Error()),
+			Timestamp: events[len(events)-1].Timestamp,
+		}
+		addEvent("complete", "failed", "Reinstallation failed")
+		sendStatus("error", err.Error(), openscapScanner.GetScannerDetails())
+		return err
+	}
+
+	events[len(events)-1] = models.InstallEvent{
+		Step:      "install_openscap",
+		Status:    "done",
+		Message:   "OpenSCAP packages installed successfully",
+		Timestamp: events[len(events)-1].Timestamp,
+	}
+
+	// Step 4: Verify installation and SSG content
+	addEvent("verify_openscap", "in_progress", "Verifying OpenSCAP installation and SSG content...")
+	sendStatus("installing", "Verifying OpenSCAP installation...", nil)
+
+	scannerDetails := openscapScanner.GetScannerDetails()
+	verifyMsg := "OpenSCAP verified"
+	if scannerDetails.OpenSCAPVersion != "" {
+		verifyMsg = fmt.Sprintf("OpenSCAP %s verified", scannerDetails.OpenSCAPVersion)
+	}
+	if scannerDetails.ContentPackage != "" {
+		verifyMsg += fmt.Sprintf(", SSG content: %s", scannerDetails.ContentPackage)
+	}
+	events[len(events)-1] = models.InstallEvent{
+		Step:      "verify_openscap",
+		Status:    "done",
+		Message:   verifyMsg,
+		Timestamp: events[len(events)-1].Timestamp,
+	}
+
+	// Step 5: Docker Bench (if docker enabled)
+	dockerIntegrationEnabled := cfgManager.IsIntegrationEnabled("docker")
+	if dockerIntegrationEnabled {
+		addEvent("docker_bench", "in_progress", "Pre-pulling Docker Bench image...")
+		sendStatus("installing", "Pre-pulling Docker Bench image...", nil)
+
+		dockerBenchScanner := compliance.NewDockerBenchScanner(logger)
+		if dockerBenchScanner.IsAvailable() {
+			if err := dockerBenchScanner.EnsureInstalled(); err != nil {
+				logger.WithError(err).Warn("Failed to pre-pull Docker Bench image")
+				events[len(events)-1] = models.InstallEvent{
+					Step:      "docker_bench",
+					Status:    "failed",
+					Message:   fmt.Sprintf("Docker Bench image pull failed: %s", err.Error()),
+					Timestamp: events[len(events)-1].Timestamp,
+				}
+			} else {
+				scannerDetails.DockerBenchAvailable = true
+				events[len(events)-1] = models.InstallEvent{
+					Step:      "docker_bench",
+					Status:    "done",
+					Message:   "Docker Bench image pulled successfully",
+					Timestamp: events[len(events)-1].Timestamp,
+				}
+			}
+		} else {
+			events[len(events)-1] = models.InstallEvent{
+				Step:      "docker_bench",
+				Status:    "skipped",
+				Message:   "Docker not available on this host",
+				Timestamp: events[len(events)-1].Timestamp,
+			}
+		}
+	} else {
+		addEvent("docker_bench", "skipped", "Docker integration not enabled, skipping Docker Bench setup")
+	}
+
+	// Step 6: Complete
+	addEvent("complete", "done", "Reinstallation complete - scanner is ready")
+	sendStatus("ready", "OpenSCAP and SSG content reinstalled and ready", scannerDetails)
 
 	return nil
 }
@@ -1413,6 +1571,9 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 		case "install_scanner":
 			logger.Info("install_scanner received from WebSocket")
 			out <- wsMsg{kind: "install_scanner"}
+		case "reinstall_scanner":
+			logger.Info("reinstall_scanner received from WebSocket")
+			out <- wsMsg{kind: "reinstall_scanner"}
 		case "remediate_rule":
 			// Validate rule ID to prevent command injection
 			if err := validateRuleID(payload.RuleID); err != nil {
