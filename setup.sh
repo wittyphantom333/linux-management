@@ -3218,19 +3218,6 @@ update_installation() {
     # Update code
     print_info "Pulling latest code from branch: $DEPLOYMENT_BRANCH"
     cd "$instance_dir"
-    
-    # Preserve custom branding: if user has custom logos in frontend/public/assets,
-    # back them up before git pull (which resets them to repo defaults).
-    local branding_dir="$instance_dir/branding"
-    mkdir -p "$branding_dir"
-    for logo_file in logo_dark.png logo_light.png logo_dark.svg logo_light.svg logo_square.svg favicon.svg; do
-        local asset="$instance_dir/frontend/public/assets/$logo_file"
-        local branding_copy="$branding_dir/$logo_file"
-        # Only back up if the asset exists AND there's no branding copy already
-        if [ -f "$asset" ] && [ ! -f "$branding_copy" ]; then
-            cp "$asset" "$branding_copy"
-        fi
-    done
 
     # Clean up any untracked files that might conflict with incoming changes
     print_info "Cleaning up untracked files to prevent merge conflicts..."
@@ -3366,6 +3353,27 @@ update_installation() {
     
     # Check and update Redis configuration if needed (for legacy installations)
     update_redis_configuration
+
+    # Clean up stale auto-discovered branding paths: if the DB still points to
+    # /api/v1/branding/ files copied from old repo defaults, reset them to NULL
+    # so the correct built-in /assets/ defaults are used instead.
+    if [ -n "$DB_HOST" ] && [ -n "$DB_NAME" ] && [ -n "$DB_USER" ] && [ -n "$DB_PASS" ]; then
+        print_info "Cleaning up stale branding paths..."
+        PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c \
+            "UPDATE settings SET logo_dark = NULL WHERE logo_dark LIKE '/api/v1/branding/%';
+             UPDATE settings SET logo_light = NULL WHERE logo_light LIKE '/api/v1/branding/%';
+             UPDATE settings SET favicon = NULL WHERE favicon LIKE '/api/v1/branding/%';" \
+            >/dev/null 2>&1 && print_status "Branding paths cleaned" || print_warning "Branding cleanup skipped"
+    fi
+
+    # Remove old branding directory files that were auto-copied from repo defaults
+    if [ -d "$instance_dir/branding" ]; then
+        for old_file in logo_dark.png logo_light.png; do
+            if [ -f "$instance_dir/branding/$old_file" ]; then
+                rm -f "$instance_dir/branding/$old_file"
+            fi
+        done
+    fi
     
     # Update .env file with any missing variables (preserve existing values)
     update_env_file

@@ -108,10 +108,7 @@ const { initializeOIDC } = require("./auth/oidc");
 const aiRoutes = require("./routes/aiRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const agentLogsRoutes = require("./routes/agentLogsRoutes");
-const {
-	initSettings,
-	autoDiscoverBranding,
-} = require("./services/settingsService");
+const { initSettings } = require("./services/settingsService");
 const { queueManager } = require("./services/automation");
 const {
 	authenticateToken,
@@ -886,8 +883,6 @@ async function startServer() {
 			if (process.env.ENABLE_LOGGING === "true") {
 				logger.info("✅ Settings initialised");
 			}
-			// Auto-discover custom branding files (logos/favicon) in branding dir
-			await autoDiscoverBranding();
 		} catch (initError) {
 			if (process.env.ENABLE_LOGGING === "true") {
 				logger.error("❌ Failed to initialise settings:", initError.message);
