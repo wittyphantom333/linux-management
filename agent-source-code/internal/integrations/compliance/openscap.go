@@ -107,9 +107,10 @@ func (s *OpenSCAPScanner) GetContentPackageVersion() string {
 	// Fall back to package manager version
 	switch s.osInfo.Family {
 	case "debian":
-		// Try ssg-base first, then ssg-debderived (Ubuntu/Debian often only
-		// have the content installed via ssg-debderived, not ssg-base).
-		for _, pkg := range []string{"ssg-base", "ssg-debderived"} {
+		// Try ssg-base first, then ssg-debderived, then scap-security-guide.
+		// Ubuntu/Debian may provide content under any of these package names
+		// depending on the release and repo configuration.
+		for _, pkg := range []string{"ssg-base", "ssg-debderived", "scap-security-guide"} {
 			cmd := exec.Command("dpkg-query", "-W", "-f=${Version}", pkg)
 			output, err := cmd.Output()
 			if err == nil {
@@ -290,14 +291,17 @@ func (s *OpenSCAPScanner) GetScannerDetails() *models.ComplianceScannerDetails {
 	if minVersion != "" && contentVersion != "" && contentVersion != "unknown" {
 		if compareVersions(contentVersion, minVersion) < 0 {
 			ssgNeedsUpgrade = true
-			ssgUpgradeMessage = fmt.Sprintf("ssg-base %s is installed, but %s %s requires v%s+ for proper CIS/STIG content.",
+			ssgUpgradeMessage = fmt.Sprintf("SSG content %s is installed, but %s %s requires v%s+ for proper CIS/STIG content. Run a scan or click Update to upgrade automatically.",
 				contentVersion, s.osInfo.Name, s.osInfo.Version, minVersion)
 		}
-	} else if minVersion != "" && contentVersion == "" {
-		// Only warn if no content version AND no content file exists
-		if contentFile == "" {
+	} else if minVersion != "" && contentVersion == "" && contentFile == "" {
+		// Only warn about missing SSG content if the OpenSCAP binary is already
+		// installed.  When the binary itself is missing, the entire scanner needs
+		// installation first (which happens automatically on the first scan), so
+		// showing "ssg-base is not installed" is misleading.
+		if s.available {
 			ssgNeedsUpgrade = true
-			ssgUpgradeMessage = fmt.Sprintf("ssg-base is not installed. %s %s requires ssg-base v%s+ for CIS/STIG scanning.",
+			ssgUpgradeMessage = fmt.Sprintf("SSG content is not installed. %s %s requires SSG v%s+ for CIS/STIG scanning. Run a scan to install automatically.",
 				s.osInfo.Name, s.osInfo.Version, minVersion)
 		}
 	}
