@@ -478,7 +478,7 @@ function computeSnapshotDiff(preSnapshot, postSnapshot) {
  * Compute the next run time from a cron expression.
  * Uses a simple parser for 5-field cron (minute hour dom month dow).
  */
-function computeNextRun(cronExpr, _timezone = "UTC", after = new Date()) {
+function computeNextRun(cronExpr, timezone = "UTC", after = new Date()) {
 	// Simple approach: iterate minute-by-minute up to 7 days out
 	// For production, a proper cron parser library would be used
 	if (!cronExpr) return null;
@@ -495,22 +495,68 @@ function computeNextRun(cronExpr, _timezone = "UTC", after = new Date()) {
 			const step = parseInt(expr.slice(2), 10);
 			return value % step === 0;
 		}
-		// Handle comma-separated values
-		const values = expr.split(",").map((v) => parseInt(v, 10));
+		// Handle ranges (e.g. 1-5)
+		if (expr.includes("-") && !expr.includes(",")) {
+			const [lo, hi] = expr.split("-").map(Number);
+			return value >= lo && value <= hi;
+		}
+		// Handle comma-separated values (may include ranges)
+		const values = expr.split(",").flatMap((v) => {
+			if (v.includes("-")) {
+				const [lo, hi] = v.split("-").map(Number);
+				const range = [];
+				for (let n = lo; n <= hi; n++) range.push(n);
+				return range;
+			}
+			return [parseInt(v, 10)];
+		});
 		return values.includes(value);
 	};
 
+	// Helper: convert a UTC Date to components in the target timezone
+	const toTzParts = (date) => {
+		try {
+			const fmt = new Intl.DateTimeFormat("en-US", {
+				timeZone: timezone,
+				year: "numeric",
+				month: "2-digit",
+				day: "2-digit",
+				hour: "2-digit",
+				minute: "2-digit",
+				weekday: "short",
+				hour12: false,
+			});
+			const p = {};
+			for (const { type, value } of fmt.formatToParts(date)) {
+				p[type] = value;
+			}
+			const dowMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+			return {
+				min: parseInt(p.minute, 10),
+				hour: parseInt(p.hour, 10) % 24,
+				dom: parseInt(p.day, 10),
+				mon: parseInt(p.month, 10),
+				dow: dowMap[p.weekday] ?? 0,
+			};
+		} catch {
+			// Invalid timezone — fall back to UTC
+			return {
+				min: date.getUTCMinutes(),
+				hour: date.getUTCHours(),
+				dom: date.getUTCDate(),
+				mon: date.getUTCMonth() + 1,
+				dow: date.getUTCDay(),
+			};
+		}
+	};
+
 	// Iterate up to 7 days (10080 minutes)
-	const candidate = new Date(after);
+	const candidate = new Date(after.getTime());
 	candidate.setSeconds(0, 0);
 	candidate.setMinutes(candidate.getMinutes() + 1);
 
 	for (let i = 0; i < 10080; i++) {
-		const min = candidate.getMinutes();
-		const hour = candidate.getHours();
-		const dom = candidate.getDate();
-		const mon = candidate.getMonth() + 1;
-		const dow = candidate.getDay();
+		const { min, hour, dom, mon, dow } = toTzParts(candidate);
 
 		if (
 			matchField(minExpr, min) &&

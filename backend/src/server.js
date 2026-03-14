@@ -997,10 +997,9 @@ async function startServer() {
 						const { getPrismaClient } = require("./config/prisma");
 						const pdb = getPrismaClient();
 
-						// Refresh next_run_at for recurring windows
-						await refreshWindowSchedules();
-
-						// Find windows that are due to run
+						// Find windows that are due to run BEFORE refreshing schedules,
+						// otherwise refreshWindowSchedules() advances next_run_at and
+						// the due windows are never found.
 						const dueWindows = await pdb.patch_windows.findMany({
 							where: {
 								enabled: true,
@@ -1010,10 +1009,10 @@ async function startServer() {
 
 						for (const window of dueWindows) {
 							try {
-								const result = await createPatchJob(
-									window.policy_id,
-									`window:${window.id}`,
-								);
+								const result = await createPatchJob(window.policy_id, {
+									triggeredBy: "scheduled",
+									windowId: window.id,
+								});
 								logger.info(
 									`[PatchMgmt] Auto-triggered job for policy ${window.policy_id} via window "${window.name}"`,
 								);
@@ -1062,6 +1061,10 @@ async function startServer() {
 								},
 							});
 						}
+
+						// Refresh next_run_at for remaining recurring windows
+						// (must run AFTER due-window processing)
+						await refreshWindowSchedules();
 					} catch (err) {
 						logger.error(`[PatchMgmt] Window scheduler error: ${err.message}`);
 					}
