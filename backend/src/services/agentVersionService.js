@@ -576,7 +576,7 @@ class AgentVersionService {
 			}
 
 			const binaryPath = path.join(
-				this.agentBinariesDir,
+				this.agentsDir,
 				`${release.tag_name}-${assetName}`,
 			);
 

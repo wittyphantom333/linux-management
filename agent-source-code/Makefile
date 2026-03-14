@@ -3,7 +3,7 @@
 # Build variables
 BINARY_NAME=patchmon-agent
 BUILD_DIR=build
-# Strip debug info (version comes from internal/version/version.go)
+# Strip debug info (version comes from internal/pkgversion/version.go)
 LDFLAGS=-ldflags "-s -w"
 # Disable VCS stamping
 BUILD_FLAGS=-buildvcs=false

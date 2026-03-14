@@ -24,6 +24,10 @@ jobs:
             goarch: 'arm'
           - goos: linux
             goarch: '386'
+          - goos: freebsd
+            goarch: 'amd64'
+          - goos: freebsd
+            goarch: 'arm64'
 
     steps:
       - name: Checkout code
@@ -47,7 +51,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
-          go build -buildvcs=false -ldflags="-s -w -X patchmon-agent/internal/version.Version=${{ github.event.release.tag_name }}" -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
+          go build -buildvcs=false -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ github.event.release.tag_name }}" -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
           
       - name: Verify binary exists and is executable
         working-directory: agent-source-code
