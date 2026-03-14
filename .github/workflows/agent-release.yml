@@ -40,6 +40,14 @@ jobs:
         working-directory: agent-source-code
         run: go mod download
 
+      - name: Extract version
+        id: version
+        run: |
+          # Strip leading 'v' from tag for the Go version string
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Build binary
         working-directory: agent-source-code
         env:
@@ -49,8 +57,10 @@ jobs:
           CGO_ENABLED: 0
         run: |
           OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
-          go build -buildvcs=false -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ github.event.release.tag_name }}" -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
-          
+          go build -buildvcs=false \
+            -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ steps.version.outputs.version }}" \
+            -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
+
       - name: Verify binary exists and is executable
         working-directory: agent-source-code
         run: |
@@ -61,23 +71,15 @@ jobs:
           fi
           chmod +x "${OUTPUT_NAME}"
           ls -lh "${OUTPUT_NAME}"
-          echo "✅ Binary ${OUTPUT_NAME} created successfully"
-
-      - name: Verify binary architecture
-        working-directory: agent-source-code
-        run: |
-          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
-          echo "📋 Binary information:"
           file "${OUTPUT_NAME}"
+          echo "✅ Binary ${OUTPUT_NAME} created successfully"
 
       - name: Test binary (linux/amd64 only)
         if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         working-directory: agent-source-code
         run: |
           OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
-          echo "🧪 Testing binary..."
           ./"${OUTPUT_NAME}" --version || ./"${OUTPUT_NAME}" version || echo "Version command not available (may require config)"
-          echo "✅ Basic functionality test passed"
 
       - name: Upload binary to release
         working-directory: agent-source-code

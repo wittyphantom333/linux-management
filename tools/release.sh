@@ -123,8 +123,8 @@ if [[ -n "$BUMP" ]]; then
             sed -i '' "s/\"version\": \"${CURRENT_VERSION}\"/\"version\": \"${NEW_VERSION}\"/" "$f"
         done
 
-        # Go file: replace const Version = "x.y.z"
-        sed -i '' "s/const Version = \"${CURRENT_VERSION}\"/const Version = \"${NEW_VERSION}\"/" \
+        # Go file: replace var Version = "x.y.z"
+        sed -i '' "s/var Version = \"${CURRENT_VERSION}\"/var Version = \"${NEW_VERSION}\"/" \
             agent-source-code/internal/pkgversion/version.go
     fi
 

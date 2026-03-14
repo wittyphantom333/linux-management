@@ -22,6 +22,10 @@ jobs:
             goarch: 'arm'
           - goos: linux
             goarch: '386'
+          - goos: freebsd
+            goarch: 'amd64'
+          - goos: freebsd
+            goarch: 'arm64'
 
     steps:
       - name: Checkout code
@@ -35,6 +39,13 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Extract version
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -43,8 +54,10 @@ jobs:
           CGO_ENABLED: 0
         run: |
           OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
-          go build -ldflags="-s -w -X patchmon-agent/internal/version.Version=${{ github.event.release.tag_name }}" -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
-          
+          go build -buildvcs=false \
+            -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ steps.version.outputs.version }}" \
+            -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
+
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
         with:

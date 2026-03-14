@@ -11,11 +11,11 @@ permissions:
 
 jobs:
   check-and-release:
-    name: Create Release if Version Changed
+    name: Detect Version Change
     runs-on: ubuntu-latest
 
     outputs:
-      should_release: ${{ steps.check_tag.outputs.exists == 'false' }}
+      should_release: ${{ steps.check_tag.outputs.should_release }}
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
 
@@ -28,7 +28,7 @@ jobs:
       - name: Extract version from source
         id: version
         run: |
-          VERSION=$(grep -oP 'const Version = "\K[^"]+' agent-source-code/internal/pkgversion/version.go)
+          VERSION=$(grep -oP 'var Version = "\K[^"]+' agent-source-code/internal/pkgversion/version.go)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Detected version: ${VERSION} (tag: v${VERSION})"
@@ -37,26 +37,12 @@ jobs:
         id: check_tag
         run: |
           if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
             echo "Tag ${{ steps.version.outputs.tag }} already exists — skipping"
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
             echo "Tag ${{ steps.version.outputs.tag }} is new — will create release"
           fi
-
-      - name: Create GitHub Release
-        if: steps.check_tag.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          echo "Creating release ${TAG}..."
-          gh release create "${TAG}" \
-            --repo "${{ github.repository }}" \
-            --title "Agent ${TAG}" \
-            --generate-notes \
-            --target "${{ github.sha }}"
-          echo "✅ Release ${TAG} created"
 
   build:
     name: Build Agent (${{ matrix.goos }}/${{ matrix.goarch }})
@@ -101,7 +87,9 @@ jobs:
           CGO_ENABLED: 0
         run: |
           OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
-          go build -buildvcs=false -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ needs.check-and-release.outputs.tag }}" -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
+          go build -buildvcs=false \
+            -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ needs.check-and-release.outputs.version }}" \
+            -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
 
       - name: Verify binary
         working-directory: agent-source-code
@@ -123,13 +111,46 @@ jobs:
           OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
           ./"${OUTPUT_NAME}" --version || ./"${OUTPUT_NAME}" version || echo "Version command not available (may require config)"
 
-      - name: Upload binary to release
-        working-directory: agent-source-code
+      - name: Upload binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: agent-source-code/patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}
+          retention-days: 1
+
+  release:
+    name: Create Release and Upload Binaries
+    needs: [check-and-release, build]
+    if: needs.check-and-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: binaries
+          merge-multiple: false
+
+      - name: Prepare binaries
+        run: |
+          mkdir -p release-assets
+          for dir in binaries/patchmon-agent-*/; do
+            cp "${dir}"patchmon-agent-* release-assets/ 2>/dev/null || true
+          done
+          chmod +x release-assets/*
+          echo "📦 Release assets:"
+          ls -lh release-assets/
+
+      - name: Create GitHub Release with binaries
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
           TAG="${{ needs.check-and-release.outputs.tag }}"
-          echo "📤 Uploading ${OUTPUT_NAME} to release ${TAG}..."
-          gh release upload "${TAG}" "${OUTPUT_NAME}" --repo "${{ github.repository }}" --clobber
-          echo "✅ Uploaded ${OUTPUT_NAME}"
+          echo "Creating release ${TAG} with binaries..."
+          gh release create "${TAG}" \
+            --repo "${{ github.repository }}" \
+            --title "Agent ${TAG}" \
+            --generate-notes \
+            --target "${{ github.sha }}" \
+            release-assets/*
+          echo "✅ Release ${TAG} created with all binaries attached"
