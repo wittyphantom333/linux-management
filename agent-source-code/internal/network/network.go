@@ -65,7 +65,7 @@ func (m *Manager) getIPv4GatewayIP() string {
 	// Try reading /proc/net/route first (Linux)
 	data, err := os.ReadFile("/proc/net/route")
 	if err == nil {
-		for line := range strings.SplitSeq(string(data), "\n") {
+		for _, line := range strings.Split(string(data), "\n") {
 			fields := strings.Fields(line)
 			// Field 1 is Destination, Field 2 is Gateway
 			if len(fields) >= 3 && fields[1] == "00000000" { // Default route
@@ -101,7 +101,7 @@ func (m *Manager) getIPv6GatewayIP() string {
 	// 5. Next hop / Gateway (32 hex chars)
 	// ... other flags ...
 
-	for line := range strings.SplitSeq(string(data), "\n") {
+	for _, line := range strings.Split(string(data), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) >= 5 {
 			dest := fields[0]
@@ -231,7 +231,7 @@ func (m *Manager) getDNSServers() []string {
 		return servers
 	}
 
-	for line := range strings.SplitSeq(string(data), "\n") {
+	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "nameserver") {
 			fields := strings.Fields(line)
@@ -390,7 +390,7 @@ func (m *Manager) getInterfaceGateway(interfaceName string, ipv6 bool) string {
 			return ""
 		}
 
-		for line := range strings.SplitSeq(string(data), "\n") {
+		for _, line := range strings.Split(string(data), "\n") {
 			fields := strings.Fields(line)
 			if len(fields) >= 3 && fields[0] == interfaceName && fields[1] == "00000000" {
 				// Default route for this interface

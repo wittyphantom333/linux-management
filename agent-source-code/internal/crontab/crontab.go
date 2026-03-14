@@ -61,7 +61,7 @@ func (m *Manager) GetEntries() []string {
 	if data, err := os.ReadFile(config.CronFilePath); err == nil {
 		// Filter out empty lines and comments
 		var validLines []string
-		for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
+		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
 			line = strings.TrimSpace(line)
 			if line != "" && !strings.HasPrefix(line, "#") {
 				validLines = append(validLines, line)
