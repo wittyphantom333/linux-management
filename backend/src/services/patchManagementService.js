@@ -575,14 +575,23 @@ function computeNextRun(cronExpr, timezone = "UTC", after = new Date()) {
 }
 
 /**
- * Refresh next_run_at for all enabled recurring windows.
+ * Refresh next_run_at for enabled recurring windows whose schedule is
+ * missing or stale.  Windows that already have a valid future next_run_at
+ * are left untouched so we never accidentally leap-frog an imminent
+ * occurrence that the due-window query hasn't processed yet.
  */
 async function refreshWindowSchedules() {
+	const now = new Date();
 	const windows = await prisma.patch_windows.findMany({
 		where: { enabled: true, schedule_type: "recurring" },
 	});
 
 	for (const w of windows) {
+		// Skip windows that already have a valid future next_run_at — recomputing
+		// here could race with the due-window check and push the schedule forward,
+		// causing the current occurrence to be silently skipped.
+		if (w.next_run_at && w.next_run_at > now) continue;
+
 		const nextRun = computeNextRun(w.schedule_cron, w.schedule_timezone);
 		if (nextRun) {
 			await prisma.patch_windows.update({
