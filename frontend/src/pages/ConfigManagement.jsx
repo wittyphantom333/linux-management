@@ -377,14 +377,7 @@ export default function ConfigManagement() {
 
 			{/* Tab content */}
 			{activeTab === "overview" && (
-				<OverviewTab
-					dashboard={dashboard}
-					dashboardLoading={isLoading}
-					techniques={techniques}
-					directives={directives}
-					rules={rules}
-					runs={runsData?.runs}
-				/>
+				<OverviewTab dashboard={dashboard} dashboardLoading={isLoading} />
 			)}
 			{activeTab === "techniques" && (
 				<TechniquesTab
@@ -442,14 +435,7 @@ export default function ConfigManagement() {
 }
 
 // ─── Overview tab (analytics) ───────────────────────────────────────────────
-function OverviewTab({
-	dashboard,
-	dashboardLoading,
-	techniques,
-	directives,
-	rules,
-	runs,
-}) {
+function OverviewTab({ dashboard, dashboardLoading }) {
 	if (dashboardLoading) {
 		return (
 			<div className="flex items-center justify-center py-20">
@@ -651,9 +637,9 @@ function OverviewTab({
 										paddingAngle={2}
 										dataKey="value"
 									>
-										{complianceData.map((_entry, i) => (
+										{complianceData.map((entry, i) => (
 											<Cell
-												key={`comp-${i}`}
+												key={entry.name}
 												fill={PIE_COLORS[i % PIE_COLORS.length]}
 											/>
 										))}
@@ -1161,9 +1147,9 @@ function DiagnosticsPanelInner() {
 			{/* Issues list */}
 			{errors.length > 0 && (
 				<div className="space-y-2 mb-3">
-					{errors.map((issue, i) => (
+					{errors.map((issue) => (
 						<div
-							key={`err-${i}`}
+							key={issue.message}
 							className="flex items-start gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm"
 						>
 							<XCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
@@ -1176,9 +1162,9 @@ function DiagnosticsPanelInner() {
 			)}
 			{warnings.length > 0 && (
 				<div className="space-y-2 mb-3">
-					{warnings.map((issue, i) => (
+					{warnings.map((issue) => (
 						<div
-							key={`warn-${i}`}
+							key={issue.message}
 							className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-sm"
 						>
 							<AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />

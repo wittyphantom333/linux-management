@@ -386,7 +386,10 @@ export default function PolicyDetail() {
 						) : (
 							<div className="space-y-2">
 								{filters.map((f, i) => (
-									<div key={i} className="flex items-center gap-2">
+									<div
+										key={`${f.filter_type}-${f.match_type}-${i}`}
+										className="flex items-center gap-2"
+									>
 										<select
 											value={f.filter_type}
 											onChange={(e) =>

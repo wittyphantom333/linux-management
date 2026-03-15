@@ -358,21 +358,39 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 		}
 	};
 
-	// Initialize terminal
+	// Send current terminal dimensions to the SSH server
+	const sendResizeToServer = useCallback(() => {
+		if (fitAddonRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+			const dimensions = fitAddonRef.current.proposeDimensions();
+			wsRef.current.send(
+				JSON.stringify({
+					type: "resize",
+					cols: dimensions?.cols || 80,
+					rows: dimensions?.rows || 24,
+				}),
+			);
+		}
+	}, []);
+
+	// Refs for cleanup that survives across dep changes
+	const resizeObserverRef = useRef(null);
+	const windowResizeHandlerRef = useRef(null);
+
+	// Initialize terminal once and keep it alive across connection state changes.
+	// A ResizeObserver re-fits the terminal whenever its container size changes
+	// (e.g. connection form disappearing, AI panel toggling, window resize).
+	// isConnecting/isConnected are in deps so the effect re-runs when the
+	// terminal container div first mounts, but the guard below prevents
+	// re-creating the terminal on subsequent state changes.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally skipping re-init
 	useEffect(() => {
-		// Only initialize when terminal container is rendered (when connecting or connected)
-		// In embedded mode, only when connecting/connected
-		// In modal mode, only when isOpen and connecting/connected
-		if (
-			(!embedded && !isOpen) ||
-			!terminalRef.current ||
-			(!isConnected && !isConnecting)
-		)
-			return;
+		if ((!embedded && !isOpen) || !terminalRef.current) return;
+		// Already initialised – nothing to do
+		if (terminalInstanceRef.current) return;
 
 		// Create terminal instance
 		const term = new Terminal({
-			cursorBlink: false, // Disable cursor blink in preview mode
+			cursorBlink: false,
 			cursorStyle: "block",
 			fontFamily: '"Courier New", monospace',
 			fontSize: 14,
@@ -380,7 +398,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 				background: "#1e1e1e",
 				foreground: "#d4d4d4",
 				cursor: "#aeafad",
-				cursorAccent: "#1e1e1e", // Make cursor blend with background when not connected
+				cursorAccent: "#1e1e1e",
 				selection: "#264f78",
 				black: "#000000",
 				red: "#cd3131",
@@ -404,62 +422,49 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 		const fitAddon = new FitAddon();
 		term.loadAddon(fitAddon);
 		term.open(terminalRef.current);
-
-		// Fit terminal to container
 		fitAddon.fit();
-
-		// Terminal is ready, will be used when connection is established
 
 		terminalInstanceRef.current = term;
 		fitAddonRef.current = fitAddon;
 
-		// Handle window resize
+		// Use ResizeObserver to refit whenever the container dimensions change
+		// (handles layout shifts when connection form disappears, AI panel toggle, etc.)
+		const ro = new ResizeObserver(() => {
+			if (fitAddonRef.current) {
+				fitAddonRef.current.fit();
+				sendResizeToServer();
+			}
+		});
+		ro.observe(terminalRef.current);
+		resizeObserverRef.current = ro;
+
+		// Also listen to window resize as a fallback
 		const handleResize = () => {
 			if (fitAddonRef.current) {
 				fitAddonRef.current.fit();
-				// Send resize event to SSH session if connected
-				if (wsRef.current?.readyState === WebSocket.OPEN && isConnected) {
-					const dimensions = fitAddonRef.current.proposeDimensions();
-					wsRef.current.send(
-						JSON.stringify({
-							type: "resize",
-							cols: dimensions?.cols || 80,
-							rows: dimensions?.rows || 24,
-						}),
-					);
-				}
+				sendResizeToServer();
 			}
 		};
-
 		window.addEventListener("resize", handleResize);
+		windowResizeHandlerRef.current = handleResize;
 
-		return () => {
-			window.removeEventListener("resize", handleResize);
-			term.dispose();
-		};
-	}, [isOpen, isConnected, embedded, isConnecting]);
+		// No cleanup here — the terminal must survive dep changes.
+		// Teardown is handled by the unmount-only effect below.
+	}, [isOpen, embedded, isConnecting, isConnected, sendResizeToServer]);
 
-	// Resize terminal when AI panel opens/closes
+	// Unmount-only cleanup: dispose terminal and observers when the
+	// component is removed from the tree (not on dep changes).
 	useEffect(() => {
-		if (fitAddonRef.current && isConnected) {
-			// Small delay to let CSS transition complete
-			const resizeTimeout = setTimeout(() => {
-				fitAddonRef.current.fit();
-				// Also update SSH server with new dimensions
-				if (wsRef.current?.readyState === WebSocket.OPEN) {
-					const dimensions = fitAddonRef.current.proposeDimensions();
-					wsRef.current.send(
-						JSON.stringify({
-							type: "resize",
-							cols: dimensions?.cols || 80,
-							rows: dimensions?.rows || 24,
-						}),
-					);
-				}
-			}, 350); // Match CSS transition duration
-			return () => clearTimeout(resizeTimeout);
-		}
-	}, [isConnected]);
+		return () => {
+			resizeObserverRef.current?.disconnect();
+			if (windowResizeHandlerRef.current) {
+				window.removeEventListener("resize", windowResizeHandlerRef.current);
+			}
+			terminalInstanceRef.current?.dispose();
+			terminalInstanceRef.current = null;
+			fitAddonRef.current = null;
+		};
+	}, []);
 
 	// Connect to SSH via WebSocket
 	const connectSsh = async (useSaved = false) => {
@@ -612,12 +617,15 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 							setError(null);
 							// Cache the username for future connections
 							saveUsername(sshConfig.username);
-							// Resize terminal to fit expanded container
+							// Safety-net resize: the ResizeObserver handles layout
+							// changes automatically, but we also schedule a delayed fit
+							// to ensure dimensions are correct after React re-renders.
 							setTimeout(() => {
 								if (fitAddonRef.current) {
 									fitAddonRef.current.fit();
+									sendResizeToServer();
 								}
-							}, 100);
+							}, 150);
 							break;
 
 						case "data":
