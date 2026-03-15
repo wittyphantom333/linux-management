@@ -550,12 +550,12 @@ function computeNextRun(cronExpr, timezone = "UTC", after = new Date()) {
 		}
 	};
 
-	// Iterate up to 7 days (10080 minutes)
+	// Iterate up to 35 days (50400 minutes) to cover monthly schedules
 	const candidate = new Date(after.getTime());
 	candidate.setSeconds(0, 0);
 	candidate.setMinutes(candidate.getMinutes() + 1);
 
-	for (let i = 0; i < 10080; i++) {
+	for (let i = 0; i < 50400; i++) {
 		const { min, hour, dom, mon, dow } = toTzParts(candidate);
 
 		if (
@@ -571,7 +571,7 @@ function computeNextRun(cronExpr, timezone = "UTC", after = new Date()) {
 		candidate.setMinutes(candidate.getMinutes() + 1);
 	}
 
-	return null; // No match within 7 days
+	return null; // No match within 35 days
 }
 
 /**

@@ -992,7 +992,10 @@ async function startServer() {
 				createPatchJob,
 			} = require("./services/patchManagementService");
 			const startPatchWindowScheduler = () => {
-				setInterval(async () => {
+				let running = false;
+				const tick = async () => {
+					if (running) return; // prevent overlap if previous tick is still going
+					running = true;
 					try {
 						const { getPrismaClient } = require("./config/prisma");
 						const pdb = getPrismaClient();
@@ -1008,11 +1011,13 @@ async function startServer() {
 						});
 
 						for (const window of dueWindows) {
+							let jobCreated = false;
 							try {
 								const result = await createPatchJob(window.policy_id, {
 									triggeredBy: "scheduled",
 									windowId: window.id,
 								});
+								jobCreated = true;
 								logger.info(
 									`[PatchMgmt] Auto-triggered job for policy ${window.policy_id} via window "${window.name}"`,
 								);
@@ -1039,27 +1044,41 @@ async function startServer() {
 								);
 							}
 
-							// Advance next_run_at so we don't re-trigger
-							const {
-								computeNextRun,
-							} = require("./services/patchManagementService");
-							const nextRun =
-								window.schedule_type === "recurring"
-									? computeNextRun(
-											window.schedule_cron,
-											window.schedule_timezone,
-										)
-									: null;
+							// Advance next_run_at — only when the job was created successfully.
+							// When job creation fails we leave next_run_at in the past so the
+							// window retries on the next tick.
+							try {
+								if (jobCreated) {
+									const {
+										computeNextRun,
+									} = require("./services/patchManagementService");
+									const nextRun =
+										window.schedule_type === "recurring"
+											? computeNextRun(
+													window.schedule_cron,
+													window.schedule_timezone,
+												)
+											: null;
 
-							await pdb.patch_windows.update({
-								where: { id: window.id },
-								data: {
-									next_run_at: nextRun,
-									last_run_at: new Date(),
-									enabled: nextRun ? true : window.schedule_type !== "once",
-									updated_at: new Date(),
-								},
-							});
+									await pdb.patch_windows.update({
+										where: { id: window.id },
+										data: {
+											next_run_at: nextRun,
+											last_run_at: new Date(),
+											enabled: nextRun ? true : window.schedule_type !== "once",
+											updated_at: new Date(),
+										},
+									});
+								} else {
+									logger.warn(
+										`[PatchMgmt] Window "${window.name}" due but job creation failed — will retry next tick`,
+									);
+								}
+							} catch (advErr) {
+								logger.error(
+									`[PatchMgmt] Failed to advance schedule for window "${window.name}": ${advErr.message}`,
+								);
+							}
 						}
 
 						// Refresh next_run_at for remaining recurring windows
@@ -1067,8 +1086,13 @@ async function startServer() {
 						await refreshWindowSchedules();
 					} catch (err) {
 						logger.error(`[PatchMgmt] Window scheduler error: ${err.message}`);
+					} finally {
+						running = false;
 					}
-				}, 60 * 1000); // Check every 60 seconds
+				};
+				// Run immediately on startup, then every 60 seconds
+				setTimeout(tick, 0);
+				setInterval(tick, 60 * 1000);
 			};
 			startPatchWindowScheduler();
 			console.log(
