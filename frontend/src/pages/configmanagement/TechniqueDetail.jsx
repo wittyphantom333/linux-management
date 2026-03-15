@@ -604,7 +604,10 @@ export default function TechniqueDetail() {
 				) : (
 					<div className="space-y-3">
 						{parameters.map((p, idx) => (
-							<div key={idx} className="grid grid-cols-5 gap-2 items-start">
+							<div
+								key={`${p.name}-${idx}`}
+								className="grid grid-cols-5 gap-2 items-start"
+							>
 								<input
 									type="text"
 									value={p.name}

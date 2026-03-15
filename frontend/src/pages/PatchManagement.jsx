@@ -606,9 +606,9 @@ function OverviewTab({ stats, statsLoading, policies, triggerJob }) {
 										dataKey="value"
 									>
 										{Object.entries(stats.hosts.patch_status).map(
-											(_entry, i) => (
+											([status], i) => (
 												<Cell
-													key={`cell-${i}`}
+													key={status}
 													fill={PIE_COLORS[i % PIE_COLORS.length]}
 												/>
 											),
@@ -995,7 +995,6 @@ function PoliciesTab({
 	setSearch,
 	deletePolicy,
 	triggerJob,
-	navigate,
 }) {
 	return (
 		<div className="space-y-4">
@@ -1133,7 +1132,7 @@ function PoliciesTab({
 // ============================================================================
 // WINDOWS TAB
 // ============================================================================
-function WindowsTab({ windows, deleteWindow, navigate }) {
+function WindowsTab({ windows, deleteWindow }) {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">

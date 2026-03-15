@@ -462,7 +462,7 @@ function methodBorderClass(status) {
 }
 
 // Full verbose method result card
-function MethodResultCard({ mr, index, isLast }) {
+function MethodResultCard({ mr, isLast }) {
 	return (
 		<div
 			className={`border-l-4 ${methodBorderClass(mr.status)} ${!isLast ? "border-b border-secondary-100 dark:border-secondary-700" : ""}`}

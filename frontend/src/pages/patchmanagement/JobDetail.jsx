@@ -258,14 +258,7 @@ export default function JobDetail() {
 	);
 }
 
-function HostRow({
-	jobHost,
-	jobId,
-	isExpanded,
-	onToggle,
-	diffData,
-	onLoadDiff,
-}) {
+function HostRow({ jobHost, isExpanded, onToggle, diffData, onLoadDiff }) {
 	const host = jobHost.host;
 	const packages = jobHost.patch_job_packages || [];
 	const StatusIcon = STATUS_ICONS[jobHost.status] || Clock;
@@ -440,9 +433,9 @@ function DiffView({ diff }) {
 						Updated ({d.updated.length})
 					</p>
 					<div className="space-y-0.5">
-						{d.updated.map((u, i) => (
+						{d.updated.map((u) => (
 							<div
-								key={i}
+								key={u.name}
 								className="font-mono text-secondary-700 dark:text-secondary-300"
 							>
 								<span className="text-green-600 dark:text-green-400">+</span>{" "}
@@ -457,9 +450,9 @@ function DiffView({ diff }) {
 					<p className="font-medium text-blue-700 dark:text-blue-400 mb-1">
 						Added ({d.added.length})
 					</p>
-					{d.added.map((a, i) => (
+					{d.added.map((a) => (
 						<div
-							key={i}
+							key={a.name}
 							className="font-mono text-secondary-700 dark:text-secondary-300"
 						>
 							<span className="text-blue-600 dark:text-blue-400">+</span>{" "}
@@ -473,9 +466,9 @@ function DiffView({ diff }) {
 					<p className="font-medium text-red-700 dark:text-red-400 mb-1">
 						Removed ({d.removed.length})
 					</p>
-					{d.removed.map((r, i) => (
+					{d.removed.map((r) => (
 						<div
-							key={i}
+							key={r.name}
 							className="font-mono text-secondary-700 dark:text-secondary-300"
 						>
 							<span className="text-red-600 dark:text-red-400">-</span> {r.name}{" "}
