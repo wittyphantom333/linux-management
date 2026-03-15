@@ -184,9 +184,7 @@ function Nav() {
 							e.target.src = "/assets/logo_dark.png";
 						}}
 					/>
-					<span className="text-[15px] font-semibold text-white tracking-tight">
-						Monux
-					</span>
+					<span className="text-[15px] font-semibold text-white tracking-tight"></span>
 				</Link>
 
 				{/* Desktop links */}
@@ -1157,7 +1155,7 @@ function Footer() {
 									e.target.src = "/assets/logo_dark.png";
 								}}
 							/>
-							<span className="text-sm font-semibold text-white">Monux</span>
+							<span className="text-sm font-semibold text-white"></span>
 						</div>
 						<p className="text-[13px] text-white/30 leading-relaxed max-w-[220px]">
 							Enterprise-grade Linux fleet management. Open-source, self-hosted,
