@@ -186,6 +186,8 @@ export default function PatchManagementPage() {
 				.listJobs({ status: jobFilter || undefined, limit: 50 })
 				.then((r) => r.data),
 		enabled: activeTab === "jobs" || activeTab === "overview",
+		staleTime: 15_000,
+		refetchInterval: activeTab === "jobs" ? 15_000 : 60_000,
 	});
 
 	const { data: historyData } = useQuery({
@@ -193,6 +195,8 @@ export default function PatchManagementPage() {
 		queryFn: () =>
 			patchManagementAPI.getHistory({ limit: 50 }).then((r) => r.data),
 		enabled: activeTab === "history",
+		staleTime: 15_000,
+		refetchInterval: activeTab === "history" ? 15_000 : false,
 	});
 
 	// ─── Mutations ──────────────────────────────────────────────────
