@@ -12,6 +12,7 @@ const alertConfigService = require("./alertConfigService");
  *
  * Alert types evaluated:
  *   - disk_space_warning   : any disk partition exceeds usage threshold
+ *   - disk_space_critical  : any disk partition has less than 5% free space
  *   - high_load_average    : 15-min load average exceeds per-core threshold
  *   - reboot_required      : host reports needs_reboot = true
  *   - security_updates     : host has pending security updates
@@ -22,6 +23,7 @@ const alertConfigService = require("./alertConfigService");
 // ---------------------------------------------------------------------------
 const DEFAULTS = {
 	disk_space_warning: { threshold_percent: 85 },
+	disk_space_critical: { threshold_percent: 95 },
 	high_load_average: { per_core_threshold: 2.0 },
 	reboot_required: {},
 	security_updates: { min_count: 1 },
@@ -182,6 +184,64 @@ async function evaluateDiskSpace(host, hostName, config) {
 	}
 }
 
+async function evaluateDiskSpaceCritical(host, hostName, config) {
+	const disks = host.disk_details;
+	if (!Array.isArray(disks) || disks.length === 0) return;
+
+	const meta = {
+		...DEFAULTS.disk_space_critical,
+		...(config?.metadata || {}),
+	};
+	const threshold = meta.threshold_percent;
+	const severity = config?.default_severity || "critical";
+
+	const overThreshold = [];
+	for (const disk of disks) {
+		const pct = parseDiskUsagePercent(disk.size);
+		if (pct !== null && pct >= threshold) {
+			overThreshold.push({
+				mountpoint: disk.mountpoint,
+				name: disk.name,
+				percent: pct,
+				size: disk.size,
+			});
+		}
+	}
+
+	if (overThreshold.length > 0) {
+		const worst = overThreshold.reduce((a, b) =>
+			a.percent > b.percent ? a : b,
+		);
+		const diskList = overThreshold
+			.map((d) => `${d.mountpoint} (${d.percent.toFixed(1)}%)`)
+			.join(", ");
+
+		await maybeCreateAlert(
+			"disk_space_critical",
+			severity,
+			`Critical disk space on ${hostName}`,
+			`${overThreshold.length} partition(s) above ${threshold}% usage on "${hostName}": ${diskList}. Worst: ${worst.mountpoint} at ${worst.percent.toFixed(1)}%. Less than ${(100 - threshold).toFixed(0)}% free space remaining.`,
+			{
+				host_id: host.id,
+				host_name: hostName,
+				threshold_percent: threshold,
+				partitions: overThreshold,
+			},
+		);
+	} else {
+		const resolved = await autoResolveHostAlerts(
+			"disk_space_critical",
+			host.id,
+			"All partitions now have more than 5% free space",
+		);
+		if (resolved > 0) {
+			logger.info(
+				`✅ Auto-resolved ${resolved} disk_space_critical alert(s) for ${hostName}`,
+			);
+		}
+	}
+}
+
 async function evaluateLoadAverage(host, hostName, config) {
 	const load = host.load_average;
 	if (!Array.isArray(load) || load.length < 3) return;
@@ -337,6 +397,7 @@ async function evaluateHostReportAlerts(host, reportData) {
 				alert_type: {
 					in: [
 						"disk_space_warning",
+						"disk_space_critical",
 						"high_load_average",
 						"reboot_required",
 						"security_updates",
@@ -353,6 +414,13 @@ async function evaluateHostReportAlerts(host, reportData) {
 						mergedHost,
 						hostName,
 						configMap.get("disk_space_warning"),
+					)
+				: Promise.resolve(),
+			configMap.get("disk_space_critical")?.is_enabled !== false
+				? evaluateDiskSpaceCritical(
+						mergedHost,
+						hostName,
+						configMap.get("disk_space_critical"),
 					)
 				: Promise.resolve(),
 			configMap.get("high_load_average")?.is_enabled !== false

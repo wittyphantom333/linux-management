@@ -30,7 +30,7 @@ import {
 	XCircle,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
 	Area,
 	AreaChart,
@@ -1784,6 +1784,77 @@ function JobsTab({ jobs, total }) {
 
 // ─── Runs tab ───────────────────────────────────────────────────────────────
 function RunsTab({ runs, total }) {
+	const navigate = useNavigate();
+
+	/** Derive a mode label from per-directive modes in directive_results. */
+	function runModeLabel(run) {
+		const dr = run.directive_results;
+		if (!Array.isArray(dr) || dr.length === 0) return run.global_mode;
+		const modes = [...new Set(dr.map((d) => d.policy_mode).filter(Boolean))];
+		if (modes.length === 0) return run.global_mode;
+		if (modes.length === 1) return modes[0];
+		return "mixed";
+	}
+
+	function runModeBadge(run) {
+		const mode = runModeLabel(run);
+		if (mode === "mixed") {
+			return (
+				<span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200">
+					<Eye className="h-3 w-3" />
+					Mixed
+				</span>
+			);
+		}
+		return modeBadge(mode);
+	}
+
+	/** Count directives that actually ran (have a real status). */
+	function directivesRanCount(run) {
+		const dr = run.directive_results;
+		if (!Array.isArray(dr)) return 0;
+		return dr.filter((d) => d.status && d.status !== "not_evaluated").length;
+	}
+
+	/** Build a compact directive summary for the Results column. */
+	function directiveSummary(run) {
+		const dr = run.directive_results;
+		if (!Array.isArray(dr) || dr.length === 0) return null;
+		// Show up to 3 directives with status icons
+		const shown = dr.slice(0, 3);
+		const remaining = dr.length - shown.length;
+		return (
+			<div className="flex flex-col gap-0.5">
+				{shown.map((d) => (
+					<span
+						key={d.directive_id}
+						className="flex items-center gap-1.5 text-xs text-secondary-600 dark:text-secondary-300"
+					>
+						<span
+							className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${
+								d.status === "compliant"
+									? "bg-green-500"
+									: d.status === "repaired"
+										? "bg-blue-500"
+										: d.status === "non_compliant"
+											? "bg-red-500"
+											: d.status === "error"
+												? "bg-orange-500"
+												: "bg-secondary-400"
+							}`}
+						/>
+						<span className="truncate max-w-[180px]">
+							{d.directive_name || d.directive_id}
+						</span>
+					</span>
+				))}
+				{remaining > 0 && (
+					<span className="text-xs text-secondary-400">+{remaining} more</span>
+				)}
+			</div>
+		);
+	}
+
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
@@ -1817,45 +1888,52 @@ function RunsTab({ runs, total }) {
 								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
 									When
 								</th>
-								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider" />
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
 							{runs.map((run) => (
 								<tr
 									key={run.id}
-									className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors"
+									onClick={() => navigate(`/config-management/runs/${run.id}`)}
+									className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors cursor-pointer"
 								>
 									<td className="px-4 py-3 text-sm font-medium text-secondary-900 dark:text-white">
 										{run.hosts?.friendly_name ||
 											run.hosts?.hostname ||
 											"Unknown"}
 									</td>
-									<td className="px-4 py-3">{modeBadge(run.global_mode)}</td>
+									<td className="px-4 py-3">{runModeBadge(run)}</td>
 									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{run.total_directives}
+										<span className="font-medium">
+											{directivesRanCount(run)}
+										</span>
+										<span className="text-secondary-400">
+											/{run.total_directives}
+										</span>
 									</td>
 									<td className="px-4 py-3">
-										<div className="flex items-center gap-2 text-xs">
-											<span className="text-green-600 dark:text-green-400">
-												{run.compliant} ok
-											</span>
-											{run.repaired > 0 && (
-												<span className="text-blue-600 dark:text-blue-400">
-													{run.repaired} fixed
+										{directiveSummary(run) || (
+											<div className="flex items-center gap-2 text-xs">
+												<span className="text-green-600 dark:text-green-400">
+													{run.compliant} ok
 												</span>
-											)}
-											{run.non_compliant > 0 && (
-												<span className="text-red-600 dark:text-red-400">
-													{run.non_compliant} drift
-												</span>
-											)}
-											{run.errors > 0 && (
-												<span className="text-orange-600 dark:text-orange-400">
-													{run.errors} err
-												</span>
-											)}
-										</div>
+												{run.repaired > 0 && (
+													<span className="text-blue-600 dark:text-blue-400">
+														{run.repaired} fixed
+													</span>
+												)}
+												{run.non_compliant > 0 && (
+													<span className="text-red-600 dark:text-red-400">
+														{run.non_compliant} drift
+													</span>
+												)}
+												{run.errors > 0 && (
+													<span className="text-orange-600 dark:text-orange-400">
+														{run.errors} err
+													</span>
+												)}
+											</div>
+										)}
 									</td>
 									<td className="px-4 py-3">
 										<span
@@ -1866,15 +1944,6 @@ function RunsTab({ runs, total }) {
 									</td>
 									<td className="px-4 py-3 text-sm text-secondary-500 dark:text-secondary-400">
 										{timeAgo(run.evaluated_at)}
-									</td>
-									<td className="px-4 py-3 text-right">
-										<Link
-											to={`/config-management/runs/${run.id}`}
-											className="p-1 rounded hover:bg-secondary-200 dark:hover:bg-secondary-700 inline-flex"
-											title="View details"
-										>
-											<ChevronRight className="h-4 w-4 text-secondary-400" />
-										</Link>
 									</td>
 								</tr>
 							))}

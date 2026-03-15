@@ -393,7 +393,8 @@ const AlertTypeTableRow = ({ config, onUpdate, isSaving, usersData }) => {
 		host_down: "Host Down",
 		server_update: "Server Update",
 		agent_update: "Agent Update",
-		disk_space_warning: "Disk Space",
+		disk_space_warning: "Disk Space Warning",
+		disk_space_critical: "Disk Space Critical",
 		high_load_average: "High Load",
 		reboot_required: "Reboot Required",
 		security_updates: "Security Updates",
@@ -405,7 +406,9 @@ const AlertTypeTableRow = ({ config, onUpdate, isSaving, usersData }) => {
 		server_update: "Alerts when a new Monux server version is available",
 		agent_update: "Alerts when a new agent version is available",
 		disk_space_warning:
-			"Alerts when disk usage exceeds threshold (set in metadata)",
+			"Alerts when disk usage exceeds threshold (default 85%)",
+		disk_space_critical:
+			"Critical alert when a drive has less than 5% free space (default 95% usage threshold)",
 		high_load_average:
 			"Alerts when load average exceeds per-core threshold (set in metadata)",
 		reboot_required: "Alerts when a host requires a reboot",
