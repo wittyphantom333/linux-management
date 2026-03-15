@@ -1010,6 +1010,12 @@ async function startServer() {
 							},
 						});
 
+						if (dueWindows.length > 0) {
+							logger.info(
+								`[PatchMgmt] Scheduler tick: ${dueWindows.length} due window(s) found`,
+							);
+						}
+
 						for (const window of dueWindows) {
 							let jobCreated = false;
 							try {
@@ -1082,8 +1088,10 @@ async function startServer() {
 						}
 
 						// Refresh next_run_at for remaining recurring windows
-						// (must run AFTER due-window processing)
-						await refreshWindowSchedules();
+						// (must run AFTER due-window processing; exclude due windows
+						// so failed ones keep their stale next_run_at for retry)
+						const dueIds = dueWindows.map((w) => w.id);
+						await refreshWindowSchedules(dueIds);
 					} catch (err) {
 						logger.error(`[PatchMgmt] Window scheduler error: ${err.message}`);
 					} finally {
