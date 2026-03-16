@@ -993,22 +993,46 @@ async function startServer() {
 			} = require("./services/patchManagementService");
 			const startPatchWindowScheduler = () => {
 				let running = false;
+				let tickCount = 0;
 				const tick = async () => {
 					if (running) return; // prevent overlap if previous tick is still going
 					running = true;
+					tickCount++;
 					try {
 						const { getPrismaClient } = require("./config/prisma");
 						const pdb = getPrismaClient();
 
+						// Log every 5th tick (5 min) so we can verify the scheduler is alive
+						const verbose = tickCount % 5 === 1;
+
+						// Count all enabled windows for diagnostic purposes
+						const allWindows = await pdb.patch_windows.findMany({
+							where: { enabled: true },
+							select: {
+								id: true,
+								name: true,
+								schedule_cron: true,
+								schedule_type: true,
+								next_run_at: true,
+								last_run_at: true,
+							},
+						});
+
+						if (verbose) {
+							for (const w of allWindows) {
+								logger.info(
+									`[PatchMgmt] Window "${w.name}": type=${w.schedule_type} cron=${w.schedule_cron} next_run_at=${w.next_run_at ? w.next_run_at.toISOString() : "null"} last_run_at=${w.last_run_at ? w.last_run_at.toISOString() : "null"}`,
+								);
+							}
+						}
+
 						// Find windows that are due to run BEFORE refreshing schedules,
 						// otherwise refreshWindowSchedules() advances next_run_at and
 						// the due windows are never found.
-						const dueWindows = await pdb.patch_windows.findMany({
-							where: {
-								enabled: true,
-								next_run_at: { lte: new Date() },
-							},
-						});
+						const now = new Date();
+						const dueWindows = allWindows.filter(
+							(w) => w.next_run_at && w.next_run_at <= now,
+						);
 
 						if (dueWindows.length > 0) {
 							logger.info(

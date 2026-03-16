@@ -482,6 +482,56 @@ router.delete(
 // WINDOWS (Maintenance Windows)
 // ============================================================================
 
+// GET /api/v1/patch-management/windows/diagnostics - Debug: show scheduler state
+router.get(
+	"/windows/diagnostics",
+	authenticateToken,
+	requireViewPatchManagement,
+	async (_req, res) => {
+		try {
+			const windows = await prisma.patch_windows.findMany({
+				include: {
+					policy: { select: { id: true, name: true, enabled: true } },
+				},
+				orderBy: { next_run_at: "asc" },
+			});
+
+			const now = new Date();
+			const diagnostics = windows.map((w) => ({
+				id: w.id,
+				name: w.name,
+				enabled: w.enabled,
+				schedule_type: w.schedule_type,
+				schedule_cron: w.schedule_cron,
+				schedule_timezone: w.schedule_timezone,
+				next_run_at: w.next_run_at,
+				next_run_at_relative: w.next_run_at
+					? `${Math.round((w.next_run_at - now) / 60000)} min`
+					: null,
+				last_run_at: w.last_run_at,
+				last_run_ago: w.last_run_at
+					? `${Math.round((now - w.last_run_at) / 60000)} min ago`
+					: null,
+				policy_name: w.policy?.name,
+				policy_enabled: w.policy?.enabled,
+				is_due: w.next_run_at && w.next_run_at <= now,
+				is_stuck: w.enabled && !w.next_run_at,
+			}));
+
+			return res.json({
+				server_time: now.toISOString(),
+				total_windows: windows.length,
+				enabled_windows: windows.filter((w) => w.enabled).length,
+				due_now: diagnostics.filter((d) => d.is_due).length,
+				stuck_no_schedule: diagnostics.filter((d) => d.is_stuck).length,
+				windows: diagnostics,
+			});
+		} catch (error) {
+			return res.status(500).json({ error: error.message });
+		}
+	},
+);
+
 // GET /api/v1/patch-management/windows - List all maintenance windows
 router.get(
 	"/windows",
