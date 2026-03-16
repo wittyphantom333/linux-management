@@ -324,6 +324,9 @@ func sendReport(outputJSON bool, forceCM ...bool) error {
 	force := len(forceCM) > 0 && forceCM[0]
 	sendIntegrationData(force)
 
+	// Collect system log errors and inject them into the log buffer
+	collectSystemLogErrors()
+
 	// Ship buffered log entries to the server so they appear in the UI
 	shipAgentLogs()
 
@@ -582,6 +585,39 @@ func sendConfigMgmtData(httpClient *client.Client, integrationData *models.Integ
 		"directives_applied": response.DirectivesApplied,
 		"message":            response.Message,
 	}).Info("Config management data sent successfully")
+}
+
+// lastSyslogCheck tracks when we last collected system log errors so
+// each check-in only grabs new entries since the previous one.
+var lastSyslogCheck time.Time
+
+// collectSystemLogErrors parses system logs (journald / syslog) for
+// error-level entries since the last check-in and injects them into
+// the log buffer so they ship alongside the agent's own logs.
+func collectSystemLogErrors() {
+	if logHook == nil {
+		return
+	}
+
+	since := lastSyslogCheck
+	if since.IsZero() {
+		// First run: look back 15 minutes
+		since = time.Now().Add(-15 * time.Minute)
+	}
+	lastSyslogCheck = time.Now()
+
+	systemDetector := system.New(logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	entries := systemDetector.CollectSystemErrors(ctx, since, system.DefaultSyslogLimit)
+	if len(entries) == 0 {
+		logger.Debug("No system log errors found since last check")
+		return
+	}
+
+	logger.WithField("count", len(entries)).Info("Collected system log errors")
+	logHook.Inject(entries)
 }
 
 // shipAgentLogs drains the log buffer and sends entries to the server.

@@ -121,6 +121,24 @@ func (h *Hook) Len() int {
 	return len(h.entries)
 }
 
+// Inject adds externally produced entries (e.g. parsed syslog errors) into
+// the buffer so they are shipped together with agent-produced log entries.
+func (h *Hook) Inject(extra []Entry) {
+	if len(extra) == 0 {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for _, e := range extra {
+		if len(h.entries) >= h.maxSize {
+			h.entries = append(h.entries[1:], e)
+		} else {
+			h.entries = append(h.entries, e)
+		}
+	}
+}
+
 func toString(v interface{}) string {
 	switch val := v.(type) {
 	case string:
