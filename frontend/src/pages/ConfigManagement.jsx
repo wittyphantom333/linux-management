@@ -53,8 +53,8 @@ const TABS = [
 	{ id: "techniques", label: "Techniques", icon: FileCode2 },
 	{ id: "directives", label: "Directives", icon: ListChecks },
 	{ id: "rules", label: "Rules", icon: Network },
-	{ id: "jobs", label: "Jobs", icon: Briefcase },
-	{ id: "runs", label: "Run History", icon: History },
+	{ id: "jobs", label: "Jobs", icon: Play },
+	{ id: "runs", label: "History", icon: History },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
