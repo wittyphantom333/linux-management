@@ -1683,6 +1683,7 @@ function jobStatusBadge(status) {
 }
 
 function JobsTab({ jobs, total }) {
+	const navigate = useNavigate();
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
@@ -1713,7 +1714,6 @@ function JobsTab({ jobs, total }) {
 								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
 									When
 								</th>
-								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider" />
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
@@ -1726,7 +1726,10 @@ function JobsTab({ jobs, total }) {
 								return (
 									<tr
 										key={job.id}
-										className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors"
+										onClick={() =>
+											navigate(`/config-management/jobs/${job.id}`)
+										}
+										className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors cursor-pointer"
 									>
 										<td className="px-4 py-3 text-sm font-medium text-secondary-900 dark:text-secondary-100">
 											{job.rule_name || "Unknown Rule"}
@@ -1762,15 +1765,6 @@ function JobsTab({ jobs, total }) {
 										<td className="px-4 py-3 text-sm text-secondary-500 dark:text-secondary-400">
 											{timeAgo(job.created_at)}
 										</td>
-										<td className="px-4 py-3 text-right">
-											<Link
-												to={`/config-management/jobs/${job.id}`}
-												className="inline-flex items-center justify-center p-1 rounded hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors"
-												title="View details"
-											>
-												<ChevronRight className="h-4 w-4 text-secondary-400" />
-											</Link>
-										</td>
 									</tr>
 								);
 							})}
@@ -1789,9 +1783,10 @@ function RunsTab({ runs, total }) {
 	/** Derive a mode label from per-directive modes in directive_results. */
 	function runModeLabel(run) {
 		const dr = run.directive_results;
-		if (!Array.isArray(dr) || dr.length === 0) return run.global_mode;
+		if (!Array.isArray(dr) || dr.length === 0)
+			return run.global_mode || "audit";
 		const modes = [...new Set(dr.map((d) => d.policy_mode).filter(Boolean))];
-		if (modes.length === 0) return run.global_mode;
+		if (modes.length === 0) return run.global_mode || "audit";
 		if (modes.length === 1) return modes[0];
 		return "mixed";
 	}
@@ -1809,45 +1804,102 @@ function RunsTab({ runs, total }) {
 		return modeBadge(mode);
 	}
 
-	/** Count directives that actually ran (have a real status). */
+	/** Count directives that actually ran (have a real evaluated status). */
 	function directivesRanCount(run) {
 		const dr = run.directive_results;
 		if (!Array.isArray(dr)) return 0;
-		return dr.filter((d) => d.status && d.status !== "not_evaluated").length;
+		const excluded = new Set(["not_evaluated", "skipped"]);
+		return dr.filter((d) => d.status && !excluded.has(d.status)).length;
 	}
+
+	const statusConfig = {
+		compliant: {
+			dot: "bg-green-500",
+			label: "Compliant",
+			text: "text-green-600 dark:text-green-400",
+		},
+		audit_compliant: {
+			dot: "bg-green-500",
+			label: "Compliant",
+			text: "text-green-600 dark:text-green-400",
+		},
+		audited: {
+			dot: "bg-green-500",
+			label: "Audited",
+			text: "text-green-600 dark:text-green-400",
+		},
+		repaired: {
+			dot: "bg-blue-500",
+			label: "Repaired",
+			text: "text-blue-600 dark:text-blue-400",
+		},
+		non_compliant: {
+			dot: "bg-red-500",
+			label: "Non-compliant",
+			text: "text-red-600 dark:text-red-400",
+		},
+		audit_non_compliant: {
+			dot: "bg-red-500",
+			label: "Non-compliant",
+			text: "text-red-600 dark:text-red-400",
+		},
+		error: {
+			dot: "bg-orange-500",
+			label: "Error",
+			text: "text-orange-600 dark:text-orange-400",
+		},
+		audit_error: {
+			dot: "bg-orange-500",
+			label: "Error",
+			text: "text-orange-600 dark:text-orange-400",
+		},
+		not_applicable: {
+			dot: "bg-secondary-400",
+			label: "N/A",
+			text: "text-secondary-500",
+		},
+		skipped: {
+			dot: "bg-secondary-400",
+			label: "Skipped",
+			text: "text-secondary-500",
+		},
+	};
+	const defaultStatus = {
+		dot: "bg-secondary-400",
+		label: "Unknown",
+		text: "text-secondary-500",
+	};
 
 	/** Build a compact directive summary for the Results column. */
 	function directiveSummary(run) {
 		const dr = run.directive_results;
 		if (!Array.isArray(dr) || dr.length === 0) return null;
-		// Show up to 3 directives with status icons
-		const shown = dr.slice(0, 3);
-		const remaining = dr.length - shown.length;
+		// Only show directives that actually ran (not skipped/not_evaluated)
+		const ran = dr.filter(
+			(d) => d.status && d.status !== "not_evaluated" && d.status !== "skipped",
+		);
+		if (ran.length === 0) return null;
+		const shown = ran.slice(0, 3);
+		const remaining = ran.length - shown.length;
 		return (
 			<div className="flex flex-col gap-0.5">
-				{shown.map((d) => (
-					<span
-						key={d.directive_id}
-						className="flex items-center gap-1.5 text-xs text-secondary-600 dark:text-secondary-300"
-					>
+				{shown.map((d) => {
+					const sc = statusConfig[d.status] || defaultStatus;
+					return (
 						<span
-							className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${
-								d.status === "compliant"
-									? "bg-green-500"
-									: d.status === "repaired"
-										? "bg-blue-500"
-										: d.status === "non_compliant"
-											? "bg-red-500"
-											: d.status === "error"
-												? "bg-orange-500"
-												: "bg-secondary-400"
-							}`}
-						/>
-						<span className="truncate max-w-[180px]">
-							{d.directive_name || d.directive_id}
+							key={d.directive_id}
+							className="flex items-center gap-1.5 text-xs"
+						>
+							<span
+								className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${sc.dot}`}
+							/>
+							<span className="truncate max-w-[160px] text-secondary-700 dark:text-secondary-200">
+								{d.directive_name || d.directive_id}
+							</span>
+							<span className={`shrink-0 ${sc.text}`}>{sc.label}</span>
 						</span>
-					</span>
-				))}
+					);
+				})}
 				{remaining > 0 && (
 					<span className="text-xs text-secondary-400">+{remaining} more</span>
 				)}

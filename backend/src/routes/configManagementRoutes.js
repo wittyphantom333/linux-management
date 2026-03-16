@@ -1471,12 +1471,7 @@ async function computePolicyForHost(hostId) {
 
 	// Derive global_mode from directive modes instead of hardcoding
 	const modes = [...new Set(policyItems.map((item) => item.effective_mode))];
-	const globalMode =
-		modes.length === 1
-			? modes[0]
-			: modes.includes("enforce")
-				? "enforce"
-				: "audit";
+	const globalMode = modes.length === 1 ? modes[0] : "mixed";
 
 	const techniquesArray = Array.from(techniqueMap.values());
 
