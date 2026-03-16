@@ -1045,39 +1045,42 @@ async function startServer() {
 									}
 								}
 							} catch (err) {
-								logger.error(
-									`[PatchMgmt] Failed to trigger job for policy ${window.policy_id} in window "${window.name}": ${err.message}`,
+								logger.warn(
+									`[PatchMgmt] Window "${window.name}" (policy ${window.policy_id}) — no job created: ${err.message}`,
 								);
 							}
 
-							// Advance next_run_at — only when the job was created successfully.
-							// When job creation fails we leave next_run_at in the past so the
-							// window retries on the next tick.
+							// Always advance next_run_at so the window moves to its
+							// next scheduled occurrence.  If createPatchJob failed
+							// because there was nothing to patch (no matching
+							// packages, policy disabled, etc.) the schedule should
+							// still tick forward; leaving it in the past causes an
+							// infinite retry loop that blocks the window permanently.
 							try {
-								if (jobCreated) {
-									const {
-										computeNextRun,
-									} = require("./services/patchManagementService");
-									const nextRun =
-										window.schedule_type === "recurring"
-											? computeNextRun(
-													window.schedule_cron,
-													window.schedule_timezone,
-												)
-											: null;
+								const {
+									computeNextRun,
+								} = require("./services/patchManagementService");
+								const nextRun =
+									window.schedule_type === "recurring"
+										? computeNextRun(
+												window.schedule_cron,
+												window.schedule_timezone,
+											)
+										: null;
 
-									await pdb.patch_windows.update({
-										where: { id: window.id },
-										data: {
-											next_run_at: nextRun,
-											last_run_at: new Date(),
-											enabled: nextRun ? true : window.schedule_type !== "once",
-											updated_at: new Date(),
-										},
-									});
-								} else {
-									logger.warn(
-										`[PatchMgmt] Window "${window.name}" due but job creation failed — will retry next tick`,
+								await pdb.patch_windows.update({
+									where: { id: window.id },
+									data: {
+										next_run_at: nextRun,
+										last_run_at: new Date(),
+										enabled: nextRun ? true : window.schedule_type !== "once",
+										updated_at: new Date(),
+									},
+								});
+
+								if (jobCreated) {
+									logger.info(
+										`[PatchMgmt] Window "${window.name}" schedule advanced to ${nextRun ? nextRun.toISOString() : "null (one-time)"}`,
 									);
 								}
 							} catch (advErr) {
@@ -1088,10 +1091,8 @@ async function startServer() {
 						}
 
 						// Refresh next_run_at for remaining recurring windows
-						// (must run AFTER due-window processing; exclude due windows
-						// so failed ones keep their stale next_run_at for retry)
-						const dueIds = dueWindows.map((w) => w.id);
-						await refreshWindowSchedules(dueIds);
+						// (must run AFTER due-window processing)
+						await refreshWindowSchedules();
 					} catch (err) {
 						logger.error(`[PatchMgmt] Window scheduler error: ${err.message}`);
 					} finally {

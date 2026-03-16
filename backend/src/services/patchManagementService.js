@@ -580,18 +580,13 @@ function computeNextRun(cronExpr, timezone = "UTC", after = new Date()) {
  * are left untouched so we never accidentally leap-frog an imminent
  * occurrence that the due-window query hasn't processed yet.
  */
-async function refreshWindowSchedules(excludeIds = []) {
+async function refreshWindowSchedules() {
 	const now = new Date();
 	const windows = await prisma.patch_windows.findMany({
 		where: { enabled: true, schedule_type: "recurring" },
 	});
 
 	for (const w of windows) {
-		// Skip windows the scheduler already handled this tick (including ones
-		// whose job creation failed — those keep their stale next_run_at so the
-		// scheduler retries them on the next tick).
-		if (excludeIds.includes(w.id)) continue;
-
 		// Skip windows that already have a valid future next_run_at — recomputing
 		// here could race with the due-window check and push the schedule forward,
 		// causing the current occurrence to be silently skipped.
