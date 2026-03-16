@@ -10,7 +10,6 @@ import {
 	Loader2,
 	Package,
 	Pause,
-	Pencil,
 	Play,
 	Plus,
 	RefreshCw,
@@ -23,7 +22,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
 	Area,
 	AreaChart,
@@ -155,7 +154,6 @@ export default function PatchManagementPage() {
 
 	const queryClient = useQueryClient();
 	const toast = useToast();
-	const navigate = useNavigate();
 
 	// ─── Queries ────────────────────────────────────────────────────
 	const { data: stats, isLoading: statsLoading } = useQuery({
@@ -305,15 +303,10 @@ export default function PatchManagementPage() {
 					setSearch={setPolicySearch}
 					deletePolicy={deletePolicy}
 					triggerJob={triggerJob}
-					navigate={navigate}
 				/>
 			)}
 			{activeTab === "windows" && (
-				<WindowsTab
-					windows={windows}
-					deleteWindow={deleteWindow}
-					navigate={navigate}
-				/>
+				<WindowsTab windows={windows} deleteWindow={deleteWindow} />
 			)}
 			{activeTab === "jobs" && (
 				<JobsTab
@@ -1027,72 +1020,34 @@ function PoliciesTab({
 					<p className="text-sm mt-1">Create a patch policy to get started</p>
 				</div>
 			) : (
-				<div className="grid gap-3">
+				<div className="space-y-3">
 					{policies.map((p) => (
-						<div
+						<Link
 							key={p.id}
-							className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+							to={`/patch-management/policies/${p.id}`}
+							className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
 						>
-							<div className="flex items-start justify-between">
-								<div className="min-w-0 flex-1">
-									<div className="flex items-center gap-2 mb-1">
-										<Link
-											to={`/patch-management/policies/${p.id}`}
-											className="text-sm font-semibold text-secondary-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400"
-										>
-											{p.name}
-										</Link>
-										{policyTypeBadge(p.policy_type)}
-										{!p.enabled && (
-											<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400">
-												Disabled
-											</span>
-										)}
-									</div>
-									{p.description && (
-										<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-2 truncate">
-											{p.description}
-										</p>
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									<span className="text-sm font-medium text-secondary-900 dark:text-white">
+										{p.name}
+									</span>
+									{policyTypeBadge(p.policy_type)}
+									{!p.enabled && (
+										<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400">
+											Disabled
+										</span>
 									)}
-									<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
-										<span className="flex items-center gap-1">
-											<Server className="h-3 w-3" />
-											{p.host_count} hosts
-										</span>
-										<span className="flex items-center gap-1">
-											<Calendar className="h-3 w-3" />
-											{p._count?.patch_windows || 0} windows
-										</span>
-										<span className="flex items-center gap-1">
-											<Play className="h-3 w-3" />
-											{p._count?.patch_jobs || 0} jobs
-										</span>
-										{p.patch_policy_groups?.length > 0 && (
-											<span className="flex items-center gap-1">
-												{p.patch_policy_groups.map((pg) => (
-													<span
-														key={pg.host_group_id}
-														className="inline-flex items-center px-1.5 py-0.5 rounded text-xs"
-														style={{
-															backgroundColor: `${pg.host_groups?.color || "#3B82F6"}20`,
-															color: pg.host_groups?.color || "#3B82F6",
-														}}
-													>
-														{pg.host_groups?.name}
-													</span>
-												))}
-											</span>
-										)}
-									</div>
 								</div>
-								<div className="flex items-center gap-1 ml-4">
+								<div className="flex items-center gap-1">
 									<button
-										onClick={() => {
+										onClick={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
 											if (
 												window.confirm(`Trigger a patch job for "${p.name}"?`)
-											) {
+											)
 												triggerJob.mutate(p.id);
-											}
 										}}
 										disabled={!p.enabled || triggerJob.isPending}
 										className="p-1.5 rounded-md text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-30"
@@ -1100,22 +1055,16 @@ function PoliciesTab({
 									>
 										<Play className="h-4 w-4" />
 									</button>
-									<Link
-										to={`/patch-management/policies/${p.id}`}
-										className="p-1.5 rounded-md text-secondary-500 hover:bg-secondary-100 dark:hover:bg-secondary-700"
-										title="Edit"
-									>
-										<Pencil className="h-4 w-4" />
-									</Link>
 									<button
-										onClick={() => {
+										onClick={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
 											if (
 												window.confirm(
 													`Delete policy "${p.name}"? This will also delete all associated windows and jobs.`,
 												)
-											) {
+											)
 												deletePolicy.mutate(p.id);
-											}
 										}}
 										className="p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
 										title="Delete"
@@ -1124,7 +1073,42 @@ function PoliciesTab({
 									</button>
 								</div>
 							</div>
-						</div>
+							{p.description && (
+								<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-2 truncate">
+									{p.description}
+								</p>
+							)}
+							<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+								<span className="flex items-center gap-1">
+									<Server className="h-3 w-3" />
+									{p.host_count} hosts
+								</span>
+								<span className="flex items-center gap-1">
+									<Calendar className="h-3 w-3" />
+									{p._count?.patch_windows || 0} schedules
+								</span>
+								<span className="flex items-center gap-1">
+									<Play className="h-3 w-3" />
+									{p._count?.patch_jobs || 0} jobs
+								</span>
+								{p.patch_policy_groups?.length > 0 && (
+									<span className="flex items-center gap-1">
+										{p.patch_policy_groups.map((pg) => (
+											<span
+												key={pg.host_group_id}
+												className="inline-flex items-center px-1.5 py-0.5 rounded text-xs"
+												style={{
+													backgroundColor: `${pg.host_groups?.color || "#3B82F6"}20`,
+													color: pg.host_groups?.color || "#3B82F6",
+												}}
+											>
+												{pg.host_groups?.name}
+											</span>
+										))}
+									</span>
+								)}
+							</div>
+						</Link>
 					))}
 				</div>
 			)}
@@ -1159,62 +1143,53 @@ function WindowsTab({ windows, deleteWindow }) {
 					<p className="text-sm mt-1">Create a schedule to automate patching</p>
 				</div>
 			) : (
-				<div className="grid gap-3">
+				<div className="space-y-3">
 					{windows.map((w) => (
-						<div
+						<Link
 							key={w.id}
-							className="bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4"
+							to={`/patch-management/windows/${w.id}`}
+							className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
 						>
-							<div className="flex items-start justify-between">
-								<div>
-									<div className="flex items-center gap-2 mb-1">
-										<Link
-											to={`/patch-management/windows/${w.id}`}
-											className="text-sm font-semibold text-secondary-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400"
-										>
-											{w.name}
-										</Link>
-										{!w.enabled && (
-											<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400">
-												Disabled
-											</span>
-										)}
-										<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-											{w.schedule_type}
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									<span className="text-sm font-medium text-secondary-900 dark:text-white">
+										{w.name}
+									</span>
+									<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+										{w.schedule_type}
+									</span>
+									{!w.enabled && (
+										<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400">
+											Disabled
 										</span>
-									</div>
-									<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400 mt-1">
-										<span>Policy: {w.policy?.name}</span>
-										{w.schedule_cron && <span>Cron: {w.schedule_cron}</span>}
-										<span>Duration: {w.duration_minutes}m</span>
-										<span>{w._count?.patch_jobs || 0} jobs</span>
-									</div>
-									{w.next_run_at && (
-										<p className="text-xs text-primary-600 dark:text-primary-400 mt-1 flex items-center gap-1">
-											<Clock className="h-3 w-3" />
-											Next run: {formatDate(w.next_run_at)}
-										</p>
 									)}
 								</div>
-								<div className="flex items-center gap-1 ml-4">
-									<Link
-										to={`/patch-management/windows/${w.id}`}
-										className="p-1.5 rounded-md text-secondary-500 hover:bg-secondary-100 dark:hover:bg-secondary-700"
-									>
-										<Pencil className="h-4 w-4" />
-									</Link>
-									<button
-										onClick={() => {
-											if (window.confirm(`Delete window "${w.name}"?`))
-												deleteWindow.mutate(w.id);
-										}}
-										className="p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-									>
-										<Trash2 className="h-4 w-4" />
-									</button>
-								</div>
+								<button
+									onClick={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+										if (window.confirm(`Delete schedule "${w.name}"?`))
+											deleteWindow.mutate(w.id);
+									}}
+									className="p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+									title="Delete"
+								>
+									<Trash2 className="h-4 w-4" />
+								</button>
 							</div>
-						</div>
+							<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+								<span>Policy: {w.policy?.name}</span>
+								{w.schedule_cron && <span>Cron: {w.schedule_cron}</span>}
+								<span>Duration: {w.duration_minutes}m</span>
+								<span>{w._count?.patch_jobs || 0} jobs</span>
+								{w.next_run_at && (
+									<span className="flex items-center gap-1 text-primary-600 dark:text-primary-400">
+										<Clock className="h-3 w-3" />
+										Next: {formatDate(w.next_run_at)}
+									</span>
+								)}
+							</div>
+						</Link>
 					))}
 				</div>
 			)}
@@ -1226,7 +1201,6 @@ function WindowsTab({ windows, deleteWindow }) {
 // JOBS TAB
 // ============================================================================
 function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
-	const navigate = useNavigate();
 	const statusFilters = [
 		"",
 		"pending",
@@ -1240,9 +1214,14 @@ function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<p className="text-sm text-secondary-500 dark:text-secondary-400">
-					{total != null ? `${total} total jobs` : ""}
-				</p>
+				<h2 className="text-lg font-semibold text-secondary-900 dark:text-white">
+					Patch Jobs{" "}
+					{total > 0 && (
+						<span className="text-sm font-normal text-secondary-500">
+							({total})
+						</span>
+					)}
+				</h2>
 				<div className="flex items-center gap-2">
 					<Filter className="h-4 w-4 text-secondary-400" />
 					<select
@@ -1266,75 +1245,55 @@ function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
 					<p className="font-medium">No jobs found</p>
 				</div>
 			) : (
-				<div className="card overflow-hidden">
-					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
-						<thead className="bg-secondary-50 dark:bg-secondary-800">
-							<tr>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Status
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Policy
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Triggered
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Hosts
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Created
-								</th>
-								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider" />
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
-							{jobs.map((job) => (
-								<tr
-									key={job.id}
-									onClick={() => navigate(`/patch-management/jobs/${job.id}`)}
-									className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors cursor-pointer"
-								>
-									<td className="px-4 py-3">{statusBadge(job.status)}</td>
-									<td className="px-4 py-3 text-sm font-medium text-secondary-900 dark:text-white">
+				<div className="space-y-3">
+					{jobs.map((job) => (
+						<Link
+							key={job.id}
+							to={`/patch-management/jobs/${job.id}`}
+							className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+						>
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									{statusBadge(job.status)}
+									<span className="text-sm font-medium text-secondary-900 dark:text-white">
 										{job.policy?.name}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{job.triggered_by}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-700 dark:text-secondary-300">
-										<span className="text-green-600 dark:text-green-400">
-											{job.completed_hosts}
-										</span>
-										{job.failed_hosts > 0 && (
-											<span className="text-red-500">/{job.failed_hosts}F</span>
-										)}
-										<span className="text-secondary-400">
-											/{job.total_hosts}
-										</span>
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-500 dark:text-secondary-400">
+									</span>
+								</div>
+								<div className="flex items-center gap-2">
+									{["pending", "running"].includes(job.status) && (
+										<button
+											onClick={(e) => {
+												e.preventDefault();
+												e.stopPropagation();
+												if (window.confirm("Cancel this job?"))
+													cancelJob.mutate(job.id);
+											}}
+											className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+											title="Cancel job"
+										>
+											<Pause className="h-4 w-4" />
+										</button>
+									)}
+									<span className="text-xs text-secondary-500 dark:text-secondary-400">
 										{timeAgo(job.created_at)}
-									</td>
-									<td className="px-4 py-3 text-right">
-										{["pending", "running"].includes(job.status) && (
-											<button
-												onClick={(e) => {
-													e.stopPropagation();
-													if (window.confirm("Cancel this job?"))
-														cancelJob.mutate(job.id);
-												}}
-												className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-												title="Cancel job"
-											>
-												<Pause className="h-4 w-4" />
-											</button>
-										)}
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+									</span>
+								</div>
+							</div>
+							<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+								<span className="flex items-center gap-1">
+									<Server className="h-3 w-3" />
+									{job.completed_hosts}/{job.total_hosts} hosts
+								</span>
+								{job.failed_hosts > 0 && (
+									<span className="flex items-center gap-1 text-red-500">
+										<XCircle className="h-3 w-3" />
+										{job.failed_hosts} failed
+									</span>
+								)}
+								<span>Triggered: {job.triggered_by}</span>
+							</div>
+						</Link>
+					))}
 				</div>
 			)}
 		</div>
