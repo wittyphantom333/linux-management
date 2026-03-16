@@ -1694,7 +1694,7 @@ const Dashboard = () => {
 		}
 	};
 
-	if (isLoading) {
+	if (isLoading || !stats?.cards) {
 		return (
 			<div className="flex items-center justify-center h-64">
 				<RefreshCw className="h-8 w-8 animate-spin text-primary-600" />
@@ -2085,11 +2085,15 @@ const Dashboard = () => {
 		onClick: handleOSChartClick,
 	};
 
+	const osDist = stats?.charts?.osDistribution || [];
+	const updateDist = stats?.charts?.updateStatusDistribution || [];
+	const pkgDist = stats?.charts?.packageUpdateDistribution || [];
+
 	const osChartData = {
-		labels: stats.charts.osDistribution.map((item) => item.name),
+		labels: osDist.map((item) => item.name),
 		datasets: [
 			{
-				data: stats.charts.osDistribution.map((item) => item.count),
+				data: osDist.map((item) => item.count),
 				backgroundColor: [
 					"#3B82F6", // Blue
 					"#10B981", // Green
@@ -2105,11 +2109,11 @@ const Dashboard = () => {
 	};
 
 	const osBarChartData = {
-		labels: stats.charts.osDistribution.map((item) => item.name),
+		labels: osDist.map((item) => item.name),
 		datasets: [
 			{
 				label: "Hosts",
-				data: stats.charts.osDistribution.map((item) => item.count),
+				data: osDist.map((item) => item.count),
 				backgroundColor: [
 					"#3B82F6", // Blue
 					"#10B981", // Green
@@ -2127,10 +2131,10 @@ const Dashboard = () => {
 	};
 
 	const updateStatusChartData = {
-		labels: stats.charts.updateStatusDistribution.map((item) => item.name),
+		labels: updateDist.map((item) => item.name),
 		datasets: [
 			{
-				data: stats.charts.updateStatusDistribution.map((item) => item.count),
+				data: updateDist.map((item) => item.count),
 				backgroundColor: [
 					"#10B981", // Green - Up to date
 					"#F59E0B", // Yellow - Needs updates
@@ -2143,10 +2147,10 @@ const Dashboard = () => {
 	};
 
 	const packagePriorityChartData = {
-		labels: stats.charts.packageUpdateDistribution.map((item) => item.name),
+		labels: pkgDist.map((item) => item.name),
 		datasets: [
 			{
-				data: stats.charts.packageUpdateDistribution.map((item) => item.count),
+				data: pkgDist.map((item) => item.count),
 				backgroundColor: [
 					"#EF4444", // Red - Security
 					"#3B82F6", // Blue - Regular
