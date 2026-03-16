@@ -1345,102 +1345,81 @@ function JobsTab({ jobs, total, filter, setFilter, cancelJob }) {
 // HISTORY TAB
 // ============================================================================
 function HistoryTab({ jobs, total }) {
-	const navigate = useNavigate();
+	if (!jobs || jobs.length === 0) {
+		return (
+			<div className="text-center py-12 text-secondary-500 dark:text-secondary-400">
+				<History className="h-12 w-12 mx-auto mb-3 opacity-30" />
+				<p className="font-medium">No patch history yet</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<p className="text-sm text-secondary-500 dark:text-secondary-400">
-					{total != null ? `${total} total runs` : ""}
-				</p>
-			</div>
+			<h2 className="text-lg font-semibold text-secondary-900 dark:text-white">
+				Patch History{" "}
+				{total > 0 && (
+					<span className="text-sm font-normal text-secondary-500">
+						({total})
+					</span>
+				)}
+			</h2>
 
-			{!jobs || jobs.length === 0 ? (
-				<div className="text-center py-12 text-secondary-500 dark:text-secondary-400">
-					<History className="h-12 w-12 mx-auto mb-3 opacity-30" />
-					<p className="font-medium">No patch history yet</p>
-				</div>
-			) : (
-				<div className="card overflow-hidden">
-					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
-						<thead className="bg-secondary-50 dark:bg-secondary-800">
-							<tr>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Status
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Policy
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Hosts
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Packages
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Triggered
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									When
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
-							{jobs.map((job) => {
-								const totalPkgsUpdated = (job.patch_job_hosts || []).reduce(
-									(s, h) => s + h.packages_updated,
-									0,
-								);
-								const totalPkgsFailed = (job.patch_job_hosts || []).reduce(
-									(s, h) => s + h.packages_failed,
-									0,
-								);
-								return (
-									<tr
-										key={job.id}
-										onClick={() => navigate(`/patch-management/jobs/${job.id}`)}
-										className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors cursor-pointer"
-									>
-										<td className="px-4 py-3">{statusBadge(job.status)}</td>
-										<td className="px-4 py-3 text-sm font-medium text-secondary-900 dark:text-white">
-											{job.policy?.name}
-										</td>
-										<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-											<span className="text-green-600 dark:text-green-400">
-												{job.completed_hosts}
-											</span>
-											{job.failed_hosts > 0 && (
-												<span className="text-red-500">
-													/{job.failed_hosts}F
-												</span>
-											)}
-											<span className="text-secondary-400">
-												/{job.total_hosts}
-											</span>
-										</td>
-										<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-											<span className="text-green-600 dark:text-green-400">
-												{totalPkgsUpdated} updated
-											</span>
-											{totalPkgsFailed > 0 && (
-												<span className="text-red-500 ml-1">
-													{totalPkgsFailed} failed
-												</span>
-											)}
-										</td>
-										<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-											{job.triggered_by}
-										</td>
-										<td className="px-4 py-3 text-sm text-secondary-500 dark:text-secondary-400">
-											{timeAgo(job.created_at)}
-										</td>
-									</tr>
-								);
-							})}
-						</tbody>
-					</table>
-				</div>
-			)}
+			<div className="space-y-3">
+				{jobs.map((job) => {
+					const totalPkgsUpdated = (job.patch_job_hosts || []).reduce(
+						(s, h) => s + h.packages_updated,
+						0,
+					);
+					const totalPkgsFailed = (job.patch_job_hosts || []).reduce(
+						(s, h) => s + h.packages_failed,
+						0,
+					);
+
+					return (
+						<Link
+							key={job.id}
+							to={`/patch-management/jobs/${job.id}`}
+							className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+						>
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									{statusBadge(job.status)}
+									<span className="text-sm font-medium text-secondary-900 dark:text-white">
+										{job.policy?.name}
+									</span>
+								</div>
+								<span className="text-xs text-secondary-500 dark:text-secondary-400">
+									{formatDate(job.created_at)}
+								</span>
+							</div>
+							<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+								<span className="flex items-center gap-1">
+									<Server className="h-3 w-3" />
+									{job.completed_hosts}/{job.total_hosts} hosts
+								</span>
+								<span className="flex items-center gap-1">
+									<Package className="h-3 w-3" />
+									{totalPkgsUpdated} updated
+								</span>
+								{totalPkgsFailed > 0 && (
+									<span className="flex items-center gap-1 text-red-500">
+										<XCircle className="h-3 w-3" />
+										{totalPkgsFailed} failed
+									</span>
+								)}
+								{job.window && (
+									<span className="flex items-center gap-1">
+										<Calendar className="h-3 w-3" />
+										{job.window.name}
+									</span>
+								)}
+								<span>Triggered: {job.triggered_by}</span>
+							</div>
+						</Link>
+					);
+				})}
+			</div>
 		</div>
 	);
 }
