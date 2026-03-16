@@ -305,15 +305,15 @@ select_branch() {
                 fi
             done <<< "$tags"
             
-            # Add main branch as an option
-            main_commit=$(git log -1 --format="%ci" "origin/main" 2>/dev/null || echo "Unknown")
-            if [ "$main_commit" != "Unknown" ]; then
-                formatted_main_date=$(date -d "$main_commit" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "$main_commit")
+            # Add development branch as an option
+            dev_commit=$(git log -1 --format="%ci" "origin/development" 2>/dev/null || echo "Unknown")
+            if [ "$dev_commit" != "Unknown" ]; then
+                formatted_dev_date=$(date -d "$dev_commit" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "$dev_commit")
             else
-                formatted_main_date="Unknown"
+                formatted_dev_date="Unknown"
             fi
-            printf "%2d. %-20s (Development Branch - %s)\n" "$option_count" "main" "$formatted_main_date"
-            options_map[$option_count]="main"
+            printf "%2d. %-20s (Development Branch - %s)\n" "$option_count" "development" "$formatted_dev_date"
+            options_map[$option_count]="development"
             
             echo ""
             
@@ -329,9 +329,9 @@ select_branch() {
                         DEPLOYMENT_BRANCH="$selected_option"
                         
                         # Show confirmation
-                        if [ "$selected_option" = "main" ]; then
-                            print_status "Selected branch: main (latest development code)"
-                            print_info "Last commit: $formatted_main_date"
+                        if [ "$selected_option" = "development" ]; then
+                            print_status "Selected branch: development (latest development code)"
+                            print_info "Last commit: $formatted_dev_date"
                         else
                             print_status "Selected release: $selected_option"
                             tag_date=$(git log -1 --format="%ci" "$selected_option" 2>/dev/null || echo "Unknown")
@@ -3141,8 +3141,8 @@ update_installation() {
         # Fetch all branches
         git fetch origin
         
-        # Try to determine current version from package.json or default to main
-        local current_branch="main"
+        # Try to determine current version from package.json or default to development
+        local current_branch="development"
         if [ -f "$instance_dir/backend/package.json" ]; then
             local pkg_version=$(grep '"version"' "$instance_dir/backend/package.json" | head -1 | sed 's/.*"version": "\(.*\)".*/\1/')
             if [ -n "$pkg_version" ]; then
