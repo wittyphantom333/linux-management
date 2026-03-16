@@ -317,8 +317,8 @@ select_branch() {
             
             echo ""
             
-            # Default to option 1 (latest release tag)
-            default_option=1
+            # Default to development branch (last option)
+            default_option=$option_count
             
             while true; do
                 read_input "Select version/branch number" SELECTION_NUMBER "$default_option"
