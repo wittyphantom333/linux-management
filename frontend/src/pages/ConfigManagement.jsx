@@ -14,7 +14,6 @@ import {
 	ListChecks,
 	Loader2,
 	Network,
-	Pencil,
 	Play,
 	Plus,
 	RefreshCw,
@@ -30,7 +29,7 @@ import {
 	XCircle,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
 	Area,
 	AreaChart,
@@ -377,7 +376,11 @@ export default function ConfigManagement() {
 
 			{/* Tab content */}
 			{activeTab === "overview" && (
-				<OverviewTab dashboard={dashboard} dashboardLoading={isLoading} />
+				<OverviewTab
+					dashboard={dashboard}
+					dashboardLoading={isLoading}
+					rules={rules}
+				/>
 			)}
 			{activeTab === "techniques" && (
 				<TechniquesTab
@@ -435,7 +438,7 @@ export default function ConfigManagement() {
 }
 
 // ─── Overview tab (analytics) ───────────────────────────────────────────────
-function OverviewTab({ dashboard, dashboardLoading }) {
+function OverviewTab({ dashboard, dashboardLoading, rules }) {
 	if (dashboardLoading) {
 		return (
 			<div className="flex items-center justify-center py-20">
@@ -1286,89 +1289,59 @@ function TechniquesTab({ techniques, search, setSearch, onDelete }) {
 			{techniques.length === 0 ? (
 				<EmptyState message="No techniques found" />
 			) : (
-				<div className="card overflow-hidden">
-					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
-						<thead className="bg-secondary-50 dark:bg-secondary-800">
-							<tr>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Name
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Category
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Version
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Methods
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Directives
-								</th>
-								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Actions
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
-							{techniques.map((t) => (
-								<tr
-									key={t.id}
-									className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors"
+				<div className="space-y-3">
+					{techniques.map((t) => (
+						<Link
+							key={t.id}
+							to={`/config-management/techniques/${t.id}`}
+							className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+						>
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									<span className="text-sm font-medium text-secondary-900 dark:text-white">
+										{t.name}
+									</span>
+									{t.category && (
+										<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+											{t.category}
+										</span>
+									)}
+								</div>
+								<button
+									type="button"
+									onClick={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+										onDelete(t.id);
+									}}
+									className="p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+									title="Delete"
 								>
-									<td className="px-4 py-3">
-										<Link
-											to={`/config-management/techniques/${t.id}`}
-											className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"
-										>
-											{t.name}
-										</Link>
-										{t.description && (
-											<p className="text-xs text-secondary-500 mt-0.5 truncate max-w-xs">
-												{t.description}
-											</p>
-										)}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{t.category || "—"}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										<span>{t.version}</span>
-										{t.version_count > 1 && (
-											<span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-secondary-500">
-												+{t.version_count - 1} older
-											</span>
-										)}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{Array.isArray(t.methods) ? t.methods.length : "—"}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{t.total_directives ?? t._count?.cm_directives ?? 0}
-									</td>
-									<td className="px-4 py-3 text-right">
-										<div className="flex items-center justify-end gap-2">
-											<Link
-												to={`/config-management/techniques/${t.id}`}
-												className="p-1 rounded hover:bg-secondary-200 dark:hover:bg-secondary-700"
-												title="Edit"
-											>
-												<Pencil className="h-4 w-4 text-secondary-500" />
-											</Link>
-											<button
-												type="button"
-												onClick={() => onDelete(t.id)}
-												className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
-												title="Delete"
-											>
-												<Trash2 className="h-4 w-4 text-red-500" />
-											</button>
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+									<Trash2 className="h-4 w-4" />
+								</button>
+							</div>
+							{t.description && (
+								<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-2 truncate">
+									{t.description}
+								</p>
+							)}
+							<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+								<span>
+									v{t.version}
+									{t.version_count > 1
+										? ` (+${t.version_count - 1} older)`
+										: ""}
+								</span>
+								<span>
+									{Array.isArray(t.methods) ? t.methods.length : 0} methods
+								</span>
+								<span>
+									{t.total_directives ?? t._count?.cm_directives ?? 0}{" "}
+									directives
+								</span>
+							</div>
+						</Link>
+					))}
 				</div>
 			)}
 		</div>
@@ -1397,102 +1370,50 @@ function DirectivesTab({ directives, search, setSearch, onDelete }) {
 			{directives.length === 0 ? (
 				<EmptyState message="No directives found" />
 			) : (
-				<div className="card overflow-hidden">
-					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
-						<thead className="bg-secondary-50 dark:bg-secondary-800">
-							<tr>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Name
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Technique
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Mode
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Priority
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Status
-								</th>
-								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Actions
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
-							{directives.map((d) => (
-								<tr
-									key={d.id}
-									className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors"
+				<div className="space-y-3">
+					{directives.map((d) => (
+						<Link
+							key={d.id}
+							to={`/config-management/directives/${d.id}`}
+							className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+						>
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									<span className="text-sm font-medium text-secondary-900 dark:text-white">
+										{d.name}
+									</span>
+									{modeBadge(d.policy_mode)}
+									{!d.enabled && (
+										<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400">
+											Disabled
+										</span>
+									)}
+								</div>
+								<button
+									type="button"
+									onClick={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+										onDelete(d.id);
+									}}
+									className="p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+									title="Delete"
 								>
-									<td className="px-4 py-3">
-										<Link
-											to={`/config-management/directives/${d.id}`}
-											className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"
-										>
-											{d.name}
-										</Link>
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{d.technique?.name || "—"}
-										{d.technique_version && (
-											<span
-												className={`ml-1 text-xs ${
-													d.technique &&
-													d.technique_version !== d.technique.version
-														? "text-amber-500 font-medium"
-														: "text-secondary-400"
-												}`}
-											>
-												v{d.technique_version}
-												{d.technique &&
-													d.technique_version !== d.technique.version &&
-													" ⚠"}
-											</span>
-										)}
-									</td>
-									<td className="px-4 py-3">{modeBadge(d.policy_mode)}</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{d.priority}
-									</td>
-									<td className="px-4 py-3">
-										{d.enabled ? (
-											<span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-												<CheckCircle2 className="h-3.5 w-3.5" />
-												Enabled
-											</span>
-										) : (
-											<span className="inline-flex items-center gap-1 text-xs text-secondary-400">
-												<XCircle className="h-3.5 w-3.5" />
-												Disabled
-											</span>
-										)}
-									</td>
-									<td className="px-4 py-3 text-right">
-										<div className="flex items-center justify-end gap-2">
-											<Link
-												to={`/config-management/directives/${d.id}`}
-												className="p-1 rounded hover:bg-secondary-200 dark:hover:bg-secondary-700"
-												title="Edit"
-											>
-												<Pencil className="h-4 w-4 text-secondary-500" />
-											</Link>
-											<button
-												type="button"
-												onClick={() => onDelete(d.id)}
-												className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
-												title="Delete"
-											>
-												<Trash2 className="h-4 w-4 text-red-500" />
-											</button>
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+									<Trash2 className="h-4 w-4" />
+								</button>
+							</div>
+							<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+								<span>
+									Technique: {d.technique?.name || "—"}
+									{d.technique_version ? ` v${d.technique_version}` : ""}
+									{d.technique && d.technique_version !== d.technique.version
+										? " ⚠"
+										: ""}
+								</span>
+								<span>Priority: {d.priority}</span>
+							</div>
+						</Link>
+					))}
 				</div>
 			)}
 		</div>
@@ -1521,112 +1442,68 @@ function RulesTab({ rules, search, setSearch, onRun, onDelete }) {
 			{rules.length === 0 ? (
 				<EmptyState message="No rules found" />
 			) : (
-				<div className="card overflow-hidden">
-					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
-						<thead className="bg-secondary-50 dark:bg-secondary-800">
-							<tr>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Name
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Directives
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Groups
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Schedule
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Priority
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Status
-								</th>
-								<th className="px-4 py-3 text-right text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Actions
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
-							{rules.map((r) => (
-								<tr
-									key={r.id}
-									className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors"
-								>
-									<td className="px-4 py-3">
-										<Link
-											to={`/config-management/rules/${r.id}`}
-											className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"
-										>
-											{r.name}
-										</Link>
-										{r.description && (
-											<p className="text-xs text-secondary-500 mt-0.5 truncate max-w-xs">
-												{r.description}
-											</p>
-										)}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{r.cm_rule_directives?.length || 0}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{r.cm_rule_groups?.length || 0}
-									</td>
-									<td className="px-4 py-3">
-										{schedBadge(
-											r.run_schedule,
-											r.schedule_interval,
-											r.schedule_cron,
-										)}
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										{r.priority}
-									</td>
-									<td className="px-4 py-3">
-										{r.enabled ? (
-											<span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-												<CheckCircle2 className="h-3.5 w-3.5" />
-												Enabled
-											</span>
-										) : (
-											<span className="inline-flex items-center gap-1 text-xs text-secondary-400">
-												<XCircle className="h-3.5 w-3.5" />
-												Disabled
-											</span>
-										)}
-									</td>
-									<td className="px-4 py-3 text-right">
-										<div className="flex items-center justify-end gap-2">
-											<button
-												type="button"
-												onClick={() => onRun(r.id, r.name)}
-												className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30"
-												title="Run Now"
-											>
-												<Play className="h-4 w-4 text-green-600 dark:text-green-400" />
-											</button>
-											<Link
-												to={`/config-management/rules/${r.id}`}
-												className="p-1 rounded hover:bg-secondary-200 dark:hover:bg-secondary-700"
-												title="Edit"
-											>
-												<Pencil className="h-4 w-4 text-secondary-500" />
-											</Link>
-											<button
-												type="button"
-												onClick={() => onDelete(r.id)}
-												className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
-												title="Delete"
-											>
-												<Trash2 className="h-4 w-4 text-red-500" />
-											</button>
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+				<div className="space-y-3">
+					{rules.map((r) => (
+						<Link
+							key={r.id}
+							to={`/config-management/rules/${r.id}`}
+							className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+						>
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									<span className="text-sm font-medium text-secondary-900 dark:text-white">
+										{r.name}
+									</span>
+									{schedBadge(
+										r.run_schedule,
+										r.schedule_interval,
+										r.schedule_cron,
+									)}
+									{!r.enabled && (
+										<span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary-100 text-secondary-600 dark:bg-secondary-700 dark:text-secondary-400">
+											Disabled
+										</span>
+									)}
+								</div>
+								<div className="flex items-center gap-1">
+									<button
+										type="button"
+										onClick={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
+											onRun(r.id, r.name);
+										}}
+										className="p-1.5 rounded-md text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+										title="Run Now"
+									>
+										<Play className="h-4 w-4" />
+									</button>
+									<button
+										type="button"
+										onClick={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
+											onDelete(r.id);
+										}}
+										className="p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+										title="Delete"
+									>
+										<Trash2 className="h-4 w-4" />
+									</button>
+								</div>
+							</div>
+							{r.description && (
+								<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-2 truncate">
+									{r.description}
+								</p>
+							)}
+							<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+								<span>{r.cm_rule_directives?.length || 0} directives</span>
+								<span>{r.cm_rule_groups?.length || 0} groups</span>
+								<span>Priority: {r.priority}</span>
+							</div>
+						</Link>
+					))}
 				</div>
 			)}
 		</div>
@@ -1683,7 +1560,6 @@ function jobStatusBadge(status) {
 }
 
 function JobsTab({ jobs, total }) {
-	const navigate = useNavigate();
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
@@ -1695,81 +1571,54 @@ function JobsTab({ jobs, total }) {
 			{!jobs || jobs.length === 0 ? (
 				<EmptyState message="No config management jobs yet. Click 'Run Now' on a rule to trigger one." />
 			) : (
-				<div className="card overflow-hidden">
-					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
-						<thead className="bg-secondary-50 dark:bg-secondary-800">
-							<tr>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Rule
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Status
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Progress
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Triggered By
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									When
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
-							{jobs.map((job) => {
-								const done = job.completed_hosts + job.failed_hosts;
-								const pct =
-									job.total_hosts > 0
-										? Math.round((done / job.total_hosts) * 100)
-										: 0;
-								return (
-									<tr
-										key={job.id}
-										onClick={() =>
-											navigate(`/config-management/jobs/${job.id}`)
-										}
-										className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors cursor-pointer"
-									>
-										<td className="px-4 py-3 text-sm font-medium text-secondary-900 dark:text-secondary-100">
+				<div className="space-y-3">
+					{jobs.map((job) => {
+						const done = job.completed_hosts + job.failed_hosts;
+						const pct =
+							job.total_hosts > 0
+								? Math.round((done / job.total_hosts) * 100)
+								: 0;
+						return (
+							<Link
+								key={job.id}
+								to={`/config-management/jobs/${job.id}`}
+								className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+							>
+								<div className="flex items-center justify-between mb-2">
+									<div className="flex items-center gap-2">
+										{jobStatusBadge(job.status)}
+										<span className="text-sm font-medium text-secondary-900 dark:text-white">
 											{job.rule_name || "Unknown Rule"}
-										</td>
-										<td className="px-4 py-3 text-sm">
-											{jobStatusBadge(job.status)}
-										</td>
-										<td className="px-4 py-3 text-sm">
-											<div className="flex items-center gap-2">
-												<div className="flex-1 h-2 bg-secondary-200 dark:bg-secondary-700 rounded-full overflow-hidden max-w-[120px]">
-													<div
-														className={`h-full rounded-full transition-all duration-500 ${
-															job.failed_hosts > 0
-																? "bg-orange-500"
-																: "bg-green-500"
-														}`}
-														style={{ width: `${pct}%` }}
-													/>
-												</div>
-												<span className="text-xs text-secondary-500 dark:text-secondary-400 whitespace-nowrap">
-													{done}/{job.total_hosts}
-												</span>
-											</div>
-										</td>
-										<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-											<span className="capitalize">{job.triggered_by}</span>
-											{job.triggered_by_user && (
-												<span className="text-xs text-secondary-400 ml-1">
-													({job.triggered_by_user})
-												</span>
-											)}
-										</td>
-										<td className="px-4 py-3 text-sm text-secondary-500 dark:text-secondary-400">
-											{timeAgo(job.created_at)}
-										</td>
-									</tr>
-								);
-							})}
-						</tbody>
-					</table>
+										</span>
+									</div>
+									<span className="text-xs text-secondary-500 dark:text-secondary-400">
+										{timeAgo(job.created_at)}
+									</span>
+								</div>
+								<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+									<span className="flex items-center gap-2">
+										<div className="h-2 w-24 bg-secondary-200 dark:bg-secondary-700 rounded-full overflow-hidden">
+											<div
+												className={`h-full rounded-full transition-all duration-500 ${job.failed_hosts > 0 ? "bg-orange-500" : "bg-green-500"}`}
+												style={{ width: `${pct}%` }}
+											/>
+										</div>
+										{done}/{job.total_hosts} hosts
+									</span>
+									{job.failed_hosts > 0 && (
+										<span className="flex items-center gap-1 text-red-500">
+											<XCircle className="h-3 w-3" />
+											{job.failed_hosts} failed
+										</span>
+									)}
+									<span className="capitalize">
+										Triggered: {job.triggered_by}
+										{job.triggered_by_user ? ` (${job.triggered_by_user})` : ""}
+									</span>
+								</div>
+							</Link>
+						);
+					})}
 				</div>
 			)}
 		</div>
@@ -1778,8 +1627,6 @@ function JobsTab({ jobs, total }) {
 
 // ─── Runs tab ───────────────────────────────────────────────────────────────
 function RunsTab({ runs, total }) {
-	const navigate = useNavigate();
-
 	/** Derive a mode label from per-directive modes in directive_results. */
 	function runModeLabel(run) {
 		const dr = run.directive_results;
@@ -1918,89 +1765,60 @@ function RunsTab({ runs, total }) {
 			{!runs || runs.length === 0 ? (
 				<EmptyState message="No policy runs recorded yet" />
 			) : (
-				<div className="card overflow-hidden">
-					<table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
-						<thead className="bg-secondary-50 dark:bg-secondary-800">
-							<tr>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Host
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Mode
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Directives
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Results
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									Score
-								</th>
-								<th className="px-4 py-3 text-left text-xs font-medium text-secondary-500 dark:text-secondary-400 uppercase tracking-wider">
-									When
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-secondary-200 dark:divide-secondary-700">
-							{runs.map((run) => (
-								<tr
-									key={run.id}
-									onClick={() => navigate(`/config-management/runs/${run.id}`)}
-									className="hover:bg-secondary-50 dark:hover:bg-secondary-800/50 transition-colors cursor-pointer"
-								>
-									<td className="px-4 py-3 text-sm font-medium text-secondary-900 dark:text-white">
+				<div className="space-y-3">
+					{runs.map((run) => (
+						<Link
+							key={run.id}
+							to={`/config-management/runs/${run.id}`}
+							className="block bg-white dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+						>
+							<div className="flex items-center justify-between mb-2">
+								<div className="flex items-center gap-2">
+									{runModeBadge(run)}
+									<span className="text-sm font-medium text-secondary-900 dark:text-white">
 										{run.hosts?.friendly_name ||
 											run.hosts?.hostname ||
 											"Unknown"}
-									</td>
-									<td className="px-4 py-3">{runModeBadge(run)}</td>
-									<td className="px-4 py-3 text-sm text-secondary-600 dark:text-secondary-300">
-										<span className="font-medium">
-											{directivesRanCount(run)}
+									</span>
+									<span
+										className={`text-sm font-semibold ${scoreColor(run.score)}`}
+									>
+										{Math.round(run.score)}%
+									</span>
+								</div>
+								<span className="text-xs text-secondary-500 dark:text-secondary-400">
+									{timeAgo(run.evaluated_at)}
+								</span>
+							</div>
+							<div className="flex items-center gap-4 text-xs text-secondary-500 dark:text-secondary-400">
+								<span>
+									{directivesRanCount(run)}/{run.total_directives} directives
+								</span>
+								{directiveSummary(run) || (
+									<span className="flex items-center gap-2">
+										<span className="text-green-600 dark:text-green-400">
+											{run.compliant} ok
 										</span>
-										<span className="text-secondary-400">
-											/{run.total_directives}
-										</span>
-									</td>
-									<td className="px-4 py-3">
-										{directiveSummary(run) || (
-											<div className="flex items-center gap-2 text-xs">
-												<span className="text-green-600 dark:text-green-400">
-													{run.compliant} ok
-												</span>
-												{run.repaired > 0 && (
-													<span className="text-blue-600 dark:text-blue-400">
-														{run.repaired} fixed
-													</span>
-												)}
-												{run.non_compliant > 0 && (
-													<span className="text-red-600 dark:text-red-400">
-														{run.non_compliant} drift
-													</span>
-												)}
-												{run.errors > 0 && (
-													<span className="text-orange-600 dark:text-orange-400">
-														{run.errors} err
-													</span>
-												)}
-											</div>
+										{run.repaired > 0 && (
+											<span className="text-blue-600 dark:text-blue-400">
+												{run.repaired} fixed
+											</span>
 										)}
-									</td>
-									<td className="px-4 py-3">
-										<span
-											className={`text-sm font-semibold ${scoreColor(run.score)}`}
-										>
-											{Math.round(run.score)}%
-										</span>
-									</td>
-									<td className="px-4 py-3 text-sm text-secondary-500 dark:text-secondary-400">
-										{timeAgo(run.evaluated_at)}
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+										{run.non_compliant > 0 && (
+											<span className="text-red-600 dark:text-red-400">
+												{run.non_compliant} drift
+											</span>
+										)}
+										{run.errors > 0 && (
+											<span className="text-orange-600 dark:text-orange-400">
+												{run.errors} err
+											</span>
+										)}
+									</span>
+								)}
+							</div>
+						</Link>
+					))}
 				</div>
 			)}
 		</div>
