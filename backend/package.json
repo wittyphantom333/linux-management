@@ -22,7 +22,7 @@
 		"@bull-board/api": "^6.19.0",
 		"@bull-board/express": "^6.19.0",
 		"@prisma/client": "^6.19.2",
-		"axios": "^1.7.9",
+		"axios": "^1.15.0",
 		"bcryptjs": "^2.4.3",
 		"bullmq": "^5.69.3",
 		"cookie-parser": "^1.4.7",
