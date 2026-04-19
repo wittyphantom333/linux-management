@@ -3213,21 +3213,34 @@ update_installation() {
     local backup_dir="$instance_dir.backup.$timestamp"
     local db_backup_file="$backup_dir/database_backup_$timestamp.sql"
     
-    print_info "Creating backup directory: $backup_dir"
-    mkdir -p "$backup_dir"
-    
-    # Backup database
-    print_info "Backing up database: $DB_NAME"
-    if PGPASSWORD="$DB_PASS" pg_dump -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -F c -f "$db_backup_file" 2>/dev/null; then
-        print_status "Database backup created: $db_backup_file"
+    if [ "$SKIP_BACKUP" = "true" ]; then
+        print_warning "Skipping backup (--skip-backup flag set)"
+        mkdir -p "$backup_dir"
     else
-        print_warning "Database backup failed, but continuing with code backup"
+        print_info "Creating backup directory: $backup_dir"
+        mkdir -p "$backup_dir"
+        
+        # Backup database (schema + small tables only; skip large data tables for speed)
+        print_info "Backing up database: $DB_NAME (fast mode — schema + config data)"
+        if PGPASSWORD="$DB_PASS" pg_dump -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -F c \
+            --exclude-table-data='host_packages' \
+            --exclude-table-data='host_metrics' \
+            --exclude-table-data='host_metrics_history' \
+            --exclude-table-data='package_changelogs' \
+            --exclude-table-data='patch_job_packages' \
+            --exclude-table-data='agent_logs' \
+            -f "$db_backup_file" 2>/dev/null; then
+            local backup_size=$(du -h "$db_backup_file" 2>/dev/null | cut -f1)
+            print_status "Database backup created: $db_backup_file ($backup_size)"
+        else
+            print_warning "Database backup failed, but continuing with code backup"
+        fi
+        
+        # Backup code
+        print_info "Backing up code files..."
+        cp -r "$instance_dir" "$backup_dir/code"
+        print_status "Code backup created"
     fi
-    
-    # Backup code
-    print_info "Backing up code files..."
-    cp -r "$instance_dir" "$backup_dir/code"
-    print_status "Code backup created"
     
     # Update code
     print_info "Pulling latest code from branch: $DEPLOYMENT_BRANCH"
@@ -3495,9 +3508,13 @@ update_installation() {
 # Main script execution
 main() {
     # Parse command-line arguments
-    if [ "$1" = "--update" ]; then
-        UPDATE_MODE="true"
-    fi
+    SKIP_BACKUP="false"
+    for arg in "$@"; do
+        case "$arg" in
+            --update) UPDATE_MODE="true" ;;
+            --skip-backup) SKIP_BACKUP="true" ;;
+        esac
+    done
     
     # Log script entry
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Script started - Update mode: $UPDATE_MODE" >> "$DEBUG_LOG"
@@ -3578,9 +3595,10 @@ show_usage() {
     echo "Version: $SCRIPT_VERSION"
     echo ""
     echo "Usage:"
-    echo "  $0              # Interactive installation (default)"
-    echo "  $0 --update     # Update existing installation"
-    echo "  $0 --help       # Show this help message"
+    echo "  $0                         # Interactive installation (default)"
+    echo "  $0 --update                # Update existing installation"
+    echo "  $0 --update --skip-backup  # Update without database/code backup"
+    echo "  $0 --help                  # Show this help message"
     echo ""
     echo "Examples:"
     echo "  # New installation:"
@@ -3588,6 +3606,9 @@ show_usage() {
     echo ""
     echo "  # Update existing installation:"
     echo "  sudo bash $0 --update"
+    echo ""
+    echo "  # Quick update (skip backup):"
+    echo "  sudo bash $0 --update --skip-backup"
     echo ""
 }
 
