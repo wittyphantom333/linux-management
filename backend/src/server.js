@@ -1011,8 +1011,10 @@ async function startServer() {
 							select: {
 								id: true,
 								name: true,
+								policy_id: true,
 								schedule_cron: true,
 								schedule_type: true,
+								schedule_timezone: true,
 								next_run_at: true,
 								last_run_at: true,
 							},
