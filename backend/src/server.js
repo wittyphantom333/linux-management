@@ -1151,9 +1151,24 @@ async function startServer() {
 			const { purgeOldLogs } = require("./routes/agentLogsRoutes");
 			const retentionDays =
 				Number.parseInt(process.env.AGENT_LOG_RETENTION_DAYS, 10) || 7;
-			await purgeOldLogs(retentionDays);
-			setInterval(() => purgeOldLogs(retentionDays), 6 * 60 * 60 * 1000);
-			console.log(`✅ Agent log cleanup active (${retentionDays}d retention)`);
+			console.log(
+				`🧹 Agent log cleanup configured: ${retentionDays}-day retention`,
+			);
+			const purgedOnStart = await purgeOldLogs(retentionDays);
+			console.log(
+				`✅ Agent log cleanup: ${purgedOnStart} old entries purged on startup`,
+			);
+			setInterval(
+				async () => {
+					const purged = await purgeOldLogs(retentionDays);
+					if (purged > 0) {
+						logger.info(
+							`[AgentLogs] Cleanup: ${purged} entries purged (${retentionDays}-day retention)`,
+						);
+					}
+				},
+				6 * 60 * 60 * 1000,
+			);
 		} catch (err) {
 			logger.error(`[AgentLogs] Failed to start log cleanup: ${err.message}`);
 		}

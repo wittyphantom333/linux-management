@@ -315,7 +315,7 @@ async function purgeOldLogs(retentionDays = DEFAULT_RETENTION_DAYS) {
 	});
 	if (result.count > 0) {
 		logger.info(
-			`[AgentLogs] Purged ${result.count} entries older than ${retentionDays} days`,
+			`[AgentLogs] Purged ${result.count} entries older than ${retentionDays} days (cutoff: ${cutoff.toISOString()})`,
 		);
 	}
 	return result.count;
