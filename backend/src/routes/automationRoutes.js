@@ -392,6 +392,30 @@ router.post(
 	},
 );
 
+// Trigger manual compliance data retention
+router.post(
+	"/trigger/compliance-data-retention",
+	authenticateToken,
+	async (_req, res) => {
+		try {
+			const job = await queueManager.triggerComplianceDataRetention();
+			res.json({
+				success: true,
+				data: {
+					jobId: job.id,
+					message: "Compliance data retention triggered successfully",
+				},
+			});
+		} catch (error) {
+			logger.error("Error triggering compliance data retention:", error);
+			res.status(500).json({
+				success: false,
+				error: "Failed to trigger compliance data retention",
+			});
+		}
+	},
+);
+
 // Get queue health status
 router.get("/health", authenticateToken, async (_req, res) => {
 	try {

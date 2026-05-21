@@ -346,6 +346,8 @@ const Automation = () => {
 				endpoint = "/automation/trigger/host-status-monitor";
 			} else if (jobType === "compliance-scan-cleanup") {
 				endpoint = "/compliance/scans/cleanup";
+			} else if (jobType === "compliance-data-retention") {
+				endpoint = "/automation/trigger/compliance-data-retention";
 			}
 
 			const _response = await api.post(endpoint, data);
@@ -643,6 +645,12 @@ const Automation = () => {
 															)
 														) {
 															triggerManualJob("compliance-scan-cleanup");
+														} else if (
+															automation.queue.includes(
+																"compliance-data-retention",
+															)
+														) {
+															triggerManualJob("compliance-data-retention");
 														}
 													}}
 													className="inline-flex items-center justify-center w-8 h-8 border border-transparent rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 flex-shrink-0"
@@ -806,6 +814,12 @@ const Automation = () => {
 																	)
 																) {
 																	triggerManualJob("compliance-scan-cleanup");
+																} else if (
+																	automation.queue.includes(
+																		"compliance-data-retention",
+																	)
+																) {
+																	triggerManualJob("compliance-data-retention");
 																}
 															}}
 															className="inline-flex items-center justify-center w-6 h-6 border border-transparent rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
