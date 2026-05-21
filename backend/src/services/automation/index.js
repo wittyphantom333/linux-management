@@ -24,6 +24,7 @@ const SystemStatistics = require("./systemStatistics");
 const AlertCleanup = require("./alertCleanup");
 const HostStatusMonitor = require("./hostStatusMonitor");
 const ComplianceScanCleanup = require("./complianceScanCleanup");
+const ComplianceDataRetention = require("./complianceDataRetention");
 
 // Queue names
 const QUEUE_NAMES = {
@@ -40,6 +41,7 @@ const QUEUE_NAMES = {
 	HOST_STATUS_MONITOR: "host-status-monitor",
 	COMPLIANCE: "compliance",
 	COMPLIANCE_SCAN_CLEANUP: "compliance-scan-cleanup",
+	COMPLIANCE_DATA_RETENTION: "compliance-data-retention",
 };
 
 /**
@@ -131,6 +133,8 @@ class QueueManager {
 		);
 		this.automations[QUEUE_NAMES.COMPLIANCE_SCAN_CLEANUP] =
 			new ComplianceScanCleanup(this);
+		this.automations[QUEUE_NAMES.COMPLIANCE_DATA_RETENTION] =
+			new ComplianceDataRetention(this);
 
 		logger.info("✅ All automation classes initialized");
 	}
@@ -265,6 +269,15 @@ class QueueManager {
 			QUEUE_NAMES.COMPLIANCE_SCAN_CLEANUP,
 			this.automations[QUEUE_NAMES.COMPLIANCE_SCAN_CLEANUP].process.bind(
 				this.automations[QUEUE_NAMES.COMPLIANCE_SCAN_CLEANUP],
+			),
+			workerOptions,
+		);
+
+		// Compliance Data Retention Worker
+		this.workers[QUEUE_NAMES.COMPLIANCE_DATA_RETENTION] = new Worker(
+			QUEUE_NAMES.COMPLIANCE_DATA_RETENTION,
+			this.automations[QUEUE_NAMES.COMPLIANCE_DATA_RETENTION].process.bind(
+				this.automations[QUEUE_NAMES.COMPLIANCE_DATA_RETENTION],
 			),
 			workerOptions,
 		);
@@ -854,6 +867,7 @@ class QueueManager {
 		await this.automations[QUEUE_NAMES.ALERT_CLEANUP].schedule();
 		await this.automations[QUEUE_NAMES.HOST_STATUS_MONITOR].schedule();
 		await this.automations[QUEUE_NAMES.COMPLIANCE_SCAN_CLEANUP].schedule();
+		await this.automations[QUEUE_NAMES.COMPLIANCE_DATA_RETENTION].schedule();
 	}
 
 	/**
@@ -908,6 +922,12 @@ class QueueManager {
 	async triggerComplianceScanCleanup() {
 		return this.automations[
 			QUEUE_NAMES.COMPLIANCE_SCAN_CLEANUP
+		].triggerManual();
+	}
+
+	async triggerComplianceDataRetention() {
+		return this.automations[
+			QUEUE_NAMES.COMPLIANCE_DATA_RETENTION
 		].triggerManual();
 	}
 

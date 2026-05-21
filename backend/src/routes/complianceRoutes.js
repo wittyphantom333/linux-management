@@ -351,7 +351,7 @@ router.post("/scans", scanSubmitLimiter, async (req, res) => {
 					not_applicable: stats.not_applicable,
 					score: score ? parseFloat(score) : null,
 					error_message: scanError || null,
-					raw_output: results ? JSON.stringify(results) : null,
+					raw_output: null,
 				},
 			});
 
