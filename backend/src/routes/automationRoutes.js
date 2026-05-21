@@ -65,7 +65,7 @@ async function consumeBullBoardTicket(ticket) {
 		}
 
 		// Check if admin role
-		if (ticketData.role !== "admin") {
+		if (ticketData.role !== "admin" && ticketData.role !== "superadmin") {
 			return { valid: false, reason: "Admin access required" };
 		}
 
