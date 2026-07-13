@@ -9,6 +9,15 @@ const {
 } = require("../../src/services/hostReportAlertEvaluator");
 
 const mockPrisma = {
+	patch_policy_groups: {
+		findMany: jest.fn(),
+	},
+	host_group_memberships: {
+		findMany: jest.fn(),
+	},
+	hosts: {
+		findMany: jest.fn(),
+	},
 	patch_jobs: {
 		findMany: jest.fn(),
 		updateMany: jest.fn(),
@@ -25,7 +34,40 @@ getPrismaClient.mockReturnValue(mockPrisma);
 
 const {
 	expireStalePatchJobs,
+	resolveHostsForPolicy,
 } = require("../../src/services/patchManagementService");
+
+describe("resolveHostsForPolicy", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("only targets active hosts with patch management enabled", async () => {
+		mockPrisma.patch_policy_groups.findMany.mockResolvedValue([
+			{ host_group_id: "production" },
+		]);
+		mockPrisma.host_group_memberships.findMany.mockResolvedValue([
+			{ host_id: "enabled-host" },
+			{ host_id: "disabled-host" },
+		]);
+		mockPrisma.hosts.findMany.mockResolvedValue([]);
+
+		await resolveHostsForPolicy("policy-id");
+
+		expect(mockPrisma.hosts.findMany).toHaveBeenCalledWith({
+			where: {
+				id: { in: ["enabled-host", "disabled-host"] },
+				status: "active",
+				patchmanagement_enabled: true,
+			},
+			include: {
+				host_packages: {
+					include: { packages: true },
+				},
+			},
+		});
+	});
+});
 
 describe("expireStalePatchJobs", () => {
 	beforeEach(() => {

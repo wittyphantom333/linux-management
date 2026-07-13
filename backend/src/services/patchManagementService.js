@@ -70,6 +70,7 @@ async function resolveHostsForPolicy(policyId) {
 		where: {
 			id: { in: uniqueHostIds },
 			status: "active",
+			patchmanagement_enabled: true,
 		},
 		include: {
 			host_packages: {
@@ -345,6 +346,9 @@ async function createPatchJobsForHost(
 	});
 	if (!host) throw new Error("Host not found");
 	if (host.status !== "active") throw new Error("Host is not active");
+	if (!host.patchmanagement_enabled) {
+		throw new Error("Patch management is disabled for this host");
+	}
 
 	const busyHostIds = await getBusyHostIds([hostId]);
 	if (busyHostIds.has(hostId)) {
