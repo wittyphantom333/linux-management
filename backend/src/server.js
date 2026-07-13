@@ -990,6 +990,7 @@ async function startServer() {
 			const {
 				refreshWindowSchedules,
 				createPatchJob,
+				expireStalePatchJobs,
 			} = require("./services/patchManagementService");
 			const startPatchWindowScheduler = () => {
 				let running = false;
@@ -1001,6 +1002,12 @@ async function startServer() {
 					try {
 						const { getPrismaClient } = require("./config/prisma");
 						const pdb = getPrismaClient();
+						const expiredJobs = await expireStalePatchJobs();
+						if (expiredJobs > 0) {
+							logger.warn(
+								`[PatchMgmt] Expired ${expiredJobs} stale patch job(s)`,
+							);
+						}
 
 						// Log every 5th tick (5 min) so we can verify the scheduler is alive
 						const verbose = tickCount % 5 === 1;

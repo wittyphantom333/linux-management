@@ -15,6 +15,31 @@ const { evaluatePatchJobAlerts } = require("./hostReportAlertEvaluator");
 
 const prisma = getPrismaClient();
 
+const ACTIVE_JOB_STATUSES = ["pending", "running"];
+const ACTIVE_HOST_STATUSES = [
+	"pending",
+	"downloading",
+	"installing",
+	"rebooting",
+];
+const DEFAULT_JOB_TIMEOUT_MINUTES =
+	Number.parseInt(process.env.PATCH_JOB_TIMEOUT_MINUTES, 10) || 120;
+
+async function getBusyHostIds(hostIds) {
+	if (hostIds.length === 0) return new Set();
+
+	const assignments = await prisma.patch_job_hosts.findMany({
+		where: {
+			host_id: { in: hostIds },
+			status: { in: ACTIVE_HOST_STATUSES },
+			job: { status: { in: ACTIVE_JOB_STATUSES } },
+		},
+		select: { host_id: true },
+	});
+
+	return new Set(assignments.map((assignment) => assignment.host_id));
+}
+
 // ---------------------------------------------------------------------------
 // Policy resolution
 // ---------------------------------------------------------------------------
@@ -134,11 +159,28 @@ async function createPatchJob(
 	if (!policy) throw new Error("Policy not found");
 	if (!policy.enabled) throw new Error("Policy is disabled");
 
-	const hosts = await resolveHostsForPolicy(policyId);
-	if (hosts.length === 0)
+	const targetedHosts = await resolveHostsForPolicy(policyId);
+	if (targetedHosts.length === 0)
 		throw new Error(
 			`No active hosts targeted by policy "${policy.name}". Check that the policy has host groups assigned and the hosts are active.`,
 		);
+
+	// A host can only execute one patch assignment at a time. Excluding busy
+	// hosts prevents recurring windows from building an unbounded per-host queue.
+	const busyHostIds = await getBusyHostIds(
+		targetedHosts.map((host) => host.id),
+	);
+	const hosts = targetedHosts.filter((host) => !busyHostIds.has(host.id));
+	if (hosts.length === 0) {
+		throw new Error(
+			`All hosts targeted by policy "${policy.name}" already have an active patch assignment`,
+		);
+	}
+	if (busyHostIds.size > 0) {
+		logger.warn(
+			`[PatchMgmt] Policy "${policy.name}" skipped ${busyHostIds.size} busy host(s)`,
+		);
+	}
 
 	const jobId = uuidv4();
 	let totalHostsWithPackages = 0;
@@ -186,8 +228,8 @@ async function createPatchJob(
 	}
 
 	if (totalHostsWithPackages === 0) {
-		const totalHosts = hosts.length;
-		const totalUpdatable = hosts.reduce(
+		const totalHosts = targetedHosts.length;
+		const totalUpdatable = targetedHosts.reduce(
 			(sum, h) => sum + h.host_packages.filter((hp) => hp.needs_update).length,
 			0,
 		);
@@ -303,6 +345,11 @@ async function createPatchJobsForHost(
 	});
 	if (!host) throw new Error("Host not found");
 	if (host.status !== "active") throw new Error("Host is not active");
+
+	const busyHostIds = await getBusyHostIds([hostId]);
+	if (busyHostIds.has(hostId)) {
+		throw new Error("Host already has an active patch assignment");
+	}
 
 	// Validate all requested policies actually target this host
 	const memberships = await prisma.host_group_memberships.findMany({
@@ -603,6 +650,97 @@ async function refreshWindowSchedules() {
 }
 
 // ---------------------------------------------------------------------------
+// Job expiry
+// ---------------------------------------------------------------------------
+
+/**
+ * Fail patch jobs that have exceeded their maintenance-window duration.
+ * Manual jobs use PATCH_JOB_TIMEOUT_MINUTES (120 minutes by default).
+ */
+async function expireStalePatchJobs(now = new Date()) {
+	const activeJobs = await prisma.patch_jobs.findMany({
+		where: { status: { in: ACTIVE_JOB_STATUSES } },
+		select: {
+			id: true,
+			created_at: true,
+			window: { select: { duration_minutes: true } },
+		},
+	});
+
+	let expiredCount = 0;
+	for (const job of activeJobs) {
+		const configuredDuration = job.window?.duration_minutes;
+		const timeoutMinutes =
+			Number.isFinite(configuredDuration) && configuredDuration > 0
+				? configuredDuration
+				: DEFAULT_JOB_TIMEOUT_MINUTES;
+		const expiresAt = new Date(
+			job.created_at.getTime() + timeoutMinutes * 60 * 1000,
+		);
+		if (expiresAt > now) continue;
+
+		const timeoutMessage = `Patch assignment timed out after ${timeoutMinutes} minutes`;
+		const updatedJob = await prisma.$transaction(async (tx) => {
+			// Claim the expiry first. If an agent completed the job since the initial
+			// query, leave it untouched.
+			const claimed = await tx.patch_jobs.updateMany({
+				where: { id: job.id, status: { in: ACTIVE_JOB_STATUSES } },
+				data: { status: "failed", completed_at: now },
+			});
+			if (claimed.count === 0) return null;
+
+			await tx.patch_job_hosts.updateMany({
+				where: { job_id: job.id, status: { in: ACTIVE_HOST_STATUSES } },
+				data: {
+					status: "failed",
+					completed_at: now,
+					error_message: timeoutMessage,
+				},
+			});
+
+			const hosts = await tx.patch_job_hosts.findMany({
+				where: { job_id: job.id },
+				select: { status: true },
+			});
+			const completedHosts = hosts.filter(
+				(host) =>
+					host.status === "completed" ||
+					host.status === "completed_with_errors",
+			).length;
+			const failedHosts = hosts.filter(
+				(host) => host.status === "failed",
+			).length;
+			const skippedHosts = hosts.filter(
+				(host) => host.status === "skipped",
+			).length;
+			const status = completedHosts > 0 ? "completed_with_errors" : "failed";
+
+			return tx.patch_jobs.update({
+				where: { id: job.id },
+				data: {
+					status,
+					completed_at: now,
+					completed_hosts: completedHosts,
+					failed_hosts: failedHosts,
+					skipped_hosts: skippedHosts,
+				},
+			});
+		});
+
+		if (!updatedJob) continue;
+		expiredCount++;
+		logger.warn(
+			`[PatchMgmt] Job ${job.id} expired after ${timeoutMinutes} minutes`,
+		);
+		evaluatePatchJobAlerts(updatedJob, updatedJob.status).catch((err) =>
+			logger.error("[AlertEvaluator] patch job timeout alert error:", err),
+		);
+	}
+
+	return expiredCount;
+}
+
+// ---------------------------------------------------------------------------
 // Agent: compute pending job for a host
 // ---------------------------------------------------------------------------
 
@@ -718,7 +856,9 @@ async function processAgentPatchReport(hostId, report) {
 		where: { id: job_host_id },
 		data: {
 			status,
-			completed_at: ["completed", "failed"].includes(status)
+			completed_at: ["completed", "completed_with_errors", "failed"].includes(
+				status,
+			)
 				? new Date()
 				: undefined,
 			packages_updated: updatedCount,
@@ -738,6 +878,9 @@ async function processAgentPatchReport(hostId, report) {
 	const completedHosts = allJobHosts.filter(
 		(jh) => jh.status === "completed",
 	).length;
+	const completedWithErrorsHosts = allJobHosts.filter(
+		(jh) => jh.status === "completed_with_errors",
+	).length;
 	const failedHosts = allJobHosts.filter((jh) => jh.status === "failed").length;
 	const skippedHosts = allJobHosts.filter(
 		(jh) => jh.status === "skipped",
@@ -747,7 +890,7 @@ async function processAgentPatchReport(hostId, report) {
 	).length;
 
 	const jobUpdate = {
-		completed_hosts: completedHosts,
+		completed_hosts: completedHosts + completedWithErrorsHosts,
 		failed_hosts: failedHosts,
 		skipped_hosts: skippedHosts,
 	};
@@ -756,7 +899,10 @@ async function processAgentPatchReport(hostId, report) {
 	if (pendingHosts === 0) {
 		// Don't overwrite "cancelled" status if the job was already cancelled by user
 		if (jobHost.job.status !== "cancelled") {
-			if (failedHosts > 0 && completedHosts > 0) {
+			if (
+				completedWithErrorsHosts > 0 ||
+				(failedHosts > 0 && completedHosts > 0)
+			) {
 				jobUpdate.status = "completed_with_errors";
 			} else if (failedHosts > 0 && completedHosts === 0) {
 				jobUpdate.status = "failed";
@@ -778,7 +924,8 @@ async function processAgentPatchReport(hostId, report) {
 		where: { id: jobHost.job.policy_id },
 	});
 	if (policy && policy.stop_on_failure_percent > 0 && allJobHosts.length > 0) {
-		const failPct = (failedHosts / allJobHosts.length) * 100;
+		const failPct =
+			((failedHosts + completedWithErrorsHosts) / allJobHosts.length) * 100;
 		if (failPct >= policy.stop_on_failure_percent && pendingHosts > 0) {
 			jobUpdate.status = "failed";
 			jobUpdate.completed_at = new Date();
@@ -838,6 +985,7 @@ module.exports = {
 	computeSnapshotDiff,
 	computeNextRun,
 	refreshWindowSchedules,
+	expireStalePatchJobs,
 	getPendingJobForHost,
 	processAgentPatchReport,
 };

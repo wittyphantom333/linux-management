@@ -826,6 +826,9 @@ router.get(
 						installing: hosts.filter((h) => h.status === "installing").length,
 						rebooting: hosts.filter((h) => h.status === "rebooting").length,
 						completed: hosts.filter((h) => h.status === "completed").length,
+						completed_with_errors: hosts.filter(
+							(h) => h.status === "completed_with_errors",
+						).length,
 						failed: hosts.filter((h) => h.status === "failed").length,
 						skipped: hosts.filter((h) => h.status === "skipped").length,
 					},
