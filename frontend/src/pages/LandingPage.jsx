@@ -760,8 +760,9 @@ function AiTerminal() {
 								<br /> right in the terminal
 							</h2>
 							<p className="mt-4 text-base text-white/40 leading-relaxed max-w-md">
-								Connect OpenRouter, Anthropic, OpenAI, or Gemini. Get
-								context-aware help directly inside your web SSH sessions.
+								Connect OpenRouter, Anthropic, OpenAI, Gemini, or your own
+								Ollama server. Get context-aware help directly inside your web
+								SSH sessions.
 							</p>
 							<ul className="mt-8 space-y-3">
 								{[

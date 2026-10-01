@@ -46,6 +46,22 @@ const PROVIDERS = {
 		],
 		defaultModel: "gemini-1.5-flash",
 	},
+	ollama: {
+		name: "Ollama",
+		baseUrl: "http://localhost:11434",
+		// Self-hosted servers rarely sit behind an API key and the endpoint varies per deployment.
+		requiresApiKey: false,
+		supportsCustomEndpoint: true,
+		models: [
+			{ id: "llama3.1", name: "Llama 3.1" },
+			{ id: "llama3.2", name: "Llama 3.2" },
+			{ id: "qwen2.5", name: "Qwen 2.5" },
+			{ id: "mistral", name: "Mistral" },
+			{ id: "codellama", name: "Code Llama" },
+			{ id: "deepseek-r1", name: "DeepSeek R1" },
+		],
+		defaultModel: "llama3.1",
+	},
 };
 
 // System prompts for different use cases
@@ -81,7 +97,17 @@ function getProviders() {
 		name: config.name,
 		models: config.models,
 		defaultModel: config.defaultModel,
+		requiresApiKey: config.requiresApiKey !== false,
+		supportsCustomEndpoint: !!config.supportsCustomEndpoint,
+		defaultEndpoint: config.supportsCustomEndpoint ? config.baseUrl : undefined,
 	}));
+}
+
+/**
+ * Whether a given provider requires an API key to be configured
+ */
+function providerRequiresApiKey(providerId) {
+	return PROVIDERS[providerId]?.requiresApiKey !== false;
 }
 
 /**
@@ -224,6 +250,39 @@ async function callGemini(apiKey, model, messages, options = {}) {
 }
 
 /**
+ * Call Ollama API (uses Ollama's OpenAI-compatible /v1/chat/completions endpoint)
+ */
+async function callOllama(apiKey, model, messages, options = {}, baseUrl) {
+	const url = (baseUrl || PROVIDERS.ollama.baseUrl).replace(/\/+$/, "");
+
+	const headers = { "Content-Type": "application/json" };
+	// Most self-hosted Ollama servers don't require auth, but allow one for proxied/secured setups
+	if (apiKey) {
+		headers.Authorization = `Bearer ${apiKey}`;
+	}
+
+	const response = await fetch(`${url}/v1/chat/completions`, {
+		method: "POST",
+		headers,
+		body: JSON.stringify({
+			model: model || PROVIDERS.ollama.defaultModel,
+			messages,
+			max_tokens: options.maxTokens || 1024,
+			temperature: options.temperature || 0.7,
+			stream: false,
+		}),
+	});
+
+	if (!response.ok) {
+		const error = await response.text();
+		throw new Error(`Ollama API error: ${response.status} - ${error}`);
+	}
+
+	const data = await response.json();
+	return data.choices[0]?.message?.content || "";
+}
+
+/**
  * Main function to call AI provider
  * @param {Object} settings - AI settings with provider, model, and encrypted API key
  * @param {string} prompt - User prompt
@@ -231,16 +290,21 @@ async function callGemini(apiKey, model, messages, options = {}) {
  * @returns {Promise<string>} - AI response
  */
 async function callAI(settings, prompt, options = {}) {
-	const { ai_provider, ai_model, ai_api_key } = settings;
+	const { ai_provider, ai_model, ai_api_key, ai_endpoint } = settings;
 
-	if (!ai_api_key) {
-		throw new Error("AI API key not configured");
+	if (!PROVIDERS[ai_provider]) {
+		throw new Error(`Unknown AI provider: ${ai_provider}`);
 	}
 
-	// Decrypt the API key
-	const apiKey = decrypt(ai_api_key);
-	if (!apiKey) {
-		throw new Error("Failed to decrypt AI API key");
+	// Decrypt the API key if one is set; some providers (e.g. self-hosted Ollama) don't require one
+	let apiKey = null;
+	if (ai_api_key) {
+		apiKey = decrypt(ai_api_key);
+		if (!apiKey) {
+			throw new Error("Failed to decrypt AI API key");
+		}
+	} else if (providerRequiresApiKey(ai_provider)) {
+		throw new Error("AI API key not configured");
 	}
 
 	// Build messages array
@@ -286,6 +350,8 @@ async function callAI(settings, prompt, options = {}) {
 			return callOpenAI(apiKey, ai_model, messages, callOptions);
 		case "gemini":
 			return callGemini(apiKey, ai_model, messages, callOptions);
+		case "ollama":
+			return callOllama(apiKey, ai_model, messages, callOptions, ai_endpoint);
 		default:
 			throw new Error(`Unknown AI provider: ${ai_provider}`);
 	}
@@ -343,6 +409,7 @@ async function getAssistance(
 
 module.exports = {
 	getProviders,
+	providerRequiresApiKey,
 	callAI,
 	getCompletion,
 	getAssistance,

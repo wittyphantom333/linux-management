@@ -14,6 +14,7 @@ const {
 	getProviders,
 	getCompletion,
 	getAssistance,
+	providerRequiresApiKey,
 } = require("../services/aiService");
 const { redis } = require("../services/automation/shared/redis");
 
@@ -149,6 +150,7 @@ router.get(
 					ai_enabled: false,
 					ai_provider: "openrouter",
 					ai_model: null,
+					ai_endpoint: null,
 					ai_api_key_set: false,
 					ai_api_key_invalid: false,
 				});
@@ -172,6 +174,7 @@ router.get(
 				ai_enabled: settings.ai_enabled || false,
 				ai_provider: settings.ai_provider || "openrouter",
 				ai_model: settings.ai_model || null,
+				ai_endpoint: settings.ai_endpoint || null,
 				ai_api_key_set: apiKeyValid,
 				ai_api_key_invalid: apiKeyInvalid, // True if key exists but can't be decrypted
 			});
@@ -194,9 +197,20 @@ router.put(
 		body("ai_enabled").optional().isBoolean(),
 		body("ai_provider")
 			.optional()
-			.isIn(["openrouter", "anthropic", "openai", "gemini"]),
+			.isIn(["openrouter", "anthropic", "openai", "gemini", "ollama"]),
 		body("ai_model").optional().isString(),
 		body("ai_api_key").optional().isString(),
+		body("ai_endpoint")
+			.optional({ nullable: true })
+			.isString()
+			.trim()
+			.custom((value) => {
+				if (!value) return true;
+				if (!/^https?:\/\/.+/i.test(value)) {
+					throw new Error("Endpoint must be a valid http(s) URL");
+				}
+				return true;
+			}),
 	],
 	async (req, res) => {
 		const errors = validationResult(req);
@@ -206,7 +220,8 @@ router.put(
 
 		try {
 			const prisma = getPrismaClient();
-			const { ai_enabled, ai_provider, ai_model, ai_api_key } = req.body;
+			const { ai_enabled, ai_provider, ai_model, ai_api_key, ai_endpoint } =
+				req.body;
 
 			const updateData = {
 				updated_at: new Date(),
@@ -222,6 +237,12 @@ router.put(
 
 			if (ai_model !== undefined) {
 				updateData.ai_model = ai_model;
+			}
+
+			if (ai_endpoint !== undefined) {
+				updateData.ai_endpoint = ai_endpoint
+					? ai_endpoint.trim().replace(/\/+$/, "")
+					: null;
 			}
 
 			// Encrypt API key if provided
@@ -257,6 +278,7 @@ router.put(
 				ai_enabled: settings.ai_enabled,
 				ai_provider: settings.ai_provider,
 				ai_model: settings.ai_model,
+				ai_endpoint: settings.ai_endpoint,
 				ai_api_key_set: !!settings.ai_api_key,
 			});
 		} catch (error) {
@@ -279,7 +301,10 @@ router.post(
 			const prisma = getPrismaClient();
 			const settings = await prisma.settings.findFirst();
 
-			if (!settings?.ai_api_key) {
+			if (
+				providerRequiresApiKey(settings?.ai_provider) &&
+				!settings?.ai_api_key
+			) {
 				return res.status(400).json({ error: "AI API key not configured" });
 			}
 
@@ -341,7 +366,10 @@ router.post(
 				return res.status(400).json({ error: "AI assistant is not enabled" });
 			}
 
-			if (!settings?.ai_api_key) {
+			if (
+				providerRequiresApiKey(settings?.ai_provider) &&
+				!settings?.ai_api_key
+			) {
 				return res.status(400).json({ error: "AI API key not configured" });
 			}
 
@@ -401,7 +429,10 @@ router.post(
 				return res.status(400).json({ error: "AI assistant is not enabled" });
 			}
 
-			if (!settings?.ai_api_key) {
+			if (
+				providerRequiresApiKey(settings?.ai_provider) &&
+				!settings?.ai_api_key
+			) {
 				return res.status(400).json({ error: "AI API key not configured" });
 			}
 

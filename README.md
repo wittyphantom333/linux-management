@@ -44,7 +44,7 @@ Whether you manage ten servers or ten thousand, Monux provides the tooling, auto
 | 🐳 **Docker Monitoring** | Automatic discovery of containers, images, volumes and networks. Real-time container status updates pushed via WebSocket. |
 | 🛡️ **Compliance Scanning** | Run OpenSCAP CIS Benchmarks and Docker Bench for Security scans. Track compliance scores over time with detailed rule-level results and remediation guidance. |
 | 💻 **Web SSH Terminal** | Open a browser-based SSH session to any host directly from the UI - no extra tools needed. Supports direct and proxy mode (route through the agent, no SSH port exposure). |
-| 🤖 **AI Terminal Assistant** | Built-in AI chat panel inside the SSH terminal. Get command suggestions, error diagnosis and context-aware help powered by OpenRouter, Anthropic, OpenAI or Google Gemini. |
+| 🤖 **AI Terminal Assistant** | Built-in AI chat panel inside the SSH terminal. Get command suggestions, error diagnosis and context-aware help powered by OpenRouter, Anthropic, OpenAI, Google Gemini or a self-hosted Ollama server. |
 | 🔔 **Alerting & Reporting** | Alerts for host-down, pending server updates and agent updates. Filter by severity, type and status; assign alerts to team members. |
 | 👥 **Users, Roles & RBAC** | Multi-user accounts with fully customisable roles and granular permissions so every team member sees only what they need. |
 | 🔐 **OIDC Single Sign-On** | Authenticate with Authentik, Keycloak, Okta or any OIDC provider. Supports automatic user provisioning, group-to-role mapping and SSO-only enforcement. |

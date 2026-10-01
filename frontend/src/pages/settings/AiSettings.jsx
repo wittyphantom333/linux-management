@@ -10,7 +10,7 @@ import {
 	Sparkles,
 	X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SettingsLayout from "../../components/SettingsLayout";
 import { aiAPI } from "../../utils/api";
 
@@ -19,6 +19,8 @@ const AiSettings = () => {
 	const [showApiKey, setShowApiKey] = useState(false);
 	const [apiKeyInput, setApiKeyInput] = useState("");
 	const [testResult, setTestResult] = useState(null);
+	const [modelInput, setModelInput] = useState("");
+	const [endpointInput, setEndpointInput] = useState("");
 
 	// Fetch AI settings
 	const { data: settings, isLoading: settingsLoading } = useQuery({
@@ -33,6 +35,14 @@ const AiSettings = () => {
 	});
 
 	const providers = providersData?.providers || [];
+
+	// Keep the free-text model/endpoint inputs (used for Ollama) in sync with loaded settings
+	useEffect(() => {
+		if (settings) {
+			setModelInput(settings.ai_model || "");
+			setEndpointInput(settings.ai_endpoint || "");
+		}
+	}, [settings]);
 
 	// Update settings mutation
 	const updateMutation = useMutation({
@@ -72,6 +82,20 @@ const AiSettings = () => {
 
 	const handleModelChange = (e) => {
 		updateMutation.mutate({ ai_model: e.target.value });
+	};
+
+	const handleModelInputBlur = () => {
+		const trimmed = modelInput.trim();
+		if (trimmed && trimmed !== settings?.ai_model) {
+			updateMutation.mutate({ ai_model: trimmed });
+		}
+	};
+
+	const handleEndpointBlur = () => {
+		const trimmed = endpointInput.trim();
+		if (trimmed !== (settings?.ai_endpoint || "")) {
+			updateMutation.mutate({ ai_endpoint: trimmed });
+		}
 	};
 
 	const handleSaveApiKey = () => {
@@ -205,6 +229,8 @@ const AiSettings = () => {
 									"Direct access to OpenAI GPT models"}
 								{settings?.ai_provider === "gemini" &&
 									"Direct access to Google Gemini models"}
+								{settings?.ai_provider === "ollama" &&
+									"Connect to a self-hosted or remote Ollama server"}
 							</p>
 						</div>
 
@@ -216,22 +242,78 @@ const AiSettings = () => {
 							>
 								Model
 							</label>
-							<select
-								id="ai-model"
-								value={
-									settings?.ai_model || selectedProvider?.defaultModel || ""
-								}
-								onChange={handleModelChange}
-								disabled={updateMutation.isPending}
-								className="w-full px-3 py-2 bg-white dark:bg-secondary-900 border border-secondary-300 dark:border-secondary-600 rounded-md text-secondary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-							>
-								{selectedProvider?.models.map((model) => (
-									<option key={model.id} value={model.id}>
-										{model.name}
-									</option>
-								))}
-							</select>
+							{selectedProvider?.id === "ollama" ? (
+								<>
+									<input
+										id="ai-model"
+										list="ollama-model-suggestions"
+										type="text"
+										value={modelInput}
+										onChange={(e) => setModelInput(e.target.value)}
+										onBlur={handleModelInputBlur}
+										disabled={updateMutation.isPending}
+										placeholder={selectedProvider?.defaultModel || "llama3.1"}
+										className="w-full px-3 py-2 bg-white dark:bg-secondary-900 border border-secondary-300 dark:border-secondary-600 rounded-md text-secondary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+									/>
+									<datalist id="ollama-model-suggestions">
+										{selectedProvider?.models.map((model) => (
+											<option key={model.id} value={model.id} />
+										))}
+									</datalist>
+									<p className="mt-1 text-xs text-secondary-500 dark:text-secondary-400">
+										Enter the exact model name pulled on your Ollama server
+										(e.g. "ollama pull llama3.1")
+									</p>
+								</>
+							) : (
+								<select
+									id="ai-model"
+									value={
+										settings?.ai_model || selectedProvider?.defaultModel || ""
+									}
+									onChange={handleModelChange}
+									disabled={updateMutation.isPending}
+									className="w-full px-3 py-2 bg-white dark:bg-secondary-900 border border-secondary-300 dark:border-secondary-600 rounded-md text-secondary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+								>
+									{selectedProvider?.models.map((model) => (
+										<option key={model.id} value={model.id}>
+											{model.name}
+										</option>
+									))}
+								</select>
+							)}
 						</div>
+
+						{/* Endpoint URL (self-hosted providers, e.g. Ollama) */}
+						{selectedProvider?.supportsCustomEndpoint && (
+							<div>
+								<label
+									htmlFor="ai-endpoint"
+									className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1"
+								>
+									Endpoint URL
+								</label>
+								<input
+									id="ai-endpoint"
+									type="text"
+									value={endpointInput}
+									onChange={(e) => setEndpointInput(e.target.value)}
+									onBlur={handleEndpointBlur}
+									disabled={updateMutation.isPending}
+									placeholder={
+										selectedProvider?.defaultEndpoint ||
+										"http://localhost:11434"
+									}
+									className="w-full px-3 py-2 bg-white dark:bg-secondary-900 border border-secondary-300 dark:border-secondary-600 rounded-md text-secondary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+								/>
+								<p className="mt-1 text-xs text-secondary-500 dark:text-secondary-400">
+									Base URL of your Ollama server, e.g.{" "}
+									<code className="bg-secondary-100 dark:bg-secondary-900 px-1 rounded">
+										https://llm.vivus.ai
+									</code>
+								</p>
+							</div>
+						)}
 
 						{/* API Key Input */}
 						<div>
@@ -240,6 +322,9 @@ const AiSettings = () => {
 								className="block text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-1"
 							>
 								API Key
+								{selectedProvider && !selectedProvider.requiresApiKey
+									? " (optional)"
+									: ""}
 							</label>
 							<div className="flex gap-2">
 								<div className="relative flex-1">
@@ -251,7 +336,9 @@ const AiSettings = () => {
 										placeholder={
 											settings?.ai_api_key_set
 												? "••••••••••••••••"
-												: "Enter your API key"
+												: selectedProvider && !selectedProvider.requiresApiKey
+													? "Not required unless your endpoint needs auth"
+													: "Enter your API key"
 										}
 										className="w-full px-3 py-2 pr-10 bg-white dark:bg-secondary-900 border border-secondary-300 dark:border-secondary-600 rounded-md text-secondary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
 									/>
@@ -292,46 +379,52 @@ const AiSettings = () => {
 								</p>
 							)}
 							<p className="mt-1 text-xs text-secondary-500 dark:text-secondary-400">
-								Get your API key from:{" "}
-								{settings?.ai_provider === "openrouter" && (
-									<a
-										href="https://openrouter.ai/keys"
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-primary-600 hover:underline"
-									>
-										openrouter.ai/keys
-									</a>
-								)}
-								{settings?.ai_provider === "anthropic" && (
-									<a
-										href="https://console.anthropic.com/settings/keys"
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-primary-600 hover:underline"
-									>
-										console.anthropic.com
-									</a>
-								)}
-								{settings?.ai_provider === "openai" && (
-									<a
-										href="https://platform.openai.com/api-keys"
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-primary-600 hover:underline"
-									>
-										platform.openai.com
-									</a>
-								)}
-								{settings?.ai_provider === "gemini" && (
-									<a
-										href="https://aistudio.google.com/apikey"
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-primary-600 hover:underline"
-									>
-										aistudio.google.com
-									</a>
+								{selectedProvider && !selectedProvider.requiresApiKey ? (
+									"Not required for most self-hosted Ollama servers — only needed if your endpoint sits behind an auth proxy."
+								) : (
+									<>
+										Get your API key from:{" "}
+										{settings?.ai_provider === "openrouter" && (
+											<a
+												href="https://openrouter.ai/keys"
+												target="_blank"
+												rel="noopener noreferrer"
+												className="text-primary-600 hover:underline"
+											>
+												openrouter.ai/keys
+											</a>
+										)}
+										{settings?.ai_provider === "anthropic" && (
+											<a
+												href="https://console.anthropic.com/settings/keys"
+												target="_blank"
+												rel="noopener noreferrer"
+												className="text-primary-600 hover:underline"
+											>
+												console.anthropic.com
+											</a>
+										)}
+										{settings?.ai_provider === "openai" && (
+											<a
+												href="https://platform.openai.com/api-keys"
+												target="_blank"
+												rel="noopener noreferrer"
+												className="text-primary-600 hover:underline"
+											>
+												platform.openai.com
+											</a>
+										)}
+										{settings?.ai_provider === "gemini" && (
+											<a
+												href="https://aistudio.google.com/apikey"
+												target="_blank"
+												rel="noopener noreferrer"
+												className="text-primary-600 hover:underline"
+											>
+												aistudio.google.com
+											</a>
+										)}
+									</>
 								)}
 							</p>
 						</div>
@@ -344,7 +437,11 @@ const AiSettings = () => {
 									setTestResult(null);
 									testMutation.mutate();
 								}}
-								disabled={!settings?.ai_api_key_set || testMutation.isPending}
+								disabled={
+									(selectedProvider?.requiresApiKey &&
+										!settings?.ai_api_key_set) ||
+									testMutation.isPending
+								}
 								className="px-4 py-2 bg-secondary-100 dark:bg-secondary-700 text-secondary-700 dark:text-secondary-200 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
 							>
 								{testMutation.isPending ? (

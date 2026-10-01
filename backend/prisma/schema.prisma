@@ -250,9 +250,10 @@ model settings {
   show_github_version_on_login Boolean   @default(true)
   // AI Terminal Assistant settings
   ai_enabled                   Boolean   @default(false)
-  ai_provider                  String    @default("openrouter") // openrouter, anthropic, openai, gemini
+  ai_provider                  String    @default("openrouter") // openrouter, anthropic, openai, gemini, ollama
   ai_model                     String?
   ai_api_key                   String? // Encrypted API key
+  ai_endpoint                  String? // Custom base URL (e.g. self-hosted Ollama server)
   // Alerts system settings
   alerts_enabled               Boolean   @default(true) // Master switch for alerts system
   // Discord OAuth settings
