@@ -357,24 +357,25 @@ router.get("/agent/version", validateApiCredentials, async (req, res) => {
 			}
 
 			if (!serverVersion) {
+				// Scan the raw binary for the version banner. This must not shell
+				// out to `strings` (binutils): it is frequently absent on minimal
+				// server images, and its absence silently broke Windows
+				// auto-update. A latin1 decode preserves byte-for-byte offsets so
+				// the ASCII banner still matches.
 				try {
-					const { stdout: stringsOutput } = await execFileAsync(
-						"strings",
-						[binaryPath],
-						{ timeout: 10000, maxBuffer: 10 * 1024 * 1024 },
-					);
-					const versionMatch = stringsOutput.match(
-						/Monux Agent v([0-9]+\.[0-9]+\.[0-9]+)/i,
-					);
+					const binaryContent = fs.readFileSync(binaryPath);
+					const versionMatch = binaryContent
+						.toString("latin1")
+						.match(/Monux Agent v([0-9]+\.[0-9]+\.[0-9]+)/i);
 					if (versionMatch) {
 						serverVersion = versionMatch[1];
 						logger.info(
-							`✅ Extracted version ${serverVersion} from binary using strings command`,
+							`✅ Extracted version ${serverVersion} from binary by scanning for the version banner`,
 						);
 					}
-				} catch (stringsError) {
+				} catch (scanError) {
 					logger.warn(
-						`Failed to extract version using strings command: ${stringsError.message}`,
+						`Failed to extract version by scanning binary: ${scanError.message}`,
 					);
 				}
 			}
