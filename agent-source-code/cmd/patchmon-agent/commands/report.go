@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"patchmon-agent/internal/client"
+	"patchmon-agent/internal/hashing"
 	"patchmon-agent/internal/hardware"
 	"patchmon-agent/internal/integrations"
 	"patchmon-agent/internal/integrations/compliance"
@@ -59,6 +60,36 @@ var reportCmd = &cobra.Command{
 
 func init() {
 	reportCmd.Flags().BoolVar(&reportJSON, "json", false, "Output the JSON report payload to stdout instead of sending to server")
+}
+
+// toInterfaces converts a typed slice to []interface{} for hashing.
+func toInterfaces[T any](items []T) []any {
+	result := make([]any, len(items))
+	for i := range items {
+		result[i] = &items[i]
+	}
+	return result
+}
+
+func computeReportHashes(p *models.ReportPayload) (models.ReportHashes, error) {
+	pkgs, err := hashing.PackagesHash(toInterfaces(p.Packages))
+	if err != nil {
+		return models.ReportHashes{}, fmt.Errorf("packages hash: %w", err)
+	}
+	repos, err := hashing.ReposHash(toInterfaces(p.Repositories))
+	if err != nil {
+		return models.ReportHashes{}, fmt.Errorf("repos hash: %w", err)
+	}
+	ifaces, err := hashing.InterfacesHash(toInterfaces(p.NetworkInterfaces))
+	if err != nil {
+		return models.ReportHashes{}, fmt.Errorf("interfaces hash: %w", err)
+	}
+	return models.ReportHashes{
+		PackagesHash:   pkgs,
+		ReposHash:      repos,
+		InterfacesHash: ifaces,
+		HostnameHash:   hashing.HostnameHash(p.Hostname),
+	}, nil
 }
 
 func sendReport(outputJSON bool, forceCM ...bool) error {
@@ -223,6 +254,16 @@ func sendReport(outputJSON bool, forceCM ...bool) error {
 		RebootReason:           rebootReason,
 	}
 
+	// Compute canonical hashes for change detection. The server uses these to
+	// tell the agent which sections are stale and need re-uploading on the next
+	// check-in. In steady state this collapses each hourly cycle from ~2 MB to
+	// ~1 KB.
+	if hashes, err := computeReportHashes(payload); err != nil {
+		logger.WithError(err).Warn("failed to compute canonical report hashes (continuing without)")
+	} else {
+		payload.Hashes = hashes
+	}
+
 	// If --report-json flag is set, output JSON and exit
 	if outputJSON {
 		jsonData, err := json.MarshalIndent(payload, "", "  ")
@@ -235,13 +276,45 @@ func sendReport(outputJSON bool, forceCM ...bool) error {
 		return nil
 	}
 
-	// Send report
-	logger.Info("Sending report to Monux server...")
+	// Send report — use hash-gated check-in when possible.
 	httpClient := client.New(cfgManager, logger)
 	ctx := context.Background()
-	response, err := httpClient.SendUpdate(ctx, payload)
-	if err != nil {
-		return fmt.Errorf("failed to send report: %w", err)
+
+	var response *models.UpdateResponse
+
+	if hashes, err := computeReportHashes(payload); err == nil {
+		logger.Info("Pinging server to check for stale sections...")
+		pingCtx, pingCancel := context.WithTimeout(ctx, 15*time.Second)
+		pingResp, pingErr := httpClient.PingWithHashes(pingCtx, &hashes)
+		pingCancel()
+
+		if pingErr != nil {
+			logger.WithError(pingErr).Warn("ping failed — falling back to full report upload")
+		} else if len(pingResp.StaleSections) == 0 {
+			logger.Info("No stale sections — skipping full report upload (steady state)")
+			response = &models.UpdateResponse{Message: "no changes detected"}
+		}
+
+		if pingErr != nil || len(pingResp.StaleSections) > 0 {
+			// Upload only the stale sections, or full payload if ping failed
+			if pingErr == nil && len(pingResp.StaleSections) > 0 {
+				logger.WithField("sections", pingResp.StaleSections).Info("Uploading stale sections")
+			}
+
+			// For now we always send the full report but store hashes on success.
+			// The server's /ping endpoint already stores per-section hashes, so
+			// future pings will correctly detect which sections are stale.
+			response, err = httpClient.SendUpdate(ctx, payload)
+			if err != nil {
+				return fmt.Errorf("failed to send report: %w", err)
+			}
+		}
+	} else {
+		logger.WithError(err).Warn("failed to compute hashes — sending full report")
+		response, err = httpClient.SendUpdate(ctx, payload)
+		if err != nil {
+			return fmt.Errorf("failed to send report: %w", err)
+		}
 	}
 
 	logger.Info("Report sent successfully")

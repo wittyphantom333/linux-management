@@ -79,7 +79,21 @@ func New(configMgr *config.Manager, logger *logrus.Logger) *Client {
 
 // Ping sends a ping request to the server
 func (c *Client) Ping(ctx context.Context) (*models.PingResponse, error) {
+	return c.pingWithHashes(ctx, nil)
+}
+
+// PingWithHashes sends section hashes so the server can tell which sections are stale.
+func (c *Client) PingWithHashes(ctx context.Context, hashes *models.ReportHashes) (*models.PingResponse, error) {
+	return c.pingWithHashes(ctx, hashes)
+}
+
+func (c *Client) pingWithHashes(ctx context.Context, hashes *models.ReportHashes) (*models.PingResponse, error) {
 	url := fmt.Sprintf("%s/api/%s/hosts/ping", c.config.PatchmonServer, c.config.APIVersion)
+
+	type pingReq struct {
+		MachineID string              `json:"machineId,omitempty"`
+		Hashes    *models.ReportHashes `json:"hashes,omitempty"`
+	}
 
 	c.logger.WithFields(logrus.Fields{
 		"url":    url,
@@ -91,6 +105,10 @@ func (c *Client) Ping(ctx context.Context) (*models.PingResponse, error) {
 		SetHeader("Content-Type", "application/json").
 		SetHeader("X-API-ID", c.credentials.APIID).
 		SetHeader("X-API-KEY", c.credentials.APIKey).
+		SetBody(pingReq{
+			MachineID: "", // set by caller if needed
+			Hashes:    hashes,
+		}).
 		SetResult(&models.PingResponse{}).
 		Post(url)
 

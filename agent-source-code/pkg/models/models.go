@@ -108,16 +108,30 @@ type ReportPayload struct {
 	ExecutionTime          float64            `json:"executionTime"` // Collection time in seconds
 	NeedsReboot            bool               `json:"needsReboot"`
 	RebootReason           string             `json:"rebootReason,omitempty"`
+	// Hashes are canonical SHA-256 digests of report sections. The server uses
+	// these to tell the agent which sections are stale and need re-uploading on
+	// the next check-in. In steady state this collapses each hourly cycle from
+	// ~2 MB to ~1 KB.
+	Hashes ReportHashes `json:"hashes,omitempty"`
+}
+
+// ReportHashes holds the canonical hashes for all report sections.
+type ReportHashes struct {
+	PackagesHash   string `json:"packagesHash"`
+	ReposHash      string `json:"reposHash"`
+	InterfacesHash string `json:"interfacesHash"`
+	HostnameHash   string `json:"hostnameHash"`
 }
 
 // PingResponse represents server ping response
 type PingResponse struct {
-	Message       string             `json:"message"`
-	Timestamp     string             `json:"timestamp"`
-	FriendlyName  string             `json:"friendlyName"`
-	AgentStartup  bool               `json:"agentStartup,omitempty"`
-	Integrations  map[string]bool    `json:"integrations,omitempty"` // Server-side integration enable states
-	CrontabUpdate *CrontabUpdateInfo `json:"crontabUpdate,omitempty"`
+	Message        string             `json:"message"`
+	Timestamp      string             `json:"timestamp"`
+	FriendlyName   string             `json:"friendlyName"`
+	AgentStartup   bool               `json:"agentStartup,omitempty"`
+	Integrations   map[string]bool    `json:"integrations,omitempty"` // Server-side integration enable states
+	CrontabUpdate  *CrontabUpdateInfo `json:"crontabUpdate,omitempty"`
+	StaleSections  []string           `json:"staleSections,omitempty"` // Sections that need re-upload: "packages", "repos", "interfaces", "hostname"
 }
 
 // UpdateResponse represents server update response

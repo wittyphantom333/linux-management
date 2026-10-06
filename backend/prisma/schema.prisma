@@ -137,6 +137,11 @@ model hosts {
   patchmanagement_enabled         Boolean                  @default(false)
   host_down_alerts_enabled        Boolean? // null = inherit from global config, true = enabled, false = disabled
   expected_platform               String? // linux | freebsd | windows (for OS-specific install command)
+  // Hash-gated check-in: per-section content hashes for payload optimization
+  packages_hash                   String? @db.VarChar(64)
+  repos_hash                      String? @db.VarChar(64)
+  interfaces_hash               String? @db.VarChar(64)
+  hostname_hash                   String? @db.VarChar(64)
   ssh_username                    String? // Saved SSH username for terminal auto-login
   ssh_port                        Int? // Saved SSH port for terminal auto-login
   ssh_auth_method                 String? // "password" or "key"
