@@ -636,64 +636,6 @@ const updateBodyLimit = express.json({
 	limit: process.env.AGENT_UPDATE_BODY_LIMIT || "2mb",
 });
 
-// ---------------------------------------------------------------------------
-// Hash-gated check-in: /hosts/ping
-// ---------------------------------------------------------------------------
-
-router.post("/ping", validateApiCredentials, async (req, res) => {
-	try {
-		const host = req.hostRecord;
-		const { hashes } = req.body || {};
-
-		const staleSections = [];
-
-		if (hashes) {
-			// Compare each section hash against stored value
-			if (hashes.hostnameHash && hashes.hostnameHash !== host.hostname_hash) {
-				staleSections.push("hostname");
-			}
-			if (
-				hashes.interfacesHash &&
-				hashes.interfacesHash !== host.interfaces_hash
-			) {
-				staleSections.push("interfaces");
-			}
-			// Packages and repos are always uploaded via /update, but we track their hashes too
-			if (hashes.packagesHash && hashes.packagesHash !== host.packages_hash) {
-				staleSections.push("packages");
-			}
-			if (hashes.reposHash && hashes.reposHash !== host.repos_hash) {
-				staleSections.push("repos");
-			}
-		} else {
-			// No hashes sent — everything is stale (legacy agent or first check-in)
-			staleSections.push("packages", "repos", "interfaces", "hostname");
-		}
-
-		// Store the new hashes for next comparison
-		await prisma.hosts.update({
-			where: { id: host.id },
-			data: {
-				packages_hash: hashes?.packagesHash || null,
-				repos_hash: hashes?.reposHash || null,
-				interfaces_hash: hashes?.interfacesHash || null,
-				hostname_hash: hashes?.hostnameHash || null,
-				updated_at: new Date(),
-			},
-		});
-
-		return res.json({
-			message: "pong",
-			timestamp: new Date().toISOString(),
-			friendlyName: host.friendly_name,
-			staleSections,
-		});
-	} catch (error) {
-		logger.error("Ping error:", error);
-		res.status(500).json({ error: "Failed to process ping" });
-	}
-});
-
 // Update host information and packages (now uses API credentials)
 router.post(
 	"/update",
@@ -1353,11 +1295,51 @@ router.post("/ping", validateApiCredentials, async (req, res) => {
 			},
 		});
 
+		// --- Hash-gated check-in: compare section hashes and return stale sections ---
+		const { hashes } = req.body || {};
+		const staleSections = [];
+		if (hashes) {
+			if (
+				hashes.hostnameHash &&
+				hashes.hostnameHash !== req.hostRecord.hostname_hash
+			) {
+				staleSections.push("hostname");
+			}
+			if (
+				hashes.interfacesHash &&
+				hashes.interfacesHash !== req.hostRecord.interfaces_hash
+			) {
+				staleSections.push("interfaces");
+			}
+			if (
+				hashes.packagesHash &&
+				hashes.packagesHash !== req.hostRecord.packages_hash
+			) {
+				staleSections.push("packages");
+			}
+			if (hashes.reposHash && hashes.reposHash !== req.hostRecord.repos_hash) {
+				staleSections.push("repos");
+			}
+			// Store new hashes for next comparison
+			await prisma.hosts.update({
+				where: { id: req.hostRecord.id },
+				data: {
+					packages_hash: hashes.packagesHash || null,
+					repos_hash: hashes.reposHash || null,
+					interfaces_hash: hashes.interfacesHash || null,
+					hostname_hash: hashes.hostnameHash || null,
+				},
+			});
+		} else {
+			staleSections.push("packages", "repos", "interfaces", "hostname");
+		}
+
 		const response = {
 			message: "Ping successful",
 			timestamp: now.toISOString(),
 			friendlyName: req.hostRecord.friendly_name,
 			agentStartup: isStartup,
+			staleSections,
 		};
 
 		// Include integration states in ping response for initial agent configuration
