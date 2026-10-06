@@ -658,6 +658,30 @@ func (m *WindowsManager) getWindowsUpdates() []models.Package {
 $ErrorActionPreference = "SilentlyContinue"
 $result = @()
 
+# --- Best-effort: build KB -> {severity, categories} map from WUA history ---
+# Gives accurate security classification for installed KBs. COM may fail in
+# Session 0; on failure we degrade to the Win32_QuickFixEngineering Description.
+$kbMeta = @{}
+try {
+  $histSession = New-Object -ComObject Microsoft.Update.Session
+  $histSearcher = $histSession.CreateUpdateSearcher()
+  $histCount = $histSearcher.GetTotalHistoryCount()
+  if ($histCount -gt 0) {
+    $hist = $histSearcher.QueryHistory(0, $histCount)
+    foreach ($h in $hist) {
+      if (-not $h.Title) { continue }
+      $sev = ""
+      try { $sev = "$($h.MsrcSeverity)" } catch {}
+      $cats = @()
+      try { $cats = @($h.Categories | ForEach-Object { "$($_.Name)" }) } catch {}
+      $isSec = ($sev -eq "Critical" -or $sev -eq "Important") -or ($cats -contains "Security Updates")
+      foreach ($m in [regex]::Matches($h.Title, "KB\d{6,8}")) {
+        $kbMeta[$m.Value] = @{ Security = $isSec; Severity = $sev; Categories = $cats }
+      }
+    }
+  }
+} catch {}
+
 # --- Installed KBs from WMI (fast, reliable) ---
 $hotfixes = Get-HotFix -ErrorAction SilentlyContinue
 foreach ($hf in $hotfixes) {
@@ -671,17 +695,22 @@ foreach ($hf in $hotfixes) {
   } catch {}
   if (-not $installedOn) { $installedOn = "installed" }
   $desc = if ($installedOn -and $installedOn -ne "installed") { "Installed $installedOn" } else { "Installed" }
+  # Prefer WUA history classification; fall back to the QFE Description string.
+  $meta = $kbMeta[$id]
+  $isSec = if ($meta) { $meta.Security } else { ($hf.Description -match "Security") }
+  $sev = if ($meta) { $meta.Severity } else { "" }
+  $cats = if ($meta) { $meta.Categories } else { @() }
   $result += @{
     Name             = $id
     Description      = $desc
     CurrentVersion   = "installed"
     AvailableVersion = ""
     NeedsUpdate      = $false
-    IsSecurityUpdate = ($hf.Description -match "Security")
+    IsSecurityUpdate = $isSec
     WUAGuid          = ""
     WUAKb            = $id
-    WUASeverity      = ""
-    WUACategories    = @()
+    WUASeverity      = $sev
+    WUACategories    = $cats
     WUASupportURL    = ""
     WUARevisionNumber = 0
     WUADateInstalled = $installedOn
@@ -726,7 +755,55 @@ try {
   Write-Host "WUA_COM_ERROR:$($_.Exception.Message) (HRESULT: 0x$hresult)"
 }
 
-# --- Fallback: PSWindowsUpdate module when COM fails (Session 0, 0x80070005, etc.) ---
+# --- Fallback 1: CIM-based Windows Update API (works in Session 0 / SYSTEM context) ---
+# MSFT_WUOperations lives in root/Microsoft/Windows/WindowsUpdate and does not
+# require an interactive session, unlike the Microsoft.Update.Session COM object.
+if ($comFailed) {
+  try {
+    $scan = Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName "ScanForUpdates" -Arguments @{ SearchCriteria = "IsInstalled=0 AND IsHidden=0" } -ErrorAction Stop
+    # ReturnValue 0 == S_OK. Anything else means the scan did not run; leave
+    # $comFailed set so the PSWindowsUpdate fallback still gets a chance.
+    if ($scan.ReturnValue -ne 0) { throw "MSFT_WUOperations.ScanForUpdates returned $($scan.ReturnValue)" }
+    # The result property name varies by build: MSFT_WUOperationsResult.Result
+    # on some, .Updates on others. Accept whichever is populated.
+    $updates = @()
+    if ($scan.Updates) { $updates = @($scan.Updates) }
+    elseif ($scan.Result) { $updates = @($scan.Result) }
+    foreach ($u in $updates) {
+      $kbs = @($u.KBArticleIDs | ForEach-Object { "KB$_" })
+      $kbStr = ($kbs -join ", ")
+      $displayName = if ($kbStr) { "$($u.Title) ($kbStr)" } else { $u.Title }
+      $guid = ""
+      try { $guid = $u.Identity.UpdateID } catch {}
+      if (-not $guid) { try { $guid = $u.UpdateID } catch {} }
+      $cats = @()
+      try { $cats = @($u.Categories | ForEach-Object { if ($_.Name) { $_.Name } else { "$_" } }) } catch {}
+      $supportUrl = ""
+      try { $supportUrl = $u.SupportUrl } catch {}
+      $revNum = 0
+      try { $revNum = [int]$u.Identity.RevisionNumber } catch {}
+      if (-not $revNum) { try { $revNum = [int]$u.RevisionNumber } catch {} }
+      $sev = ""
+      try { $sev = "$($u.MsrcSeverity)" } catch {}
+      $result += @{
+        Name             = $displayName
+        CurrentVersion   = "pending"
+        AvailableVersion = ""
+        NeedsUpdate      = $true
+        IsSecurityUpdate = ($sev -eq "Critical" -or $sev -eq "Important")
+        WUAGuid          = $guid
+        WUAKb            = ($kbs -join ", ")
+        WUASeverity      = $sev
+        WUACategories    = $cats
+        WUASupportURL    = $supportUrl
+        WUARevisionNumber = $revNum
+      }
+    }
+    $comFailed = $false
+  } catch {}
+}
+
+# --- Fallback 2: PSWindowsUpdate module (requires manual install; last resort) ---
 if ($comFailed) {
   try {
     if (Get-Module -ListAvailable -Name PSWindowsUpdate) {
