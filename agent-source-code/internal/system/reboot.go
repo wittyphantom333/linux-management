@@ -5,14 +5,22 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+
+	"patchmon-agent/internal/winexec"
 )
 
 // CheckRebootRequired checks if the system requires a reboot
 // Returns (needsReboot bool, reason string)
 func (d *Detector) CheckRebootRequired() (bool, string) {
+	// Windows: check registry keys and CBS reboot-pending (per UsoClient/WUA docs)
+	if runtime.GOOS == "windows" {
+		return d.checkWindowsRebootRequired()
+	}
+
 	runningKernel := d.getRunningKernel()
 	latestKernel := d.getLatestInstalledKernel()
 
@@ -69,8 +77,55 @@ func (d *Detector) checkNeedsRestarting() (bool, string) {
 	return false, ""
 }
 
+// checkWindowsRebootRequired checks if Windows requires a reboot (per UsoClient/WUA docs)
+// Checks: Windows Update RebootRequired and Component Based Servicing reboot-pending.
+//
+// PendingFileRenameOperations is deliberately not consulted. Ordinary application
+// updaters write to that key during routine self-updates, so treating it as a
+// reboot signal marks healthy hosts as needing a reboot indefinitely.
+func (d *Detector) checkWindowsRebootRequired() (bool, string) {
+	psScript := `
+$ErrorActionPreference = "SilentlyContinue"
+$reasons = @()
+
+# Windows Update RebootRequired
+$wu = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired" -ErrorAction SilentlyContinue
+if ($wu) { $reasons += "Windows Update requires reboot" }
+
+# Component Based Servicing (CBS) reboot pending
+$cbs = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -ErrorAction SilentlyContinue
+if ($cbs) { $reasons += "Component Based Servicing reboot pending" }
+
+if ($reasons.Count -gt 0) {
+  Write-Output ("REBOOT_REQUIRED:" + ($reasons -join "; "))
+} else {
+  Write-Output "REBOOT_NOT_REQUIRED"
+}
+`
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", winexec.Script(psScript))
+	output, err := cmd.Output()
+	if err != nil {
+		d.logger.WithError(err).Debug("Windows reboot check failed")
+		return false, ""
+	}
+	out := strings.TrimSpace(string(output))
+	if strings.HasPrefix(out, "REBOOT_REQUIRED:") {
+		reason := strings.TrimPrefix(out, "REBOOT_REQUIRED:")
+		d.logger.WithField("reason", reason).Debug("Windows reboot required")
+		return true, reason
+	}
+	d.logger.Debug("Windows: no reboot required")
+	return false, ""
+}
+
 // getRunningKernel gets the currently running kernel version
 func (d *Detector) getRunningKernel() string {
+	// Windows has no uname and no kernel-package model, so asking would fork a
+	// process per report only to fail and warn.
+	if runtime.GOOS == "windows" {
+		return ""
+	}
+
 	cmd := exec.Command("uname", "-r")
 	output, err := cmd.Output()
 	if err != nil {

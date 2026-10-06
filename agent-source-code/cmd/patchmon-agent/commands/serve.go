@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"patchmon-agent/internal/client"
@@ -45,7 +44,7 @@ var serveCmd = &cobra.Command{
 		if err := checkRoot(); err != nil {
 			return err
 		}
-		return runService()
+		return runAsService()
 	},
 }
 
@@ -53,9 +52,32 @@ func init() {
 	rootCmd.AddCommand(serveCmd)
 }
 
-func runService() error {
-	if err := cfgManager.LoadCredentials(); err != nil {
-		return err
+// runServiceLoop is the main service loop. stopCh signals shutdown (nil = run forever on Unix)
+func runServiceLoop(stopCh <-chan struct{}) error {
+	// When running as Windows service, allow a brief delay for system initialization
+	// (network, filesystem) to be ready after SCM starts the process. This addresses
+	// first-start issues where the report task would not run.
+	if runtime.GOOS == "windows" && isWindowsService() {
+		logger.Info("Windows service detected, waiting briefly for system initialization...")
+		time.Sleep(5 * time.Second)
+	}
+
+	// Load credentials with retry on Windows service (first start may race with installer)
+	var loadErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		loadErr = cfgManager.LoadCredentials()
+		if loadErr == nil {
+			break
+		}
+		if runtime.GOOS == "windows" && isWindowsService() && attempt < 2 {
+			logger.WithError(loadErr).Warn("Failed to load credentials, retrying in 2s...")
+			time.Sleep(2 * time.Second)
+		} else {
+			return loadErr
+		}
+	}
+	if loadErr != nil {
+		return loadErr
 	}
 
 	httpClient := client.New(cfgManager, logger)
@@ -236,8 +258,18 @@ func runService() error {
 		}
 	}
 
+	// Create a stop channel that never closes if none provided (for Unix systems)
+	effectiveStopCh := stopCh
+	if effectiveStopCh == nil {
+		effectiveStopCh = make(chan struct{}) // never closed
+	}
+
 	for {
 		select {
+		case <-effectiveStopCh:
+			// Shutdown requested
+			logger.Info("Shutdown signal received, stopping service...")
+			return nil
 		case <-offsetTimer.C:
 			// Offset period completed, start consuming from ticker normally
 			offsetPassed = true
@@ -2157,9 +2189,7 @@ rm -f "$0"
 				// Create a new session to fully detach the child process
 				// Setsid is stronger than Setpgid — it creates a new session,
 				// ensuring the helper script survives even if the parent's cgroup is cleaned up
-				cmd.SysProcAttr = &syscall.SysProcAttr{
-					Setsid: true,
-				}
+				cmd.SysProcAttr = sysProcAttrForDetach()
 				if err := cmd.Start(); err != nil {
 					logger.WithError(err).Warn("Failed to start restart helper script, supervise-daemon will handle restart")
 					// Clean up script
@@ -2269,9 +2299,7 @@ rm -f "$0"
 	}
 	cmd.Stdout = nil
 	cmd.Stderr = nil
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
+	cmd.SysProcAttr = sysProcAttrForDetach()
 
 	if err := cmd.Start(); err != nil {
 		logger.WithError(err).Error("Failed to start restart helper script")

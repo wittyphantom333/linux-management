@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"patchmon-agent/pkg/models"
 )
@@ -179,15 +178,16 @@ func (pe *PolicyExecutor) methodFilePermissions(_ context.Context, params map[st
 
 	// Check owner
 	if ownerStr, ok := params["owner"]; ok && ownerStr != "" {
-		stat := info.Sys().(*syscall.Stat_t)
-		u, err := user.Lookup(ownerStr)
-		if err != nil {
-			return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("user %s not found: %v", ownerStr, err)}, nil
-		}
-		uid, _ := strconv.Atoi(u.Uid)
-		if int(stat.Uid) != uid {
-			needsRepair = true
-			details = append(details, fmt.Sprintf("owner: %d → %s(%s)", stat.Uid, ownerStr, u.Uid))
+		if statUID, ok := fileOwnerUID(info); ok {
+			u, err := user.Lookup(ownerStr)
+			if err != nil {
+				return &models.ConfigMethodResult{Status: "error", Message: fmt.Sprintf("user %s not found: %v", ownerStr, err)}, nil
+			}
+			uid, _ := strconv.Atoi(u.Uid)
+			if statUID != uid {
+				needsRepair = true
+				details = append(details, fmt.Sprintf("owner: %d → %s(%s)", statUID, ownerStr, u.Uid))
+			}
 		}
 	}
 

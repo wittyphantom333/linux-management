@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"patchmon-agent/internal/client"
+	"patchmon-agent/internal/packages"
 	"patchmon-agent/pkg/models"
 
 	"github.com/sirupsen/logrus"
@@ -40,9 +41,9 @@ func (i *Integration) SetClient(c *client.Client) {
 // Name returns the integration name.
 func (i *Integration) Name() string { return integrationName }
 
-// IsAvailable returns true on Linux and FreeBSD (systems with package managers).
+// IsAvailable returns true on Linux, FreeBSD, and Windows (systems with package managers).
 func (i *Integration) IsAvailable() bool {
-	return runtime.GOOS == "linux" || runtime.GOOS == "freebsd"
+	return runtime.GOOS == "linux" || runtime.GOOS == "freebsd" || runtime.GOOS == "windows"
 }
 
 // Priority determines the run order. Patch management should run after basic
@@ -190,12 +191,89 @@ func (i *Integration) executeUpdates(ctx context.Context, job *models.PatchJob) 
 
 	i.logger.WithField("package_manager", pm).Debug("Detected package manager")
 
+	// Windows: route to the WUA/WinGet patcher (per-package results are
+	// approximated from the patcher output; there is no per-package version
+	// query on Windows).
+	if pm == "windows" {
+		return i.updateWindows(ctx, job)
+	}
+
 	// If the job specifies individual packages, update them one by one.
 	// Otherwise, do a full system update.
 	if len(job.Packages) > 0 {
 		return i.updateSpecificPackages(ctx, pm, job.Packages)
 	}
 	return i.updateAllPackages(ctx, pm, job.PolicyType)
+}
+
+// updateWindows handles patching on Windows hosts.
+// For patch_all: upgrades all WinGet applications (WUA OS updates are
+// installed by the server-approved GUID flow when the server sends them).
+// For selected packages: routes by name - "KB..." prefix or UUID -> WUA,
+// otherwise -> WinGet upgrade.
+func (i *Integration) updateWindows(ctx context.Context, job *models.PatchJob) ([]models.PatchPackageResult, error) {
+	patcher := packages.NewWindowsPatcher()
+	results := make([]models.PatchPackageResult, 0, len(job.Packages))
+
+	if len(job.Packages) > 0 {
+		for _, pkg := range job.Packages {
+			r := models.PatchPackageResult{
+				ID:              pkg.ID,
+				PackageName:     pkg.PackageName,
+				PreviousVersion: pkg.CurrentVersion,
+				TargetVersion:   pkg.TargetVersion,
+			}
+			if isWindowsUpdateIdentifier(pkg.PackageName) {
+				out, err := patcher.InstallWindowsUpdate(ctx, pkg.PackageName)
+				if err != nil || packages.IsSuperseded(out) {
+					r.Status = "failed"
+					r.ErrorMessage = truncate(out, 500)
+				} else {
+					r.Status = "updated"
+				}
+			} else {
+				out, err := patcher.WinGetUpgradePackage(ctx, pkg.PackageName, false)
+				if err != nil {
+					r.Status = "failed"
+					r.ErrorMessage = truncate(out, 500)
+				} else {
+					r.Status = "updated"
+				}
+			}
+			results = append(results, r)
+		}
+		return results, nil
+	}
+
+	// Full upgrade: upgrade all WinGet applications
+	out, err := patcher.WinGetUpgradeAll(ctx, false)
+	if err != nil {
+		i.logger.WithError(err).Warn("winget upgrade --all had errors (non-fatal)")
+	}
+	// Report a single aggregate result; per-package granularity is not
+	// available from winget's output.
+	r := models.PatchPackageResult{
+		PackageName: "winget-upgrade-all",
+		Status:      "updated",
+	}
+	if err != nil {
+		r.Status = "failed"
+		r.ErrorMessage = truncate(out, 500)
+	}
+	results = append(results, r)
+	return results, nil
+}
+
+// isWindowsUpdateIdentifier reports whether a package name refers to a WUA
+// update: a KB prefix or a 36-char UUID (8-4-4-4-12 hex digits).
+func isWindowsUpdateIdentifier(name string) bool {
+	if strings.HasPrefix(strings.ToUpper(name), "KB") {
+		return true
+	}
+	if len(name) == 36 && name[8] == '-' && name[13] == '-' && name[18] == '-' && name[23] == '-' {
+		return true
+	}
+	return false
 }
 
 // updateSpecificPackages updates the named packages one at a time for granular reporting.
@@ -361,6 +439,9 @@ func (i *Integration) updateAllPackages(_ context.Context, pm string, policyType
 
 // detectPackageManager returns the package manager binary name for this system.
 func detectPackageManager() string {
+	if runtime.GOOS == "windows" {
+		return "windows"
+	}
 	if runtime.GOOS == "freebsd" {
 		return "pkg"
 	}
@@ -627,6 +708,9 @@ func getInstalledVersion(pm, name string) string {
 
 // isRebootRequired checks whether the system needs a reboot after updates.
 func isRebootRequired() bool {
+	if runtime.GOOS == "windows" {
+		return packages.RebootRequired()
+	}
 	if runtime.GOOS == "freebsd" {
 		return false // FreeBSD doesn't have a standard reboot-required flag
 	}
@@ -649,6 +733,12 @@ func isRebootRequired() bool {
 
 // scheduleReboot schedules a system reboot in 60 seconds.
 func scheduleReboot() {
+	if runtime.GOOS == "windows" {
+		// Windows: schedule a restart in 1 minute via PowerShell
+		_ = exec.Command("powershell", "-NoProfile", "-NonInteractive",
+			"-Command", "shutdown /r /t 60 /c \"Monux: scheduled reboot after patching\"").Start()
+		return
+	}
 	if runtime.GOOS == "freebsd" {
 		_ = exec.Command("shutdown", "-r", "+1").Start()
 	} else {

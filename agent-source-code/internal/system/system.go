@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -133,6 +134,18 @@ func (d *Detector) getPfSenseInfo() (osType, osVersion string, err error) {
 	return osType, osVersion, nil
 }
 
+// resolveWindowsOSVersion picks the best available Windows marketing version.
+// gopsutil returns DisplayVersion as PlatformVersion, and it is absent before
+// Server 2022, so 2016 and 2019 LTSC need the ReleaseId fallback.
+func resolveWindowsOSVersion(platformVersion, releaseID, kernelVersion string) string {
+	for _, v := range []string{platformVersion, releaseID, kernelVersion} {
+		if v != "" {
+			return v
+		}
+	}
+	return "Unknown"
+}
+
 // getFreeBSDInfo gets FreeBSD OS type and version
 func (d *Detector) getFreeBSDInfo() (osType, osVersion string, err error) {
 	osType = "FreeBSD"
@@ -162,6 +175,16 @@ func (d *Detector) getFreeBSDInfo() (osType, osVersion string, err error) {
 
 // DetectOS detects the operating system and version using /etc/os-release
 func (d *Detector) DetectOS() (osType, osVersion string, err error) {
+	// Check for Windows first (uses gopsutil)
+	if runtime.GOOS == "windows" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		info, infoErr := host.InfoWithContext(ctx)
+		if infoErr != nil {
+			return "Windows", "Unknown", nil
+		}
+		return "Windows", resolveWindowsOSVersion(info.PlatformVersion, windowsReleaseID(), info.KernelVersion), nil
+	}
 	// Check for FreeBSD first (doesn't have /etc/os-release)
 	if d.isFreeBSD() {
 		if d.isPfSense() {

@@ -87,6 +87,9 @@ async function _getLatestCommit(owner, repo) {
 			headers: {
 				Accept: "application/vnd.github.v3+json",
 				"User-Agent": `Monux-Server/${currentVersion}`,
+				...(process.env.GITHUB_TOKEN && {
+					Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+				}),
 			},
 		});
 
@@ -135,6 +138,9 @@ async function _getCommitDifference(owner, repo, currentVersion) {
 				headers: {
 					Accept: "application/vnd.github.v3+json",
 					"User-Agent": `Monux-Server/${getCurrentVersion()}`,
+					...(process.env.GITHUB_TOKEN && {
+						Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+					}),
 				},
 			});
 

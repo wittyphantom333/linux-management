@@ -20,6 +20,7 @@ type Manager struct {
 	apkManager     *APKManager
 	pacmanManager  *PacmanManager
 	freebsdManager *FreeBSDManager
+	winManager     *WindowsManager
 }
 
 // New creates a new package manager
@@ -29,6 +30,7 @@ func New(logger *logrus.Logger) *Manager {
 	apkManager := NewAPKManager(logger)
 	pacmanManager := NewPacmanManager(logger)
 	freebsdManager := NewFreeBSDManager(logger)
+	winManager := NewWindowsManager(logger)
 
 	return &Manager{
 		logger:         logger,
@@ -37,6 +39,7 @@ func New(logger *logrus.Logger) *Manager {
 		apkManager:     apkManager,
 		pacmanManager:  pacmanManager,
 		freebsdManager: freebsdManager,
+		winManager:     winManager,
 	}
 }
 
@@ -47,6 +50,8 @@ func (m *Manager) GetPackages() ([]models.Package, error) {
 	m.logger.WithField("package_manager", packageManager).Debug("Detected package manager")
 
 	switch packageManager {
+	case "windows":
+		return m.winManager.GetPackages(), nil
 	case "apt":
 		return m.aptManager.GetPackages(), nil
 	case "dnf", "yum":
@@ -64,6 +69,10 @@ func (m *Manager) GetPackages() ([]models.Package, error) {
 
 // detectPackageManager detects which package manager is available on the system
 func (m *Manager) detectPackageManager() string {
+	// Check for Windows first (runtime check, no exec)
+	if runtime.GOOS == "windows" {
+		return "windows"
+	}
 	// Check for FreeBSD pkg first (avoid confusion with other 'pkg' tools).
 	// When the agent runs as an rc.d service, PATH may be minimal, so also check
 	// standard FreeBSD paths explicitly so package reports still work on pfSense/FreeBSD.

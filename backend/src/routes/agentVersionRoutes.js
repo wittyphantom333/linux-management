@@ -13,14 +13,18 @@ router.get(
 	async (_req, res) => {
 		try {
 			const axios = require("axios");
+			const githubHeaders = {
+				"User-Agent": "PatchMon-Server/1.0",
+				Accept: "application/vnd.github.v3+json",
+			};
+			if (process.env.GITHUB_TOKEN) {
+				githubHeaders.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+			}
 			const response = await axios.get(
 				"https://api.github.com/repos/wittyphantom333/linux-management/releases",
 				{
 					timeout: 10000,
-					headers: {
-						"User-Agent": "Monux-Server/1.0",
-						Accept: "application/vnd.github.v3+json",
-					},
+					headers: githubHeaders,
 				},
 			);
 

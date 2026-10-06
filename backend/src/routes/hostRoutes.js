@@ -187,24 +187,33 @@ router.get("/agent/download", async (req, res) => {
 		}
 		os = os || "linux";
 
-		const validOss = ["linux", "freebsd"];
+		const validOss = ["linux", "freebsd", "windows"];
 		if (!validOss.includes(os)) {
 			return res.status(400).json({
-				error: "Invalid os. Must be one of: linux, freebsd",
+				error: "Invalid os. Must be one of: linux, freebsd, windows",
 			});
 		}
 
 		const validArchitecturesLinux = ["amd64", "386", "arm64", "arm"];
 		const validArchitecturesFreebsd = ["amd64", "arm64"];
+		const validArchitecturesWindows = ["amd64", "arm64"];
 		const validArchitectures =
-			os === "freebsd" ? validArchitecturesFreebsd : validArchitecturesLinux;
+			os === "freebsd"
+				? validArchitecturesFreebsd
+				: os === "windows"
+					? validArchitecturesWindows
+					: validArchitecturesLinux;
 		if (!validArchitectures.includes(architecture)) {
 			return res.status(400).json({
 				error: `Invalid architecture for ${os}. Must be one of: ${validArchitectures.join(", ")}`,
 			});
 		}
 
-		const binaryName = `patchmon-agent-${os}-${architecture}`;
+		// Windows release assets carry a .exe extension
+		const binaryName =
+			os === "windows"
+				? `patchmon-agent-${os}-${architecture}.exe`
+				: `patchmon-agent-${os}-${architecture}`;
 		const binaryPath = path.join(__dirname, "../../../agents", binaryName);
 
 		if (!fs.existsSync(binaryPath)) {
@@ -272,28 +281,46 @@ router.get("/agent/version", validateApiCredentials, async (req, res) => {
 		const execFileAsync = promisify(execFile);
 
 		const query_os = req.query.os;
-		const valid_os = ["linux", "freebsd"];
+		const valid_os = ["linux", "freebsd", "windows"];
 		let os = query_os && valid_os.includes(query_os) ? query_os : null;
 		if (!os && host?.os_type) {
 			const reported = String(host.os_type).toLowerCase();
-			os =
-				reported.includes("freebsd") || reported.includes("pfsense")
-					? "freebsd"
-					: "linux";
+			if (reported.includes("windows")) {
+				os = "windows";
+			} else if (reported.includes("freebsd") || reported.includes("pfsense")) {
+				os = "freebsd";
+			} else {
+				os = "linux";
+			}
 		}
 		if (!os) {
-			os = host?.expected_platform === "freebsd" ? "freebsd" : "linux";
+			if (host?.expected_platform === "freebsd") {
+				os = "freebsd";
+			} else if (host?.expected_platform === "windows") {
+				os = "windows";
+			} else {
+				os = "linux";
+			}
 		}
 		const validArchitecturesLinux = ["amd64", "386", "arm64", "arm"];
 		const validArchitecturesFreebsd = ["amd64", "arm64"];
+		const validArchitecturesWindows = ["amd64", "arm64"];
 		const validArchitectures =
-			os === "freebsd" ? validArchitecturesFreebsd : validArchitecturesLinux;
+			os === "freebsd"
+				? validArchitecturesFreebsd
+				: os === "windows"
+					? validArchitecturesWindows
+					: validArchitecturesLinux;
 		if (!validArchitectures.includes(architecture)) {
 			return res.status(400).json({
 				error: `Invalid architecture for ${os}. Must be one of: ${validArchitectures.join(", ")}`,
 			});
 		}
-		const binaryName = `patchmon-agent-${os}-${architecture}`;
+		// Windows release assets carry a .exe extension
+		const binaryName =
+			os === "windows"
+				? `patchmon-agent-${os}-${architecture}.exe`
+				: `patchmon-agent-${os}-${architecture}`;
 		if (binaryName.includes("..")) {
 			return res.status(400).json({ error: "Invalid architecture specified" });
 		}
@@ -451,8 +478,8 @@ router.post(
 			.withMessage("Compliance enabled must be a boolean"),
 		body("expected_platform")
 			.optional()
-			.isIn(["linux", "freebsd"])
-			.withMessage("expected_platform must be linux or freebsd"),
+			.isIn(["linux", "freebsd", "windows"])
+			.withMessage("expected_platform must be linux, freebsd, or windows"),
 	],
 	async (req, res) => {
 		try {
@@ -2710,9 +2737,9 @@ router.get("/install", async (req, res) => {
 		// Get architecture parameter (only set if explicitly provided, otherwise let script auto-detect)
 		const architecture = req.query.arch;
 
-		// Get OS parameter for script (linux | freebsd); default linux for backward compatibility
+		// Get OS parameter for script (linux | freebsd | windows); default linux for backward compatibility
 		let os = req.query.os || "linux";
-		const validOss = ["linux", "freebsd"];
+		const validOss = ["linux", "freebsd", "windows"];
 		if (!validOss.includes(os)) {
 			os = "linux";
 		}
@@ -2721,6 +2748,36 @@ router.get("/install", async (req, res) => {
 		// The agent will exchange this token for actual credentials via a secure API call
 		// IMPORTANT: Use the plaintext apiKey from the request headers, NOT host.api_key (which is the hash)
 		const bootstrapToken = await generateBootstrapToken(host.api_id, apiKey);
+
+		// Windows: serve PowerShell installer with env vars prepended
+		if (os === "windows") {
+			const winScriptPath = path.join(
+				__dirname,
+				"../../../agents/patchmon_install_windows.ps1",
+			);
+			if (!fs.existsSync(winScriptPath)) {
+				return res
+					.status(404)
+					.json({ error: "Windows installation script not found" });
+			}
+
+			let winScript = fs.readFileSync(winScriptPath, "utf8");
+			// Normalize line endings
+			winScript = winScript.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+			// Inject env vars the installer reads (server URL, bootstrap token, SSL setting)
+			const envBlock = `$env:PATCHMON_SERVER_URL = "${serverUrl}"\n$env:PATCHMON_BOOTSTRAP_TOKEN = "${bootstrapToken}"\n$env:PATCHMON_IGNORE_SSL = "${skipSSLVerify}"\n\n`;
+			// Remove shebang if present (PowerShell scripts may have # optional)
+			winScript = winScript.replace(/^#!/, "#");
+			winScript = envBlock + winScript;
+
+			res.setHeader("Content-Type", "text/plain; charset=utf-8");
+			res.setHeader(
+				"Content-Disposition",
+				'inline; filename="patchmon_install_windows.ps1"',
+			);
+			return res.send(winScript);
+		}
 
 		// Inject bootstrap token, server URL, and PATCHMON_OS into the script
 		// The actual API credentials are NOT embedded - they will be fetched securely

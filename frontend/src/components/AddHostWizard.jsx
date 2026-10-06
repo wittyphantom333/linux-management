@@ -37,7 +37,9 @@ const hasInitialReport = (hostData) => {
 
 const AddHostWizard = ({ isOpen, onClose, onSuccess }) => {
 	const [step, setStep] = useState(1);
-	const [platform, setPlatform] = useState("linux"); // linux | freebsd
+	const [platform, setPlatform] = useState("linux"); // linux | freebsd | windows
+	const [windowsIgnoreSsl, setWindowsIgnoreSsl] = useState(false);
+	const [windowsUseCurl, setWindowsUseCurl] = useState(false);
 	const [formData, setFormData] = useState({
 		friendly_name: "",
 		hostGroupIds: [],
@@ -83,9 +85,29 @@ const AddHostWizard = ({ isOpen, onClose, onSuccess }) => {
 		const base = `${serverUrl}/api/v1/hosts/install`;
 		const params = new URLSearchParams();
 		if (platform === "freebsd") params.set("os", "freebsd");
-		if (force) params.set("force", "true");
+		if (platform === "windows") params.set("os", "windows");
+		if (force && platform !== "windows") params.set("force", "true");
 		const qs = params.toString();
 		return qs ? `${base}?${qs}` : base;
+	};
+
+	const getWindowsInstallCommand = (
+		includeSslBypass = false,
+		useCurl = false,
+	) => {
+		const installUrl = buildInstallUrl(false);
+		const sslBlock = includeSslBypass
+			? "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }; "
+			: "";
+		if (useCurl) {
+			const curlInsecure = includeSslBypass ? " -k" : "";
+			return `${sslBlock}curl.exe${curlInsecure} -s -H "X-API-ID: ${createdHost?.api_id}" -H "X-API-KEY: ${plaintextApiKey}" -o "$env:TEMP\\patchmon-install.ps1" "${installUrl}"; if ($LASTEXITCODE -eq 0) { & "$env:TEMP\\patchmon-install.ps1" } else { Write-Error "curl failed with exit code $LASTEXITCODE" }`;
+		}
+		// -OutFile writes the response bytes straight to disk. Reading
+		// $r.Content instead makes Windows PowerShell 5.1 decode the body
+		// through the Windows ANSI code page, which corrupts every non-ASCII
+		// character in the script.
+		return `${sslBlock}Invoke-WebRequest -Uri "${installUrl}" -Headers @{"X-API-ID"="${createdHost?.api_id}"; "X-API-KEY"="${plaintextApiKey}"} -UseBasicParsing -OutFile "$env:TEMP\\patchmon-install.ps1"; & "$env:TEMP\\patchmon-install.ps1"`;
 	};
 
 	const getShellCommand = (force) => {
@@ -226,8 +248,10 @@ const AddHostWizard = ({ isOpen, onClose, onSuccess }) => {
 
 	const handleCopy = async () => {
 		const forceInstall = false;
-		const installUrl = buildInstallUrl(forceInstall);
-		const command = `curl ${curlFlags} "${installUrl}" -H "X-API-ID: ${createdHost.api_id}" -H "X-API-KEY: ${plaintextApiKey}" | ${getShellCommand(forceInstall)}`;
+		const command =
+			platform === "windows"
+				? getWindowsInstallCommand(windowsIgnoreSsl, windowsUseCurl)
+				: `curl ${curlFlags} "${buildInstallUrl(forceInstall)}" -H "X-API-ID: ${createdHost.api_id}" -H "X-API-KEY: ${plaintextApiKey}" | ${getShellCommand(forceInstall)}`;
 		try {
 			if (navigator.clipboard && window.isSecureContext) {
 				await navigator.clipboard.writeText(command);
@@ -336,16 +360,18 @@ const AddHostWizard = ({ isOpen, onClose, onSuccess }) => {
 								<SiFreebsd className="h-12 w-12 text-secondary-700 dark:text-secondary-200 mb-2" />
 								<span className="text-sm font-medium">FreeBSD</span>
 							</button>
-							<div
-								className="flex flex-col items-center justify-center p-6 rounded-lg border-2 border-secondary-200 dark:border-secondary-700 bg-secondary-50 dark:bg-secondary-800/50 opacity-60 cursor-not-allowed"
-								title="Coming soon"
+							<button
+								type="button"
+								onClick={() => setPlatform("windows")}
+								className={`flex flex-col items-center justify-center p-6 rounded-lg border-2 transition-all ${
+									platform === "windows"
+										? "border-primary-500 bg-primary-50 dark:bg-primary-900/30"
+										: "border-secondary-300 dark:border-secondary-600 hover:border-primary-400"
+								}`}
 							>
-								<DiWindows className="h-12 w-12 text-secondary-500 mb-2" />
+								<DiWindows className="h-12 w-12 text-secondary-700 dark:text-secondary-200 mb-2" />
 								<span className="text-sm font-medium">Windows</span>
-								<span className="text-xs text-secondary-500 mt-1">
-									Coming soon
-								</span>
-							</div>
+							</button>
 						</div>
 						<div className="flex justify-end pt-2">
 							<button
@@ -520,16 +546,53 @@ const AddHostWizard = ({ isOpen, onClose, onSuccess }) => {
 					<div className="space-y-4">
 						<p className="text-sm text-secondary-600 dark:text-secondary-400">
 							Run this command on your{" "}
-							{platform === "freebsd" ? "FreeBSD" : "Linux"} host to install the
-							agent. After copying, the wizard will wait for the connection.
+							{platform === "windows"
+								? "Windows"
+								: platform === "freebsd"
+									? "FreeBSD"
+									: "Linux"}{" "}
+							host to install the agent. After copying, the wizard will wait for
+							the connection.
 						</p>
+						{platform === "windows" && (
+							<div className="space-y-2">
+								<label className="flex items-center gap-2 text-sm text-secondary-700 dark:text-secondary-300">
+									<input
+										type="checkbox"
+										checked={windowsIgnoreSsl}
+										onChange={(e) => setWindowsIgnoreSsl(e.target.checked)}
+									/>
+									Skip SSL certificate validation (self-signed certificate)
+								</label>
+								<label className="flex items-center gap-2 text-sm text-secondary-700 dark:text-secondary-300">
+									<input
+										type="checkbox"
+										checked={windowsUseCurl}
+										onChange={(e) => setWindowsUseCurl(e.target.checked)}
+									/>
+									Use curl instead of Invoke-WebRequest (if download fails)
+								</label>
+							</div>
+						)}
 						<div className="flex flex-col gap-2">
-							<input
-								type="text"
-								readOnly
-								value={`curl ${curlFlags} "${buildInstallUrl()}" -H "X-API-ID: ${createdHost.api_id}" -H "X-API-KEY: ${plaintextApiKey}" | ${getShellCommand(false)}`}
-								className="w-full px-3 py-2 border-2 border-secondary-300 dark:border-secondary-600 rounded-lg bg-secondary-50 dark:bg-secondary-900 text-xs font-mono break-all"
-							/>
+							{platform === "windows" ? (
+								<textarea
+									readOnly
+									rows={windowsIgnoreSsl && !windowsUseCurl ? 6 : 2}
+									value={getWindowsInstallCommand(
+										windowsIgnoreSsl,
+										windowsUseCurl,
+									)}
+									className="w-full px-3 py-2 border-2 border-secondary-300 dark:border-secondary-600 rounded-lg bg-secondary-50 dark:bg-secondary-900 text-xs font-mono break-all resize-none"
+								/>
+							) : (
+								<input
+									type="text"
+									readOnly
+									value={`curl ${curlFlags} "${buildInstallUrl()}" -H "X-API-ID: ${createdHost.api_id}" -H "X-API-KEY: ${plaintextApiKey}" | ${getShellCommand(false)}`}
+									className="w-full px-3 py-2 border-2 border-secondary-300 dark:border-secondary-600 rounded-lg bg-secondary-50 dark:bg-secondary-900 text-xs font-mono break-all"
+								/>
+							)}
 							<button
 								type="button"
 								onClick={handleCopy}

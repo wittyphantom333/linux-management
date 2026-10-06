@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"patchmon-agent/internal/config"
@@ -208,8 +207,18 @@ func updateAgent() error {
 	}
 	logger.WithField("path", backupPath).Info("Backup saved")
 
-	// Write new version to temporary file (reuse the temp file we already created for version check)
+	// Write new version to temporary file.
+	// On Windows the temp file must have an .exe extension so CreateProcess can execute it
+	// for the validation step, and we place it in a secured directory to avoid writing
+	// into the locked install directory.
 	tempPath := executablePath + ".new"
+	if runtime.GOOS == "windows" {
+		dir, dirErr := secureUpdateDir()
+		if dirErr != nil {
+			return fmt.Errorf("failed to prepare update directory: %w", dirErr)
+		}
+		tempPath = filepath.Join(dir, fmt.Sprintf("patchmon-agent-update-%d.exe", time.Now().UnixNano()))
+	}
 	if err := os.WriteFile(tempPath, newAgentData, 0755); err != nil {
 		return fmt.Errorf("failed to write new agent: %w", err)
 	}
@@ -250,6 +259,12 @@ func updateAgent() error {
 		}
 	} else {
 		logger.WithError(err).Debug("Could not verify binary version (non-critical)")
+	}
+
+	// Windows: os.Rename cannot overwrite a running .exe (file locked by SCM).
+	// Delegate the replacement and restart to a detached PowerShell script.
+	if runtime.GOOS == "windows" {
+		return updateAgentWindows(executablePath, tempPath, newVersion)
 	}
 
 	// Replace current executable atomically
@@ -488,14 +503,98 @@ func getArchitecture() string {
 	return runtime.GOARCH
 }
 
-// getPlatform returns "linux" or "freebsd" for the version/download API (server uses this to pick the right binary)
+// getPlatform returns "linux", "freebsd", or "windows" for the version/download API (server uses this to pick the right binary)
 func getPlatform() string {
 	switch runtime.GOOS {
 	case "freebsd":
 		return "freebsd"
+	case "windows":
+		return "windows"
 	default:
 		return "linux"
 	}
+}
+
+// serviceName is the Windows service name; the installer and the update script must agree.
+const serviceName = "PatchMonAgent"
+
+// psQuote escapes a string for embedding in a single-quoted PowerShell literal.
+// PowerShell escapes a quote by doubling it. Without this, an install path
+// containing an apostrophe, which is legal on Windows, closes the literal and
+// the rest of the path is parsed as code.
+func psQuote(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
+}
+
+// updateAgentWindows handles the Windows-specific update path.
+//
+// On Windows, os.Rename cannot overwrite a running executable because the SCM
+// holds an open handle on it. Instead we:
+//  1. Keep the verified new binary in the secured update dir (already written there).
+//  2. Write a self-deleting PowerShell script that stops the service, copies the
+//     new binary into place, and restarts the service.
+//  3. Launch that script detached so it outlives this process.
+//  4. Exit immediately — the script takes over.
+func updateAgentWindows(executablePath, tempPath, newVersion string) error {
+	dir, err := secureUpdateDir()
+	if err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to prepare update directory: %w", err)
+	}
+	psScriptPath := filepath.Join(dir, fmt.Sprintf("patchmon-update-%d.ps1", time.Now().UnixNano()))
+
+	// Start-Service runs from finally so a failed copy cannot leave the host
+	// with the service stopped and the old binary still in place. Copy-Item is
+	// also retried, because Stop-Service returns when the SCM reports stopped,
+	// which is not always when the image handle has been released.
+	psScript := fmt.Sprintf(`$ErrorActionPreference = 'SilentlyContinue'
+Start-Sleep -Seconds 2
+Stop-Service -Name '%s' -Force -ErrorAction SilentlyContinue
+try {
+    $copied = $false
+    for ($i = 0; $i -lt 10 -and -not $copied; $i++) {
+        Start-Sleep -Seconds 2
+        try {
+            Copy-Item -Path '%s' -Destination '%s' -Force -ErrorAction Stop
+            $copied = $true
+        } catch {
+            # Image still locked; retry.
+        }
+    }
+} finally {
+    Start-Service -Name '%s'
+    Remove-Item -Path '%s' -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
+}
+`, serviceName, psQuote(tempPath), psQuote(executablePath), serviceName, psQuote(tempPath))
+
+	if err := os.WriteFile(psScriptPath, []byte(psScript), 0600); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("failed to write Windows update script: %w", err)
+	}
+
+	markRecentUpdate()
+
+	logger.WithFields(map[string]interface{}{
+		"new_version": newVersion,
+		"script":      psScriptPath,
+	}).Info("Launching Windows update script (stop service → replace binary → start service)...")
+
+	cmd := exec.Command("powershell",
+		"-NonInteractive", "-WindowStyle", "Hidden",
+		"-ExecutionPolicy", "Bypass",
+		"-File", psScriptPath)
+	cmd.SysProcAttr = sysProcAttrForDetach()
+	if err := cmd.Start(); err != nil {
+		_ = os.Remove(tempPath)
+		_ = os.Remove(psScriptPath)
+		return fmt.Errorf("failed to launch Windows update script: %w", err)
+	}
+
+	logger.Info("Windows update script launched — exiting to allow service replacement")
+	time.Sleep(500 * time.Millisecond)
+	os.Exit(0)
+	return nil // unreachable
 }
 
 // copyFile copies a file from src to dst
@@ -598,10 +697,17 @@ func checkRecentUpdate() error {
 // markRecentUpdate creates a timestamp file to mark that we just updated
 func markRecentUpdate() {
 	updateMarkerPath := "/etc/patchmon/.last_update_timestamp"
+	markerDir := "/etc/patchmon"
+	if runtime.GOOS == "windows" {
+		updateMarkerPath = `C:\ProgramData\PatchMon\.last_update_timestamp`
+		markerDir = `C:\ProgramData\PatchMon`
+	}
 
-	// SECURITY: Ensure directory exists with restrictive permissions
-	if err := os.MkdirAll("/etc/patchmon", 0700); err != nil {
-		logger.WithError(err).Debug("Could not create /etc/patchmon directory (non-critical)")
+	// SECURITY: restrictive on Unix. On Windows the mode is not applied, so
+	// the marker directory inherits the ProgramData ACL; it is a hint used to
+	// damp update loops, not a trust boundary.
+	if err := os.MkdirAll(markerDir, 0700); err != nil {
+		logger.WithError(err).Debug("Could not create patchmon directory (non-critical)")
 		return
 	}
 
@@ -672,7 +778,7 @@ rm -f "$0"
 		}
 		cmd.Stdout = nil
 		cmd.Stderr = nil
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		cmd.SysProcAttr = sysProcAttrForDetach()
 		if err := cmd.Start(); err != nil {
 			_ = os.Remove(helperPath)
 			logger.WithError(err).Warn("Failed to start restart helper, exiting to let daemon -r respawn")
@@ -773,9 +879,7 @@ rm -f "$0"
 				// Create a new session to fully detach the child process
 				// Setsid ensures the helper script is not killed when systemd cleans up
 				// the service's cgroup, as the new session may escape cgroup tracking
-				cmd.SysProcAttr = &syscall.SysProcAttr{
-					Setsid: true,
-				}
+				cmd.SysProcAttr = sysProcAttrForDetach()
 				if err := cmd.Start(); err != nil {
 					logger.WithError(err).Warn("Failed to start restart helper script, will exit and rely on systemd auto-restart")
 					// Clean up script
@@ -891,9 +995,7 @@ rm -f "$0"
 				// Create a new session to fully detach the child process
 				// Setsid is stronger than Setpgid — it creates a new session,
 				// ensuring the helper script survives even if the parent's cgroup is cleaned up
-				cmd.SysProcAttr = &syscall.SysProcAttr{
-					Setsid: true,
-				}
+				cmd.SysProcAttr = sysProcAttrForDetach()
 				if err := cmd.Start(); err != nil {
 					logger.WithError(err).Warn("Failed to start restart helper script, supervise-daemon will handle restart")
 					// Clean up script
@@ -1006,9 +1108,7 @@ rm -f "$0"
 	cmd.Stderr = nil
 	// Create a new session to fully detach the child process from the current process
 	// This ensures the helper script survives even after the parent exits
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
+	cmd.SysProcAttr = sysProcAttrForDetach()
 
 	if err := cmd.Start(); err != nil {
 		logger.WithError(err).Error("Failed to start restart helper script")

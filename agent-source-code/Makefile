@@ -43,9 +43,16 @@ build-freebsd:
 	@GOOS=freebsd GOARCH=amd64 CGO_ENABLED=0 $(GO_CMD) build $(BUILD_FLAGS) $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-freebsd-amd64 ./cmd/patchmon-agent
 	@GOOS=freebsd GOARCH=arm64 CGO_ENABLED=0 $(GO_CMD) build $(BUILD_FLAGS) $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-freebsd-arm64 ./cmd/patchmon-agent
 
-# Build for multiple architectures (Linux + FreeBSD)
+# Build Windows binaries only (amd64, arm64 — outputs .exe)
+.PHONY: build-windows
+build-windows:
+	@mkdir -p $(BUILD_DIR)
+	@GOOS=windows GOARCH=amd64 CGO_ENABLED=0 $(GO_CMD) build $(BUILD_FLAGS) $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-windows-amd64.exe ./cmd/patchmon-agent
+	@GOOS=windows GOARCH=arm64 CGO_ENABLED=0 $(GO_CMD) build $(BUILD_FLAGS) $(LDFLAGS) -o $(GOBIN)/$(BINARY_NAME)-windows-arm64.exe ./cmd/patchmon-agent
+
+# Build for multiple architectures (Linux + FreeBSD + Windows)
 .PHONY: build-all
-build-all: build-linux build-freebsd
+build-all: build-linux build-freebsd build-windows
 
 # Install dependencies
 .PHONY: deps

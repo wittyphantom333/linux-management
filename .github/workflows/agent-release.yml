@@ -26,6 +26,10 @@ jobs:
             goarch: 'amd64'
           - goos: freebsd
             goarch: 'arm64'
+          - goos: windows
+            goarch: 'amd64'
+          - goos: windows
+            goarch: 'arm64'
 
     steps:
       - name: Checkout code
@@ -56,7 +60,9 @@ jobs:
           GOARM: ${{ matrix.goarch == 'arm' && '6' || '' }}
           CGO_ENABLED: 0
         run: |
-          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
           go build -buildvcs=false \
             -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ steps.version.outputs.version }}" \
             -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
@@ -64,7 +70,9 @@ jobs:
       - name: Verify binary exists and is executable
         working-directory: agent-source-code
         run: |
-          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
           if [ ! -f "${OUTPUT_NAME}" ]; then
             echo "❌ Error: Binary ${OUTPUT_NAME} was not created"
             exit 1
@@ -86,7 +94,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}"
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
           echo "📤 Uploading ${OUTPUT_NAME} to release ${{ github.event.release.tag_name }}..."
           gh release upload "${{ github.event.release.tag_name }}" "${OUTPUT_NAME}" --repo "${{ github.repository }}" --clobber
           echo "✅ Uploaded ${OUTPUT_NAME}"

@@ -161,11 +161,28 @@ class AgentVersionService {
 			"linux-arm",
 			"freebsd-amd64",
 			"freebsd-arm64",
+			"windows-amd64",
+			"windows-arm64",
 		];
 		this.currentVersion = null;
 		this.latestVersion = null;
 		this.lastChecked = null;
 		this.checkInterval = 30 * 60 * 1000; // 30 minutes
+	}
+
+	/**
+	 * Headers for GitHub API requests. Attaches GITHUB_TOKEN when configured
+	 * to raise the rate limit from 60/hr (unauthenticated) to 5000/hr.
+	 */
+	_githubHeaders() {
+		const headers = {
+			"User-Agent": "PatchMon-Server/1.0",
+			Accept: "application/vnd.github.v3+json",
+		};
+		if (process.env.GITHUB_TOKEN) {
+			headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+		}
+		return headers;
 	}
 
 	async initialize() {
@@ -395,10 +412,7 @@ class AgentVersionService {
 		try {
 			const response = await axios.get(this.githubLatestUrl, {
 				timeout: 15000,
-				headers: {
-					"User-Agent": "PatchMon-Server/1.0",
-					Accept: "application/vnd.github.v3+json",
-				},
+				headers: this._githubHeaders(),
 			});
 
 			const tagName = response.data?.tag_name;
@@ -468,8 +482,11 @@ class AgentVersionService {
 
 			for (let i = 0; i < this.supportedArchitectures.length; i++) {
 				const arch = this.supportedArchitectures[i];
-				// arch already includes OS prefix (linux- or freebsd-), so just use it directly
-				const assetName = `patchmon-agent-${arch}`;
+				// arch already includes OS prefix (linux-, freebsd-, windows-);
+				// Windows release assets carry a .exe extension
+				const assetName = arch.startsWith("windows-")
+					? `patchmon-agent-${arch}.exe`
+					: `patchmon-agent-${arch}`;
 				logger.info(`🔍 Looking for asset: ${assetName}`);
 
 				// Send progress notification - starting
@@ -537,6 +554,7 @@ class AgentVersionService {
 						timeout: 180000, // Increased timeout to 3 minutes for large files
 						maxContentLength: Infinity,
 						maxBodyLength: Infinity,
+						headers: this._githubHeaders(),
 					});
 
 					await downloadToFile(response.data, binaryPath, assetName);
@@ -651,10 +669,7 @@ class AgentVersionService {
 			// Get the release info from GitHub
 			const response = await axios.get(this.githubApiUrl, {
 				timeout: 10000,
-				headers: {
-					"User-Agent": "Monux-Server/1.0",
-					Accept: "application/vnd.github.v3+json",
-				},
+				headers: this._githubHeaders(),
 			});
 
 			const releases = response.data;
@@ -683,6 +698,7 @@ class AgentVersionService {
 			const downloadResponse = await axios.get(asset.browser_download_url, {
 				responseType: "stream",
 				timeout: 60000,
+				headers: this._githubHeaders(),
 			});
 
 			await downloadToFile(downloadResponse.data, binaryPath, assetName);
@@ -852,10 +868,7 @@ class AgentVersionService {
 			// Get the release info from GitHub
 			const response = await axios.get(this.githubApiUrl, {
 				timeout: 10000,
-				headers: {
-					"User-Agent": "Monux-Server/1.0",
-					Accept: "application/vnd.github.v3+json",
-				},
+				headers: this._githubHeaders(),
 			});
 
 			const releases = response.data;
@@ -929,10 +942,7 @@ class AgentVersionService {
 					`https://api.github.com/repos/wittyphantom333/linux-management/releases/tags/${release.tag_name}`,
 					{
 						timeout: 10000,
-						headers: {
-							"User-Agent": "Monux-Server/1.0",
-							Accept: "application/vnd.github.v3+json",
-						},
+						headers: this._githubHeaders(),
 					},
 				);
 				release = individualReleaseResponse.data;
@@ -1018,10 +1028,7 @@ class AgentVersionService {
 			// Fetch all releases from GitHub
 			const response = await axios.get(this.githubApiUrl, {
 				timeout: 10000,
-				headers: {
-					"User-Agent": "Monux-Server/1.0",
-					Accept: "application/vnd.github.v3+json",
-				},
+				headers: this._githubHeaders(),
 			});
 
 			const releases = response.data || [];

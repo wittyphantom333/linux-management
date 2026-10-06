@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"patchmon-agent/pkg/models"
 
@@ -28,6 +29,21 @@ const (
 	CronFilePath = "/etc/cron.d/patchmon-agent"
 )
 
+// Windows default paths
+const (
+	DefaultConfigFileWindows      = `C:\ProgramData\PatchMon\config.yml`
+	DefaultCredentialsFileWindows = `C:\ProgramData\PatchMon\credentials.yml`
+	DefaultLogFileWindows         = `C:\ProgramData\PatchMon\patchmon-agent.log`
+)
+
+// getDefaultPaths returns config, credentials, and log file paths based on OS
+func getDefaultPaths() (configFile, credentialsFile, logFile string) {
+	if runtime.GOOS == "windows" {
+		return DefaultConfigFileWindows, DefaultCredentialsFileWindows, DefaultLogFileWindows
+	}
+	return DefaultConfigFile, DefaultCredentialsFile, DefaultLogFile
+}
+
 // AvailableIntegrations lists all integrations that can be enabled/disabled
 // Add new integrations here as they are implemented
 var AvailableIntegrations = []string{
@@ -48,17 +64,18 @@ type Manager struct {
 
 // New creates a new configuration manager
 func New() *Manager {
+	configFile, credentialsFile, logFile := getDefaultPaths()
 	return &Manager{
 		config: &models.Config{
 			PatchmonServer:  "", // No default server - user must provide
 			APIVersion:      DefaultAPIVersion,
-			CredentialsFile: DefaultCredentialsFile,
-			LogFile:         DefaultLogFile,
+			CredentialsFile: credentialsFile,
+			LogFile:         logFile,
 			LogLevel:        DefaultLogLevel,
 			UpdateInterval:  60, // Default to 60 minutes
 			Integrations:    make(map[string]interface{}),
 		},
-		configFile: DefaultConfigFile,
+		configFile: configFile,
 	}
 }
 
@@ -93,7 +110,7 @@ func (m *Manager) LoadConfig() error {
 	viper.SetConfigFile(m.configFile)
 	viper.SetConfigType("yaml")
 
-	if err := viper.ReadInConfig(); err != nil {
+	if err := retryTransientFile(viper.ReadInConfig); err != nil {
 		return fmt.Errorf("error reading config file: %w", err)
 	}
 
@@ -167,7 +184,7 @@ func (m *Manager) LoadCredentials() error {
 	credViper.SetConfigFile(m.config.CredentialsFile)
 	credViper.SetConfigType("yaml")
 
-	if err := credViper.ReadInConfig(); err != nil {
+	if err := retryTransientFile(credViper.ReadInConfig); err != nil {
 		return fmt.Errorf("error reading credentials file: %w", err)
 	}
 
@@ -249,7 +266,7 @@ func (m *Manager) SaveCredentials(apiID, apiKey string) error {
 
 	// Atomic rename - this is the only operation that exposes the file
 	// Since we set permissions before writing, no race window exists
-	if err := os.Rename(tmpPath, m.config.CredentialsFile); err != nil {
+	if err := retryTransientFile(func() error { return os.Rename(tmpPath, m.config.CredentialsFile) }); err != nil {
 		return fmt.Errorf("error renaming credentials file: %w", err)
 	}
 
@@ -315,7 +332,7 @@ func (m *Manager) SaveConfig() error {
 
 	configViper.Set("integrations", m.config.Integrations)
 
-	if err := configViper.WriteConfigAs(m.configFile); err != nil {
+	if err := retryTransientFile(func() error { return configViper.WriteConfigAs(m.configFile) }); err != nil {
 		return fmt.Errorf("error writing config file: %w", err)
 	}
 
