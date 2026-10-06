@@ -52,11 +52,15 @@ async function downloadToFile(stream, destPath, label) {
 		stream.on("error", (err) => finish(err));
 	});
 
-	logger.info(
-		`📥 Downloaded ${downloadedBytes} bytes for ${label} to ${tmpPath}`,
-	);
+	// Verify temp file exists before checking size
+	try {
+		await fs.access(tmpPath);
+	} catch {
+		throw new Error(
+			`Stream closed before writing ${label} to ${tmpPath} (downloadedBytes=${downloadedBytes})`,
+		);
+	}
 
-	// Verify temp file
 	const tmpStats = await fs.stat(tmpPath);
 	if (tmpStats.size === 0) {
 		await fs.unlink(tmpPath).catch(() => {});
