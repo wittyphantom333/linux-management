@@ -658,6 +658,29 @@ func (m *WindowsManager) getWindowsUpdates() []models.Package {
 $ErrorActionPreference = "SilentlyContinue"
 $result = @()
 
+# Build a display name without duplicating KB IDs already present in the title.
+# WUA titles frequently already contain "(KB5122871)", so naive appending yields
+# "2026-09 Security Update (KB5122871) (26100.33438) (KB5122871)".
+function Get-WuDisplayName([string]$title, [string]$kbStr) {
+  if (-not $kbStr) { return $title }
+  $missing = @()
+  foreach ($kb in ($kbStr -split ',\s*')) {
+    if ($kb -and ($title -notmatch [regex]::Escape($kb))) { $missing += $kb }
+  }
+  if ($missing.Count -eq 0) { return $title }
+  return "$title ($($missing -join ', '))"
+}
+
+# Security classification. MsrcSeverity is authoritative when present, but
+# cumulative updates routinely leave it blank while the title or category still
+# identifies the update as a security update.
+function Test-WuSecurity([string]$severity, [string]$title, $categories) {
+  if ($severity -eq "Critical" -or $severity -eq "Important") { return $true }
+  if ($title -match "Security Update") { return $true }
+  if ($categories -contains "Security Updates") { return $true }
+  return $false
+}
+
 # --- Best-effort: build KB -> {severity, categories} map from WUA history ---
 # Gives accurate security classification for installed KBs. COM may fail in
 # Session 0; on failure we degrade to the Win32_QuickFixEngineering Description.
@@ -697,9 +720,9 @@ foreach ($hf in $hotfixes) {
   $desc = if ($installedOn -and $installedOn -ne "installed") { "Installed $installedOn" } else { "Installed" }
   # Prefer WUA history classification; fall back to the QFE Description string.
   $meta = $kbMeta[$id]
-  $isSec = if ($meta) { $meta.Security } else { ($hf.Description -match "Security") }
   $sev = if ($meta) { $meta.Severity } else { "" }
   $cats = if ($meta) { $meta.Categories } else { @() }
+  $isSec = if ($meta) { $meta.Security } else { Test-WuSecurity $sev $hf.Description $cats }
   $result += @{
     Name             = $id
     Description      = $desc
@@ -724,13 +747,13 @@ try {
   $searcher  = $session.CreateUpdateSearcher()
   $results   = $searcher.Search("IsInstalled=0 AND IsHidden=0")
   foreach ($u in $results.Updates) {
-    $secFlag = ($u.MsrcSeverity -eq "Critical" -or $u.MsrcSeverity -eq "Important")
     $kbs = @($u.KBArticleIDs | ForEach-Object { "KB$_" })
     $kbStr = ($kbs -join ", ")
-    $displayName = if ($kbStr) { "$($u.Title) ($kbStr)" } else { $u.Title }
+    $cats = @($u.Categories | ForEach-Object { $_.Name })
+    $sev = if ($u.MsrcSeverity) { "$($u.MsrcSeverity)" } else { "" }
+    $displayName = Get-WuDisplayName $u.Title $kbStr
     $guid = ""
     try { $guid = $u.Identity.UpdateID } catch {}
-    $cats = @($u.Categories | ForEach-Object { $_.Name })
     $supportUrl = ""
     try { $supportUrl = $u.SupportURL } catch {}
     $revNum = 0
@@ -740,10 +763,10 @@ try {
       CurrentVersion   = "pending"
       AvailableVersion = ""
       NeedsUpdate      = $true
-      IsSecurityUpdate = $secFlag
+      IsSecurityUpdate = (Test-WuSecurity $sev $u.Title $cats)
       WUAGuid          = $guid
-      WUAKb            = ($kbs -join ", ")
-      WUASeverity      = if ($u.MsrcSeverity) { $u.MsrcSeverity } else { "" }
+      WUAKb            = $kbStr
+      WUASeverity      = $sev
       WUACategories    = $cats
       WUASupportURL    = $supportUrl
       WUARevisionNumber = $revNum
@@ -772,27 +795,27 @@ if ($comFailed) {
     foreach ($u in $updates) {
       $kbs = @($u.KBArticleIDs | ForEach-Object { "KB$_" })
       $kbStr = ($kbs -join ", ")
-      $displayName = if ($kbStr) { "$($u.Title) ($kbStr)" } else { $u.Title }
+      $cats = @()
+      try { $cats = @($u.Categories | ForEach-Object { if ($_.Name) { $_.Name } else { "$_" } }) } catch {}
+      $sev = ""
+      try { $sev = "$($u.MsrcSeverity)" } catch {}
+      $displayName = Get-WuDisplayName $u.Title $kbStr
       $guid = ""
       try { $guid = $u.Identity.UpdateID } catch {}
       if (-not $guid) { try { $guid = $u.UpdateID } catch {} }
-      $cats = @()
-      try { $cats = @($u.Categories | ForEach-Object { if ($_.Name) { $_.Name } else { "$_" } }) } catch {}
       $supportUrl = ""
       try { $supportUrl = $u.SupportUrl } catch {}
       $revNum = 0
       try { $revNum = [int]$u.Identity.RevisionNumber } catch {}
       if (-not $revNum) { try { $revNum = [int]$u.RevisionNumber } catch {} }
-      $sev = ""
-      try { $sev = "$($u.MsrcSeverity)" } catch {}
       $result += @{
         Name             = $displayName
         CurrentVersion   = "pending"
         AvailableVersion = ""
         NeedsUpdate      = $true
-        IsSecurityUpdate = ($sev -eq "Critical" -or $sev -eq "Important")
+        IsSecurityUpdate = (Test-WuSecurity $sev $u.Title $cats)
         WUAGuid          = $guid
-        WUAKb            = ($kbs -join ", ")
+        WUAKb            = $kbStr
         WUASeverity      = $sev
         WUACategories    = $cats
         WUASupportURL    = $supportUrl
@@ -810,16 +833,16 @@ if ($comFailed) {
       Import-Module PSWindowsUpdate -ErrorAction Stop
       $wuList = Get-WUList -MicrosoftUpdate -ErrorAction Stop
       foreach ($u in $wuList) {
-        $kb = if ($u.KB) { " ($($u.KB))" } else { "" }
+        $sev = if ($u.MsrcSeverity) { "$($u.MsrcSeverity)" } else { "" }
         $result += @{
-          Name             = "$($u.Title)$kb"
+          Name             = Get-WuDisplayName $u.Title $u.KB
           CurrentVersion   = "pending"
           AvailableVersion = ""
           NeedsUpdate      = $true
-          IsSecurityUpdate = ($u.MsrcSeverity -match "Critical|Important")
+          IsSecurityUpdate = (Test-WuSecurity $sev $u.Title @())
           WUAGuid          = $u.UpdateID
           WUAKb            = $u.KB
-          WUASeverity      = if ($u.MsrcSeverity) { $u.MsrcSeverity } else { "" }
+          WUASeverity      = $sev
           WUACategories    = @()
           WUASupportURL    = ""
           WUARevisionNumber = 0
