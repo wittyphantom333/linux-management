@@ -175,15 +175,19 @@ router.get("/agent/download", async (req, res) => {
 		const fs = require("node:fs");
 		const path = require("node:path");
 
-		// Serve Go agent binary (OS-aware: linux or freebsd). When os is missing (old agents), infer from host.os_type.
+		// Serve Go agent binary (OS-aware: linux, freebsd, or windows). When os is
+		// missing (older agents don't send it), infer from host.os_type.
 		const architecture = req.query.arch || "amd64";
 		let os = req.query.os;
 		if (!os && host?.os_type) {
 			const reported = String(host.os_type).toLowerCase();
-			os =
-				reported.includes("freebsd") || reported.includes("pfsense")
-					? "freebsd"
-					: "linux";
+			if (reported.includes("windows")) {
+				os = "windows";
+			} else if (reported.includes("freebsd") || reported.includes("pfsense")) {
+				os = "freebsd";
+			} else {
+				os = "linux";
+			}
 		}
 		os = os || "linux";
 

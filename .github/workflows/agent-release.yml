@@ -64,7 +64,7 @@ jobs:
           if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
           OUTPUT_NAME="patchmon-agent-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
           go build -buildvcs=false \
-            -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ steps.version.outputs.version }}" \
+            -ldflags="-s -w -X patchmon-agent/internal/pkgversion.Version=${{ steps.version.outputs.version }} -X 'patchmon-agent/internal/pkgversion.VersionBanner=Monux Agent v${{ steps.version.outputs.version }}'" \
             -o "${OUTPUT_NAME}" ./cmd/patchmon-agent
 
       - name: Verify binary exists and is executable

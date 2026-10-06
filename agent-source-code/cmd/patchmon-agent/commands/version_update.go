@@ -409,7 +409,8 @@ func getLatestBinaryFromServer() (*ServerVersionResponse, error) {
 	credentials := cfgManager.GetCredentials()
 
 	architecture := getArchitecture()
-	url := fmt.Sprintf("%s/api/v1/hosts/agent/download?arch=%s", cfg.PatchmonServer, architecture)
+	platform := getPlatform()
+	url := fmt.Sprintf("%s/api/v1/hosts/agent/download?arch=%s&os=%s", cfg.PatchmonServer, architecture, platform)
 
 	ctx, cancel := context.WithTimeout(context.Background(), serverTimeout)
 	defer cancel()

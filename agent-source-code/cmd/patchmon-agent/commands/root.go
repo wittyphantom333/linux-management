@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 	Use:     "patchmon-agent",
 	Short:   "Monux Agent for package monitoring",
 	Version: pkgversion.Version,
-	Long: `Monux Agent v` + pkgversion.Version + `
+	Long: pkgversion.VersionBanner + `
 
 A monitoring agent that sends package information to Monux.`,
 	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
