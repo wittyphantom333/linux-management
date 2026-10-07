@@ -1,9 +1,10 @@
-// Package compliance provides compliance scanning functionality including OpenSCAP and Docker Bench
+// Package compliance provides compliance scanning functionality including OpenSCAP, Docker Bench, and Windows CIS checks
 package compliance
 
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"time"
 
 	"patchmon-agent/internal/utils"
@@ -19,6 +20,7 @@ type Integration struct {
 	logger                   *logrus.Logger
 	openscap                 *OpenSCAPScanner
 	dockerBench              *DockerBenchScanner
+	windowsCIS               *WindowsCISScanner
 	dockerIntegrationEnabled bool
 }
 
@@ -28,6 +30,7 @@ func New(logger *logrus.Logger) *Integration {
 		logger:                   logger,
 		openscap:                 NewOpenSCAPScanner(logger),
 		dockerBench:              NewDockerBenchScanner(logger),
+		windowsCIS:               NewWindowsCISScanner(logger),
 		dockerIntegrationEnabled: false,
 	}
 }
@@ -55,9 +58,10 @@ func (c *Integration) SupportsRealtime() bool {
 
 // IsAvailable checks if compliance scanning is available on this system
 func (c *Integration) IsAvailable() bool {
-	// Available if either OpenSCAP or Docker Bench is available
+	// Available if OpenSCAP, Docker Bench, or Windows CIS scanner is available
 	oscapAvail := c.openscap.IsAvailable()
 	dockerBenchAvail := c.dockerBench.IsAvailable()
+	windowsCISAvail := c.windowsCIS.IsAvailable()
 
 	if oscapAvail {
 		c.logger.Debug("OpenSCAP is available for compliance scanning")
@@ -65,8 +69,11 @@ func (c *Integration) IsAvailable() bool {
 	if dockerBenchAvail {
 		c.logger.Debug("Docker Bench is available for compliance scanning")
 	}
+	if windowsCISAvail {
+		c.logger.Debug("Windows CIS scanner is available")
+	}
 
-	return oscapAvail || dockerBenchAvail
+	return oscapAvail || dockerBenchAvail || windowsCISAvail
 }
 
 // Collect gathers compliance scan data
@@ -86,23 +93,27 @@ func (c *Integration) CollectWithOptions(ctx context.Context, options *models.Co
 	// Per-host scanner toggles: default to enabled if not specified
 	openscapScanEnabled := true
 	dockerBenchScanEnabled := true
-	if options != nil {
-		if options.OpenSCAPEnabled != nil {
-			openscapScanEnabled = *options.OpenSCAPEnabled
-		}
-		if options.DockerBenchEnabled != nil {
-			dockerBenchScanEnabled = *options.DockerBenchEnabled
-		}
+	windowsCISDisabled := false
+	if options != nil && options.ProfileID == "cis-windows" {
+		windowsCISDisabled = true // explicitly disable for other scans unless cis-windows profile
+	}
+
+	// On Windows, populate OSInfo from Windows if no Linux OS detected
+	osInfo := c.openscap.GetOSInfo()
+	if osInfo.Name == "" && runtime.GOOS == "windows" {
+		osInfo.Name = "Windows"
+		osInfo.Family = "windows"
 	}
 
 	complianceData := &models.ComplianceData{
 		Scans:  make([]models.ComplianceScan, 0),
-		OSInfo: c.openscap.GetOSInfo(),
+		OSInfo: osInfo,
 		ScannerInfo: models.ComplianceScannerInfo{
 			OpenSCAPAvailable:    c.openscap.IsAvailable(),
 			OpenSCAPVersion:      c.openscap.GetVersion(),
 			DockerBenchAvailable: dockerBenchEffectivelyAvailable,
 			AvailableProfiles:    c.openscap.GetAvailableProfiles(),
+			WINDOWS_CIS_Rules:    c.windowsCIS.GetRulesCount(),
 		},
 	}
 
@@ -112,7 +123,7 @@ func (c *Integration) CollectWithOptions(ctx context.Context, options *models.Co
 		profileID = options.ProfileID
 	}
 
-	// Check if this is a Docker Bench specific scan
+	// Check if this is a Docker Bench only scan (not OpenSCAP)
 	isDockerBenchOnly := profileID == "docker-bench"
 
 	// Run OpenSCAP scan if available, enabled via per-host toggle, and not a Docker Bench only request
@@ -188,6 +199,34 @@ func (c *Integration) CollectWithOptions(ctx context.Context, options *models.Co
 				"failed":   scan.Failed,
 				"warnings": scan.Warnings,
 			}).Info("Docker Bench scan completed")
+		}
+	}
+
+	// Run Windows CIS scanner if available (Windows-only), not disabled, and not a Docker Bench only request
+	runWindowsCIS := c.windowsCIS.IsAvailable() && !windowsCISDisabled && !isDockerBenchOnly
+	if runWindowsCIS {
+		c.logger.Info("Running Windows CIS compliance scan...")
+		scan, err := c.windowsCIS.Collect(ctx, options)
+		if err != nil {
+			c.logger.WithError(err).Warn("Windows CIS scan failed")
+			now := time.Now()
+			complianceData.Scans = append(complianceData.Scans, models.ComplianceScan{
+				ProfileName: "Windows CIS Benchmark",
+				ProfileType: "cis-windows",
+				Status:      "failed",
+				StartedAt:   startTime,
+				CompletedAt: &now,
+				Error:       err.Error(),
+			})
+		} else {
+			complianceData.Scans = append(complianceData.Scans, *scan)
+			c.logger.WithFields(logrus.Fields{
+				"profile": scan.ProfileName,
+				"score":   fmt.Sprintf("%.1f%%", scan.Score),
+				"passed":  scan.Passed,
+				"failed":  scan.Failed,
+				"rules":   c.windowsCIS.GetRulesCount(),
+			}).Info("Windows CIS scan completed")
 		}
 	}
 

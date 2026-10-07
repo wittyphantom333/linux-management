@@ -68,6 +68,7 @@ type ComplianceScannerInfo struct {
 	DockerBenchAvailable bool     `json:"docker_bench_available"`
 	OscapDockerAvailable bool     `json:"oscap_docker_available"`
 	AvailableProfiles    []string `json:"available_profiles,omitempty"`
+	WINDOWS_CIS_Rules    int      `json:"windows_cis_rules,omitempty"` // Number of embedded CIS rules on Windows
 }
 
 // CompliancePayload represents the payload sent to the compliance endpoint
