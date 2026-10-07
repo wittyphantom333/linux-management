@@ -1290,19 +1290,37 @@ router.post("/ping", validateApiCredentials, async (req, res) => {
 			}
 		}
 
-		// Update last update timestamp and set status to active
-		await prisma.hosts.update({
-			where: { id: req.hostRecord.id },
-			data: {
-				last_update: now,
-				updated_at: now,
-				status: "active",
-			},
-		});
-
 		// --- Hash-gated check-in: compare section hashes and return stale sections ---
-		const { hashes } = req.body || {};
+		const {
+			hashes,
+			osType,
+			osVersion,
+			hostname: pingHostname,
+			ip: pingIp,
+			architecture: pingArch,
+			machineId,
+		} = req.body || {};
 		const staleSections = [];
+
+		// Update system info from the ping body (hash-gated agents skip the full report endpoint)
+		const sysUpdateData = {
+			last_update: now,
+			updated_at: now,
+			status: "active",
+		};
+		if (osType) sysUpdateData.os_type = osType;
+		if (osVersion) sysUpdateData.os_version = osVersion;
+		if (pingHostname) sysUpdateData.hostname = pingHostname;
+		if (pingIp) sysUpdateData.ip = pingIp;
+		if (pingArch) sysUpdateData.architecture = pingArch;
+		if (
+			machineId &&
+			(req.hostRecord.machine_id === null ||
+				req.hostRecord.machine_id.startsWith("pending-"))
+		) {
+			sysUpdateData.machine_id = machineId;
+		}
+
 		if (hashes) {
 			if (
 				hashes.hostnameHash &&
@@ -1326,18 +1344,18 @@ router.post("/ping", validateApiCredentials, async (req, res) => {
 				staleSections.push("repos");
 			}
 			// Store new hashes for next comparison
-			await prisma.hosts.update({
-				where: { id: req.hostRecord.id },
-				data: {
-					packages_hash: hashes.packagesHash || null,
-					repos_hash: hashes.reposHash || null,
-					interfaces_hash: hashes.interfacesHash || null,
-					hostname_hash: hashes.hostnameHash || null,
-				},
-			});
+			sysUpdateData.packages_hash = hashes.packagesHash || null;
+			sysUpdateData.repos_hash = hashes.reposHash || null;
+			sysUpdateData.interfaces_hash = hashes.interfacesHash || null;
+			sysUpdateData.hostname_hash = hashes.hostnameHash || null;
 		} else {
 			staleSections.push("packages", "repos", "interfaces", "hostname");
 		}
+
+		await prisma.hosts.update({
+			where: { id: req.hostRecord.id },
+			data: sysUpdateData,
+		});
 
 		const response = {
 			message: "Ping successful",
