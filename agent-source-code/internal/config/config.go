@@ -107,14 +107,15 @@ func (m *Manager) LoadConfig() error {
 		return nil
 	}
 
-	viper.SetConfigFile(m.configFile)
-	viper.SetConfigType("yaml")
+	v := viper.New()
+	v.SetConfigFile(m.configFile)
+	v.SetConfigType("yaml")
 
-	if err := retryTransientFile(viper.ReadInConfig); err != nil {
+	if err := retryTransientFile(v.ReadInConfig); err != nil {
 		return fmt.Errorf("error reading config file: %w", err)
 	}
 
-	if err := viper.Unmarshal(m.config); err != nil {
+	if err := v.Unmarshal(m.config); err != nil {
 		return fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
