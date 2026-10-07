@@ -3,7 +3,7 @@ package pkgversion
 
 // Version represents the current version of the patchmon-agent.
 // This is a var (not const) so that -ldflags "-X ..." can override it at build time.
-var Version = "1.6.7"
+var Version = "1.6.8"
 
 // VersionBanner is a single contiguous literal ("Monux Agent v1.6.3").
 //
@@ -15,4 +15,4 @@ var Version = "1.6.7"
 // regex cannot match — leaving Windows auto-update permanently broken.
 //
 // Keep in sync with Version; both are overridden via -ldflags at release time.
-var VersionBanner = "Monux Agent v1.6.7"
+var VersionBanner = "Monux Agent v1.6.8"
