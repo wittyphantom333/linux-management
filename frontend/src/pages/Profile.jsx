@@ -16,6 +16,7 @@ import {
 	Moon,
 	RefreshCw,
 	Save,
+	Server,
 	Shield,
 	Smartphone,
 	Sun,
