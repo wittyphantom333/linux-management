@@ -149,11 +149,10 @@ const crypto = require("node:crypto");
 
 class AgentVersionService {
 	constructor() {
-		this.githubApiUrl =
-			"https://api.github.com/repos/wittyphantom333/linux-management/releases";
-		this.githubLatestUrl =
-			"https://api.github.com/repos/wittyphantom333/linux-management/releases/latest";
 		this.agentsDir = path.resolve(__dirname, "../../../agents");
+		this._repoApiUrlCache = null;
+		this._repoOwner = "wittyphantom333";
+		this._repoName = "linux-management";
 		this.supportedArchitectures = [
 			"linux-amd64",
 			"linux-arm64",
@@ -168,6 +167,55 @@ class AgentVersionService {
 		this.latestVersion = null;
 		this.lastChecked = null;
 		this.checkInterval = 30 * 60 * 1000; // 30 minutes
+	}
+
+	async _refreshRepoInfo() {
+		try {
+			const prisma = require("../config/prisma").getPrismaClient();
+			const settings = await prisma.settings.findFirst({
+				orderBy: [{ updated_at: "desc" }, { id: "desc" }],
+			});
+			if (settings?.github_repo_url) {
+				const raw = settings.github_repo_url.replace(/\/+$/, "");
+				if (raw.startsWith("http")) {
+					const url = new URL(raw);
+					const parts = url.pathname.split("/").filter(Boolean);
+					if (parts.length >= 2) {
+						this._repoOwner = parts[0];
+						this._repoName = parts[1];
+					}
+				} else {
+					const parts = raw.split("/");
+					if (parts.length >= 2) {
+						this._repoOwner = parts[0];
+						this._repoName = parts[1];
+					}
+				}
+			}
+		} catch (_e) {}
+	}
+
+	async _getRepoApiUrl() {
+		const base = `https://api.github.com/repos/${this._repoOwner}/${this._repoName}`;
+		if (!this._repoApiUrlCache || this._repoApiUrlCache !== base) {
+			this._repoApiUrlCache = base;
+		}
+		return base;
+	}
+
+	async _getReleasesUrl() {
+		const base = await this._getRepoApiUrl();
+		return `${base}/releases`;
+	}
+
+	async _getLatestReleaseUrl() {
+		const base = await this._getRepoApiUrl();
+		return `${base}/releases/latest`;
+	}
+
+	async _getHtmlBaseUrl() {
+		const apiBase = await this._getRepoApiUrl();
+		return apiBase.replace("https://api.github.com/repos/", "https://github.com/");
 	}
 
 	/**
@@ -410,7 +458,8 @@ class AgentVersionService {
 
 	async checkLatestVersionFromGitHub() {
 		try {
-			const response = await axios.get(this.githubLatestUrl, {
+			const url = await this._getLatestReleaseUrl();
+			const response = await axios.get(url, {
 				timeout: 15000,
 				headers: this._githubHeaders(),
 			});
@@ -667,7 +716,7 @@ class AgentVersionService {
 			);
 
 			// Get the release info from GitHub
-			const response = await axios.get(this.githubApiUrl, {
+			const response = await axios.get(await this._getRepoApiUrl(), {
 				timeout: 10000,
 				headers: this._githubHeaders(),
 			});
@@ -863,10 +912,10 @@ class AgentVersionService {
 	async downloadVersion(version, progressCallback = null) {
 		try {
 			logger.info(`⬇️ Downloading agent version ${version}...`);
-			logger.info(`🌐 GitHub API URL: ${this.githubApiUrl}`);
+			logger.info(`🌐 GitHub API URL: ${await this._getRepoApiUrl()}`);
 
 			// Get the release info from GitHub
-			const response = await axios.get(this.githubApiUrl, {
+			const response = await axios.get(await this._getRepoApiUrl(), {
 				timeout: 10000,
 				headers: this._githubHeaders(),
 			});
@@ -939,7 +988,7 @@ class AgentVersionService {
 					`⚠️ Release object doesn't have assets, fetching individual release...`,
 				);
 				const individualReleaseResponse = await axios.get(
-					`https://api.github.com/repos/wittyphantom333/linux-management/releases/tags/${release.tag_name}`,
+					`${(await this._getHtmlBaseUrl())}/releases/tags/${release.tag_name}`,
 					{
 						timeout: 10000,
 						headers: this._githubHeaders(),
@@ -1024,9 +1073,9 @@ class AgentVersionService {
 
 	async getAvailableVersions() {
 		try {
-			logger.info(`🌐 Fetching releases from GitHub: ${this.githubApiUrl}`);
+			logger.info(`🌐 Fetching releases from GitHub: ${await this._getRepoApiUrl()}`);
 			// Fetch all releases from GitHub
-			const response = await axios.get(this.githubApiUrl, {
+			const response = await axios.get(await this._getRepoApiUrl(), {
 				timeout: 10000,
 				headers: this._githubHeaders(),
 			});
@@ -1077,7 +1126,7 @@ class AgentVersionService {
 						published_at: null,
 						prerelease: false,
 						draft: false,
-						html_url: `https://github.com/wittyphantom333/linux-management/releases/tag/v${this.latestVersion}`,
+						html_url: `${(await this._getHtmlBaseUrl())}/releases/tag/v${this.latestVersion}`,
 					},
 				];
 			}

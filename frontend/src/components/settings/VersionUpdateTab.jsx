@@ -19,6 +19,27 @@ const VersionUpdateTab = () => {
 		queryFn: () => settingsAPI.get().then((res) => res.data),
 	});
 
+	// GitHub repo URL editing state
+	const [githubRepoUrl, setGithubRepoUrl] = useState("");
+	const [savingRepoUrl, setSavingRepoUrl] = useState(false);
+
+	useEffect(() => {
+		if (settings?.github_repo_url) {
+			setGithubRepoUrl(settings.github_repo_url);
+		}
+	}, [settings]);
+
+	const saveGithubRepoUrl = async () => {
+		setSavingRepoUrl(true);
+		try {
+			await settingsAPI.update({ github_repo_url: githubRepoUrl });
+		} catch (e) {
+			console.error("Failed to save github repo URL:", e);
+		} finally {
+			setSavingRepoUrl(false);
+		}
+	};
+
 	// Update settings mutation
 	const updateSettingsMutation = useMutation({
 		mutationFn: (data) => {
@@ -280,6 +301,36 @@ const VersionUpdateTab = () => {
 						</p>
 					</div>
 				)}
+
+				{/* GitHub Repo URL Configuration */}
+				<div className="mt-6 bg-white dark:bg-secondary-800 rounded-lg p-4 border border-secondary-200 dark:border-secondary-600">
+					<h3 className="text-sm font-medium text-secondary-700 dark:text-secondary-300 mb-2">
+						GitHub Repository URL
+					</h3>
+					<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-3">
+						The GitHub repo used for version checks and agent downloads. Enter any valid format: "owner/repo", full URL, or API URL.
+					</p>
+					<div className="flex gap-2 items-start">
+						<input
+							type="text"
+							value={githubRepoUrl}
+							onChange={(e) => setGithubRepoUrl(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") saveGithubRepoUrl();
+							}}
+							placeholder="https://github.com/owner/repo"
+							className="flex-1 px-3 py-2 border border-secondary-300 dark:border-secondary-600 rounded-md bg-white dark:bg-secondary-700 text-sm text-secondary-900 dark:text-white placeholder-secondary-400 font-mono"
+						/>
+						<button
+							type="button"
+							onClick={saveGithubRepoUrl}
+							disabled={savingRepoUrl || !githubRepoUrl.trim()}
+							className="px-3 py-2 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-md transition-colors whitespace-nowrap"
+						>
+							{savingRepoUrl ? "Saving…" : "Save"}
+						</button>
+					</div>
+				</div>
 
 				<div className="flex items-center justify-start mt-6">
 					<button
