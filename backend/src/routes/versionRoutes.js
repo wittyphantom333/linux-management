@@ -49,10 +49,11 @@ router.get("/latest", async (_req, res) => {
 		// Return cached version from settings as fallback
 		const settings = await prisma.settings.findFirst();
 		if (settings?.latest_version) {
+			const base = await getRepoBaseUrl();
 			res.json({
 				version: settings.latest_version,
 				tagName: `v${settings.latest_version}`,
-				htmlUrl: `https://github.com/wittyphantom333/linux-management/releases/tag/v${settings.latest_version}`,
+				htmlUrl: `${base}/releases/tag/v${settings.latest_version}`,
 			});
 		} else {
 			res.status(500).json({ error: "Failed to get latest version" });
@@ -60,15 +61,45 @@ router.get("/latest", async (_req, res) => {
 	}
 });
 
+// Derive the GitHub repo base URL from the configured settings
+// (github_repo_url), falling back to the default public repo.
+async function getRepoBaseUrl() {
+	const fallback = "https://github.com/wittyphantom333/linux-management";
+	try {
+		const settings = await prisma.settings.findFirst();
+		const raw = (settings?.github_repo_url || "")
+			.replace(/\.git$/i, "")
+			.replace(/\/+$/, "")
+			.trim();
+		if (raw) {
+			let parts = [];
+			if (raw.startsWith("http")) {
+				try {
+					parts = new URL(raw).pathname.split("/").filter(Boolean);
+				} catch (_e) {
+					return fallback;
+				}
+			} else {
+				parts = raw.split("/");
+			}
+			if (parts.length >= 2) {
+				return `https://github.com/${parts[0]}/${parts[1]}`;
+			}
+		}
+	} catch (_e) {}
+	return fallback;
+}
+
 // Helper function to get latest release from DNS
 async function getLatestRelease() {
 	try {
 		const version = await checkVersionFromDNS(SERVER_VERSION_DNS);
+		const base = await getRepoBaseUrl();
 		return {
 			tagName: `v${version}`,
 			version: version,
 			publishedAt: null, // DNS doesn't provide publish date
-			htmlUrl: `https://github.com/wittyphantom333/linux-management/releases/tag/v${version}`,
+			htmlUrl: `${base}/releases/tag/v${version}`,
 		};
 	} catch (error) {
 		logger.error("Error fetching latest release from DNS:", error.message);
@@ -263,11 +294,12 @@ router.get(
 
 				// Fall back to cached data
 				if (settings.latest_version) {
+					const base = await getRepoBaseUrl();
 					latestRelease = {
 						version: settings.latest_version,
 						tagName: `v${settings.latest_version}`,
 						publishedAt: null,
-						htmlUrl: `https://github.com/wittyphantom333/linux-management/releases/tag/v${settings.latest_version}`,
+						htmlUrl: `${base}/releases/tag/v${settings.latest_version}`,
 					};
 				}
 			}
