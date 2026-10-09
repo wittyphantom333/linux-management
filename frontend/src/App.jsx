@@ -87,6 +87,7 @@ const SettingsMetrics = lazy(() => import("./pages/settings/SettingsMetrics"));
 const SettingsDebug = lazy(() => import("./pages/settings/SettingsDebug"));
 const AiSettings = lazy(() => import("./pages/settings/AiSettings"));
 const DiscordSettings = lazy(() => import("./pages/settings/DiscordSettings"));
+const AdminApiKeys = lazy(() => import("./pages/settings/AdminApiKeys"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 
 // Loading fallback component
@@ -663,6 +664,16 @@ function AppRoutes() {
 						<ProtectedRoute requirePermission="can_manage_settings">
 							<Layout>
 								<SettingsDebug />
+							</Layout>
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path="/admin/api-keys"
+					element={
+						<ProtectedRoute requirePermission="can_manage_settings">
+							<Layout>
+								<AdminApiKeys />
 							</Layout>
 						</ProtectedRoute>
 					}

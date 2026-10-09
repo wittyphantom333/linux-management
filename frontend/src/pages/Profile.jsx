@@ -26,6 +26,8 @@ import {
 
 import { useEffect, useId, useState } from "react";
 import DiscordIcon from "../components/DiscordIcon";
+import ApiKeysTab from "./settings/ApiKeysTab";
+import McpInfoTab from "./settings/McpInfoTab";
 import { useAuth } from "../contexts/AuthContext";
 import { THEME_PRESETS, useColorTheme } from "../contexts/ColorThemeContext";
 import { useTheme } from "../contexts/ThemeContext";
@@ -205,9 +207,11 @@ const Profile = () => {
 		{ id: "password", name: "Change Password", icon: Key },
 		...(isOIDCUser
 			? []
-			: [{ id: "tfa", name: "Multi-Factor Authentication", icon: Smartphone }]), // Hide TFA tab for OIDC users
+			: [{ id: "tfa", name: "Multi-Factor Authentication", icon: Smartphone }]),
 		{ id: "sessions", name: "Active Sessions", icon: Monitor },
 		{ id: "connections", name: "Connected Accounts", icon: Link2 },
+		{ id: "api-keys", name: "API Keys", icon: Key },
+		{ id: "mcp", name: "MCP Server", icon: Server },
 	];
 
 	return (
@@ -894,6 +898,10 @@ const Profile = () => {
 							)}
 						</div>
 					)}
+
+					{activeTab === "api-keys" && <ApiKeysTab />}
+
+					{activeTab === "mcp" && <McpInfoTab />}
 				</div>
 			</div>
 		</div>
