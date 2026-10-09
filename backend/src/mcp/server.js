@@ -14,7 +14,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 // ── Config ───────────────────────────────────────
-const BASE_URL = process.env.PATCHMON_URL || "https://updates.zedhosting.gg";
+// Default to localhost on the correct port; override with PATCHMON_URL
+const BASE_URL = process.env.PATCHMON_URL || "http://localhost:3000";
+
+// Allow self-signed certs for local dev (TLS verification off when URL is localhost)
+if (BASE_URL.startsWith("http://localhost") || BASE_URL.startsWith("http://127.0.0.1")) {
+	process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 const API_KEY = process.env.PATCHMON_API_KEY;
 
 if (!API_KEY) {
