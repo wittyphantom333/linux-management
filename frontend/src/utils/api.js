@@ -493,6 +493,19 @@ export const alertsAPI = {
 	testUnsavedChannel: (data) => api.post("/alerts/channels/test", data),
 };
 
+// API Keys API
+export const apiKeysAPI = {
+	list: () => api.get("/api-keys"),
+	create: (name) => api.post("/api-keys/create", { name }),
+	createAdmin: (username, email, name) =>
+		api.post("/api-keys/create-admin", { username, email, name }),
+	revoke: (id) => api.post(`/api-keys/revoke/${id}`),
+	validate: (key) =>
+		api.get("/api-keys/validate", {
+			headers: { Authorization: `Bearer ${key}` },
+		}),
+};
+
 export const agentLogsAPI = {
 	getLogs: (hostId, params = {}) =>
 		api.get(`/agent-logs/${hostId}`, { params }),

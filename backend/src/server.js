@@ -108,6 +108,7 @@ const { initializeOIDC } = require("./auth/oidc");
 const aiRoutes = require("./routes/aiRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const agentLogsRoutes = require("./routes/agentLogsRoutes");
+const apiKeysRoutes = require("./routes/apiKeysRoutes");
 const { initSettings } = require("./services/settingsService");
 const { queueManager } = require("./services/automation");
 const {
