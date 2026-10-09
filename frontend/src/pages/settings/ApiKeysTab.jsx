@@ -13,23 +13,26 @@ import { apiKeysAPI } from "../../utils/api";
 
 const ApiKeysTab = () => {
 	const queryClient = useQueryClient();
-	const [showCreate, setShowCreate] = useState(false);
-	const [name, setName] = useState("");
 	const [createdKey, setCreatedKey] = useState(null);
+	const [createError, setCreateError] = useState(null);
 	const [copiedId, setCopiedId] = useState(null);
 
-	const { data: keys, isLoading } = useQuery({
+	const { data: keys = [], isLoading } = useQuery({
 		queryKey: ["api-keys"],
 		queryFn: () => apiKeysAPI.list().then((r) => r.data),
 	});
 
 	const createMutation = useMutation({
-		mutationFn: (name) => apiKeysAPI.create(name).then((r) => r.data),
+		mutationFn: () => apiKeysAPI.create("API").then((r) => r.data),
 		onSuccess: (data) => {
 			queryClient.invalidateQueries(["api-keys"]);
-			setCreatedKey(data.key);
-			setName("");
-			setShowCreate(false);
+			setCreatedKey(data.apiKey || data.key || "");
+			setCreateError(null);
+		},
+		onError: (err) => {
+			setCreateError(
+				err?.response?.data?.error || err.message || "Failed to create key",
+			);
 		},
 	});
 
@@ -62,12 +65,22 @@ const ApiKeysTab = () => {
 			{/* Create button */}
 			<button
 				type="button"
-				onClick={() => setShowCreate(true)}
-				className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
+				onClick={() => createMutation.mutate()}
+				disabled={createMutation.isPending}
+				className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-md text-sm font-medium transition-colors"
 			>
 				<Plus className="h-4 w-4" />
-				Create API Key
+				{createMutation.isPending ? "Creating…" : "Create API Key"}
 			</button>
+
+			{createError && (
+				<div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-md p-3 flex items-center gap-2">
+					<AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+					<p className="text-sm text-red-800 dark:text-red-200">
+						{createError}
+					</p>
+				</div>
+			)}
 
 			{/* Created key banner */}
 			{createdKey && (
@@ -117,7 +130,7 @@ const ApiKeysTab = () => {
 						Active Keys
 					</h4>
 					{keys
-						.filter((k) => k.is_active !== false)
+						.filter((k) => k.isActive !== false)
 						.map((key) => (
 							<div
 								key={key.id}
@@ -130,7 +143,7 @@ const ApiKeysTab = () => {
 										</p>
 										<div className="flex items-center gap-2 mt-1">
 											<span className="font-mono text-xs text-secondary-500 dark:text-secondary-400 truncate max-w-[280px]">
-												{key.masked_key || key.key}
+												{key.maskedKey || key.masked_key || key.key}
 											</span>
 											<button
 												type="button"
@@ -144,9 +157,12 @@ const ApiKeysTab = () => {
 												)}
 											</button>
 										</div>
-										{key.last_used_at && (
+										{(key.lastUsedAt || key.last_used_at) && (
 											<p className="text-xs text-secondary-400 dark:text-secondary-500 mt-1">
-												Last used: {new Date(key.last_used_at).toLocaleString()}
+												Last used:{" "}
+												{new Date(
+													key.lastUsedAt || key.last_used_at,
+												).toLocaleString()}
 											</p>
 										)}
 									</div>
