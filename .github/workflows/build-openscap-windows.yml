@@ -1,0 +1,122 @@
+name: Build OpenSCAP (Windows)
+
+# Standalone build of the OpenSCAP scanner for Windows (amd64).
+# OpenSCAP does not ship a Windows binary, so we build it from source with
+# MSYS2/MinGW + CMake. This workflow is intentionally separate from the agent
+# release so we can verify the build works before wiring it into the release
+# pipeline (see agent-auto-release.yml / agent-release.yml).
+#
+# Trigger manually from the Actions tab; it also runs on the same version-bump
+# push as the agent release.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, development]
+    paths:
+      - 'agent-source-code/internal/pkgversion/version.go'
+
+permissions:
+  contents: read
+
+env:
+  OPENSCAP_VERSION: "1.4.4"
+
+jobs:
+  build-openscap:
+    name: Build OpenSCAP (Windows amd64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Set up MSYS2 (MinGW64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          # Build tools + C toolchain + OpenSCAP dependencies (MinGW side).
+          # xmlsec pulls in gnutls / libgcrypt / nss / openssl automatically.
+          install: >-
+            git
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pcre2
+            mingw-w64-x86_64-libxml2
+            mingw-w64-x86_64-libxslt
+            mingw-w64-x86_64-xmlsec
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-popt
+
+      - name: Build OpenSCAP from source
+        shell: msys2 {0}
+        run: |
+          set -e
+          echo "Building OpenSCAP ${OPENSCAP_VERSION} for Windows (x86_64)..."
+
+          git clone --depth 1 --branch "${OPENSCAP_VERSION}" \
+            https://github.com/OpenSCAP/openscap.git openscap
+          cd openscap
+
+          cmake -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/mingw64 \
+            -DENABLE_TESTS=OFF \
+            -DENABLE_DOCS=OFF \
+            -DENABLE_PYTHON3=OFF \
+            -DENABLE_PERL=OFF \
+            -DENABLE_OSCAP_UTIL_DOCKER=OFF \
+            -DENABLE_OSCAP_UTIL_PODMAN=OFF \
+            -DENABLE_OSCAP_UTIL_VM=OFF \
+            -DENABLE_OSCAP_UTIL_AS_RPM=OFF \
+            -DENABLE_OSCAP_UTIL_SSH=OFF \
+            -DENABLE_OSCAP_UTIL_IM=OFF \
+            -DENABLE_OSCAP_UTIL_CHROOT=OFF \
+            -DENABLE_OSCAP_UTIL_AUTOTAILOR=OFF \
+            -DENABLE_OSCAP_REMEDIATE_SERVICE=OFF \
+            -DWANT_XBASE64=OFF \
+            -B build
+
+          cmake --build build -j"$(nproc)"
+          cmake --install build
+
+          echo "=== Installed binaries ==="
+          ls -la /mingw64/bin/oscap* || true
+          /mingw64/bin/oscap.exe --version || true
+
+      - name: Collect oscap.exe and runtime DLLs
+        shell: msys2 {0}
+        run: |
+          set -e
+          PKG_DIR="/c/openscap-pkg"
+          rm -rf "${PKG_DIR}"
+          mkdir -p "${PKG_DIR}"
+
+          cp /mingw64/bin/oscap.exe "${PKG_DIR}/"
+
+          # Resolve the real runtime DLLs with ldd and copy each one.
+          # This is far more reliable than hardcoding a list.
+          ldd /mingw64/bin/oscap.exe | awk '{for(i=1;i<=NF;i++){if($i ~ /\.dll$/){print $i}}}' | sort -u > /tmp/dlls.txt
+          while read -r dll; do
+            [ -f "/mingw64/bin/${dll}" ] && cp "/mingw64/bin/${dll}" "${PKG_DIR}/" || echo "WARN: missing ${dll}"
+          done < /tmp/dlls.txt
+
+          echo "=== Package contents ==="
+          ls -la "${PKG_DIR}/"
+
+      - name: Zip the package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $src = "C:\openscap-pkg"
+          $out = "openscap-windows-amd64.zip"
+          if (Test-Path $out) { Remove-Item $out }
+          Compress-Archive -Path (Join-Path $src "*") -DestinationPath $out
+          Write-Host "Created $out"
+          Get-Item $out | Format-List Name, Length
+
+      - name: Upload OpenSCAP package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openscap-windows-amd64
+          path: openscap-windows-amd64.zip
+          retention-days: 7

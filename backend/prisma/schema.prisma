@@ -339,6 +339,36 @@ model users {
   @@index([last_login])
 }
 
+model user_api_keys {
+  id         String   @id @default(uuid())
+  user_id    String
+  name       String   // human-readable label like "laptop" or "CI/CD"
+  key_hash   String   // bcrypt hash of the actual API key (never stored plaintext)
+  masked_key String   // e.g. "pk_••••8f29a1c3" shown in UI
+  last_used_at DateTime?
+  created_at DateTime @default(now())
+  is_active  Boolean  @default(true)
+
+  @@index([user_id])
+  @@index([masked_key])
+}
+
+
+model admin_api_keys {
+  id         String   @id @default(uuid())
+  username   String   // the admin/user this key belongs to (from users table for lookup)
+  email      String   // denormalized from users for easier display
+  key_hash   String   // bcrypt hash of the actual API key
+  masked_key String   // e.g. "pk_••••8f29a1c3" shown in UI
+  last_used_at DateTime?
+  created_at DateTime @default(now())
+  is_active  Boolean  @default(true)
+
+  @@index([username])
+  @@index([masked_key])
+}
+
+
 model user_sessions {
   id                 String    @id
   user_id            String
