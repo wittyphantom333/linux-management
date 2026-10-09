@@ -17,7 +17,6 @@
 
 const https = require("node:https");
 const http = require("node:http");
-const { execSync } = require("node:child_process");
 
 // ── Args ─────────────────────────────────────
 function arg(name) {
@@ -269,7 +268,9 @@ async function diagnoseHost(host) {
 	// Print issues
 	if (issues.length > 0) {
 		console.log(`\n  📝 Issues (${issues.length}):`);
-		issues.forEach((i) => console.log(`     • ${i}`));
+		issues.forEach((i) => {
+			console.log(`     • ${i}`);
+		});
 	}
 
 	host.issues = issues;

@@ -6,8 +6,9 @@ import {
 	Code,
 	Download,
 	ExternalLink,
+	RefreshCw,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { settingsAPI, versionAPI } from "../../utils/api";
 
 const VersionUpdateTab = () => {
@@ -62,6 +63,83 @@ const VersionUpdateTab = () => {
 			setSavingRepoUrl(false);
 		}
 	};
+
+	// Apply-update state
+	const [applyState, setApplyState] = useState({
+		active: false,
+		jobId: null,
+		status: null, // running | success | failed
+		currentStep: null,
+		log: "",
+		error: null,
+	});
+	const pollRef = useRef(null);
+
+	const stopPolling = useCallback(() => {
+		if (pollRef.current) {
+			clearInterval(pollRef.current);
+			pollRef.current = null;
+		}
+	}, []);
+
+	useEffect(() => {
+		return () => stopPolling();
+	}, [stopPolling]);
+
+	const pollJob = useCallback(
+		(jobId) => {
+			pollRef.current = setInterval(async () => {
+				try {
+					const res = await versionAPI.getApplyUpdateStatus(jobId);
+					const job = res.data;
+					setApplyState({
+						active: true,
+						jobId,
+						status: job.status,
+						currentStep: job.currentStep,
+						log: job.log,
+						error: job.error,
+					});
+					if (job.status === "success" || job.status === "failed") {
+						stopPolling();
+						// Refresh settings + version after the deploy settles.
+						queryClient.invalidateQueries(["settings"]);
+					}
+				} catch (err) {
+					console.error("Failed to poll apply-update job:", err);
+				}
+			}, 2000);
+		},
+		[stopPolling, queryClient],
+	);
+
+	const startApplyUpdate = useCallback(async () => {
+		const confirmed = window.confirm(
+			"Apply the latest update now?\n\nThis pulls the latest code, rebuilds the frontend, and restarts the service. The UI will be briefly unavailable during the restart.",
+		);
+		if (!confirmed) return;
+		setApplyState({
+			active: true,
+			jobId: null,
+			status: "running",
+			currentStep: "Starting…",
+			log: "",
+			error: null,
+		});
+		try {
+			const res = await versionAPI.applyUpdate();
+			const jobId = res.data.jobId;
+			setApplyState((prev) => ({ ...prev, jobId }));
+			pollJob(jobId);
+		} catch (err) {
+			setApplyState((prev) => ({
+				...prev,
+				status: "failed",
+				currentStep: null,
+				error: err.response?.data?.error || "Failed to start update",
+			}));
+		}
+	}, [pollJob]);
 
 	// Update settings mutation
 	const updateSettingsMutation = useMutation({
@@ -359,17 +437,57 @@ const VersionUpdateTab = () => {
 					</div>
 				</div>
 
-				<div className="flex items-center justify-start mt-6">
+				<div className="flex items-center gap-3 mt-6">
 					<button
 						type="button"
 						onClick={checkForUpdates}
-						disabled={versionInfo.checking}
+						disabled={versionInfo.checking || applyState.active}
 						className="btn-primary flex items-center gap-2"
 					>
 						<Download className="h-4 w-4" />
 						{versionInfo.checking ? "Checking..." : "Check for Updates"}
 					</button>
+					<button
+						type="button"
+						onClick={startApplyUpdate}
+						disabled={applyState.active}
+						className="btn-primary flex items-center gap-2 bg-green-600 hover:bg-green-700"
+					>
+						<CheckCircle className="h-4 w-4" />
+						{applyState.active ? "Updating…" : "Apply Update"}
+					</button>
 				</div>
+
+				{applyState.active && (
+					<div className="mt-4 bg-white dark:bg-secondary-800 rounded-lg p-4 border border-secondary-200 dark:border-secondary-600">
+						<div className="flex items-center gap-2 mb-2">
+							{applyState.status === "success" ? (
+								<CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+							) : applyState.status === "failed" ? (
+								<AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+							) : (
+								<RefreshCw className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-spin" />
+							)}
+							<span className="text-sm font-medium text-secondary-700 dark:text-secondary-300">
+								{applyState.status === "success"
+									? "Update applied successfully"
+									: applyState.status === "failed"
+										? "Update failed"
+										: `Applying update — ${applyState.currentStep || "starting"}`}
+							</span>
+						</div>
+						{applyState.log && (
+							<pre className="mt-2 text-xs font-mono whitespace-pre-wrap break-words text-secondary-600 dark:text-secondary-400 max-h-48 overflow-y-auto bg-secondary-50 dark:bg-secondary-700 rounded p-3">
+								{applyState.log}
+							</pre>
+						)}
+						{applyState.error && (
+							<p className="mt-2 text-sm text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">
+								{applyState.error}
+							</p>
+						)}
+					</div>
+				)}
 
 				{versionInfo.error && (
 					<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mt-4">

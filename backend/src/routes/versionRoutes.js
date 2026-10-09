@@ -6,6 +6,7 @@ const { authenticateToken } = require("../middleware/auth");
 const { requireManageSettings } = require("../middleware/permissions");
 const { getPrismaClient } = require("../config/prisma");
 const agentVersionService = require("../services/agentVersionService");
+const serverUpdateService = require("../services/serverUpdateService");
 
 const prisma = getPrismaClient();
 
@@ -310,6 +311,38 @@ router.get(
 			logger.error("Error getting update information:", error);
 			res.status(500).json({ error: "Failed to get update information" });
 		}
+	},
+);
+
+// Apply a server self-update: pull latest from the configured branch,
+// install deps, build the frontend, and restart the service.
+// Kicks off an async job immediately; the UI polls the status route below.
+router.post(
+	"/apply-update",
+	authenticateToken,
+	requireManageSettings,
+	async (_req, res) => {
+		try {
+			const jobId = serverUpdateService.applyUpdate();
+			res.json({ jobId, status: "running" });
+		} catch (error) {
+			logger.error("Error starting apply-update:", error);
+			res.status(500).json({ error: "Failed to start update" });
+		}
+	},
+);
+
+// Poll the status of a running (or finished) self-update job.
+router.get(
+	"/apply-update/:jobId",
+	authenticateToken,
+	requireManageSettings,
+	async (req, res) => {
+		const job = serverUpdateService.getJobStatus(req.params.jobId);
+		if (!job) {
+			return res.status(404).json({ error: "Job not found" });
+		}
+		res.json(job);
 	},
 );
 
