@@ -32,7 +32,7 @@ const VersionUpdateTab = () => {
 	const saveGithubRepoUrl = async () => {
 		setSavingRepoUrl(true);
 		try {
-			await settingsAPI.update({ github_repo_url: githubRepoUrl });
+			await settingsAPI.update({ githubRepoUrl: githubRepoUrl });
 		} catch (e) {
 			console.error("Failed to save github repo URL:", e);
 		} finally {
