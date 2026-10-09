@@ -231,7 +231,10 @@ class AgentVersionService {
 
 	async _getHtmlBaseUrl() {
 		const apiBase = await this._getRepoApiUrl();
-		return apiBase.replace("https://api.github.com/repos/", "https://github.com/");
+		return apiBase.replace(
+			"https://api.github.com/repos/",
+			"https://github.com/",
+		);
 	}
 
 	/**
@@ -470,6 +473,30 @@ class AgentVersionService {
 			logger.error("❌ Failed to get current agent version:", error.message);
 			this.currentVersion = null;
 		}
+	}
+
+	/**
+	 * Fetch the latest release info (version, tag, htmlUrl) from the configured
+	 * GitHub repo. Used by both the agent version flows and the server
+	 * version-check endpoints (single source of truth — no DNS).
+	 */
+	async getLatestReleaseInfo() {
+		const response = await axios.get(await this._getLatestReleaseUrl(), {
+			timeout: 15000,
+			headers: this._githubHeaders(),
+		});
+		const tagName = response.data?.tag_name;
+		if (!tagName) {
+			throw new Error("No tag_name in latest release response");
+		}
+		const version = tagName.replace(/^v/i, "").trim();
+		const base = await this._getHtmlBaseUrl();
+		return {
+			version,
+			tagName,
+			htmlUrl: `${base}/releases/tag/${tagName}`,
+			publishedAt: response.data?.published_at || null,
+		};
 	}
 
 	async checkLatestVersionFromGitHub() {
@@ -1004,7 +1031,7 @@ class AgentVersionService {
 					`⚠️ Release object doesn't have assets, fetching individual release...`,
 				);
 				const individualReleaseResponse = await axios.get(
-					`${(await this._getHtmlBaseUrl())}/releases/tags/${release.tag_name}`,
+					`${await this._getHtmlBaseUrl()}/releases/tags/${release.tag_name}`,
 					{
 						timeout: 10000,
 						headers: this._githubHeaders(),
@@ -1089,7 +1116,9 @@ class AgentVersionService {
 
 	async getAvailableVersions() {
 		try {
-			logger.info(`🌐 Fetching releases from GitHub: ${await this._getRepoApiUrl()}`);
+			logger.info(
+				`🌐 Fetching releases from GitHub: ${await this._getRepoApiUrl()}`,
+			);
 			// Fetch all releases from GitHub
 			const response = await axios.get(await this._getRepoApiUrl(), {
 				timeout: 10000,
@@ -1142,7 +1171,7 @@ class AgentVersionService {
 						published_at: null,
 						prerelease: false,
 						draft: false,
-						html_url: `${(await this._getHtmlBaseUrl())}/releases/tag/v${this.latestVersion}`,
+						html_url: `${await this._getHtmlBaseUrl()}/releases/tag/v${this.latestVersion}`,
 					},
 				];
 			}

@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { prisma } = require("./shared/prisma");
 const logger = require("../../utils/logger");
-const { compareVersions, checkVersionFromDNS } = require("./shared/utils");
+const { compareVersions } = require("./shared/utils");
 const { invalidateCache } = require("../settingsService");
 const alertService = require("../alertService");
 const alertConfigService = require("../alertConfigService");
@@ -170,13 +170,12 @@ class VersionUpdateCheck {
 			let serverUpdateAvailable = false;
 
 			try {
-				// Check server version from DNS TXT record
-				serverLatestVersion = await checkVersionFromDNS(
-					"server.vcheck.patchmon.net",
-				);
+				// Check latest release from the configured GitHub repo
+				serverLatestVersion = (await agentVersionService.getLatestReleaseInfo())
+					.version;
 
 				if (!serverLatestVersion) {
-					logger.warn("⚠️ Could not determine latest server version from DNS");
+					logger.warn("⚠️ Could not determine latest release from GitHub");
 				} else {
 					// Read version from package.json (using fs to avoid require cache)
 					try {

@@ -18,21 +18,30 @@ import { z } from "zod";
 const BASE_URL = process.env.PATCHMON_URL || "http://localhost:3000";
 
 // Allow self-signed certs for local dev (TLS verification off when URL is localhost)
-if (BASE_URL.startsWith("http://localhost") || BASE_URL.startsWith("http://127.0.0.1")) {
+if (
+	BASE_URL.startsWith("http://localhost") ||
+	BASE_URL.startsWith("http://127.0.0.1")
+) {
 	process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 const API_KEY = process.env.PATCHMON_API_KEY;
 
 if (!API_KEY) {
 	console.error("PATCHMON MCP: missing PATCHMON_API_KEY environment variable");
-	console.error("  Get one from: https://updates.zedhosting.gg/settings/profile → API Keys");
-	console.error(`  Or set: export PATCHMON_URL=http://localhost:3001 PATCHMON_API_KEY=pmk_your_key`);
+	console.error(
+		"  Get one from: https://updates.zedhosting.gg/settings/profile → API Keys",
+	);
+	console.error(
+		`  Or set: export PATCHMON_URL=http://localhost:3001 PATCHMON_API_KEY=pmk_your_key`,
+	);
 	process.exit(1);
 }
 
 // Warn if URL is still the default placeholder
 if (BASE_URL === "https://updates.zedhosting.gg") {
-	console.error("PATCHMON MCP WARNING: using default URL — set PATCHMON_URL to your server");
+	console.error(
+		"PATCHMON MCP WARNING: using default URL — set PATCHMON_URL to your server",
+	);
 	console.error(`  Example: export PATCHMON_URL=http://localhost:3001`);
 }
 
@@ -395,22 +404,31 @@ const tools = [
 			"Show the Vivus MCP config snippet needed to wire this server up. Copies a ready-to-paste JSON block with PATCHMON_URL and PATCHMON_API_KEY pre-filled — paste it into your Vivus MCP config file.",
 		args: {},
 		async handler() {
-			const keyPrefix = API_KEY ? `${API_KEY.substring(0, 8)}...${API_KEY.slice(-4)}` : "(unset)";
-			const snippet = JSON.stringify({
-				mcpServers: {
-					patchmon: {
-						command: "/usr/local/bin/patchmon-mcp",
-						args: [],
-						env: {
-							PATCHMON_URL: BASE_URL,
-							PATCHMON_API_KEY: API_KEY || "(set-your-key-here)",
+			const keyPrefix = API_KEY
+				? `${API_KEY.substring(0, 8)}...${API_KEY.slice(-4)}`
+				: "(unset)";
+			const snippet = JSON.stringify(
+				{
+					mcpServers: {
+						patchmon: {
+							command: "/usr/local/bin/patchmon-mcp",
+							args: [],
+							env: {
+								PATCHMON_URL: BASE_URL,
+								PATCHMON_API_KEY: API_KEY || "(set-your-key-here)",
+							},
 						},
 					},
 				},
-			}, null, 2);
+				null,
+				2,
+			);
 			return {
 				content: [
-					{ type: "text", text: `## PatchMon MCP Configuration\n\nAdd this to your Vivus MCP config file (typically \`~/.vivus/projects/-Users-witt-Projects-PatchMon/memory/.vivus/mcp-config.json\`):\n\n\`\`\`json\n${snippet}\n\`\`\`\n\n**Current server state:**\n- URL: \`${BASE_URL}\`\n- API Key: \`pmk_${keyPrefix}\`\n- Tools: ${tools.map(t => `\`${t.name}\``).join(", ")}\n\nSteps to connect:\n1. Copy the JSON block above\n2. Paste into your Vivus MCP config file\n3. Ensure \`${BASE_URL}/api/v1/hosts/agent/version\` is reachable from this server\n4. Reload the MCP server in Vivus` },
+					{
+						type: "text",
+						text: `## PatchMon MCP Configuration\n\nAdd this to your Vivus MCP config file (typically \`~/.vivus/projects/-Users-witt-Projects-PatchMon/memory/.vivus/mcp-config.json\`):\n\n\`\`\`json\n${snippet}\n\`\`\`\n\n**Current server state:**\n- URL: \`${BASE_URL}\`\n- API Key: \`pmk_${keyPrefix}\`\n- Tools: ${tools.map((t) => `\`${t.name}\``).join(", ")}\n\nSteps to connect:\n1. Copy the JSON block above\n2. Paste into your Vivus MCP config file\n3. Ensure \`${BASE_URL}/api/v1/hosts/agent/version\` is reachable from this server\n4. Reload the MCP server in Vivus`,
+					},
 				],
 			};
 		},

@@ -15,9 +15,9 @@
  *     --server http://172.16.21.31:3380
  */
 
-const https = require("https");
-const http = require("http");
-const { execSync } = require("child_process");
+const https = require("node:https");
+const http = require("node:http");
+const { execSync } = require("node:child_process");
 
 // ── Args ─────────────────────────────────────
 function arg(name) {
@@ -38,7 +38,7 @@ async function httpGet(path) {
 		const mod = serverUrl.startsWith("https") ? https : http;
 		const url = new URL(path, serverUrl);
 		const headers = {};
-		if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+		if (authToken) headers.Authorization = `Bearer ${authToken}`;
 
 		const req = mod.get(url, (res) => {
 			let body = "";
@@ -123,7 +123,7 @@ async function main() {
 	}
 
 	// ── Summary ────────────────────────────────
-	console.log("\n" + sep);
+	console.log(`\n${sep}`);
 	console.log("  SUMMARY");
 	console.log(sep);
 	// ...filled in by the loop counters below...

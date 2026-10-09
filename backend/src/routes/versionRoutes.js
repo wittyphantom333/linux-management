@@ -5,13 +5,9 @@ const logger = require("../utils/logger");
 const { authenticateToken } = require("../middleware/auth");
 const { requireManageSettings } = require("../middleware/permissions");
 const { getPrismaClient } = require("../config/prisma");
-const _dns = require("node:dns").promises;
-const { checkVersionFromDNS } = require("../services/automation/shared/utils");
+const agentVersionService = require("../services/agentVersionService");
 
 const prisma = getPrismaClient();
-
-// DNS domain for server version check
-const SERVER_VERSION_DNS = "server.vcheck.patchmon.net";
 
 const router = express.Router();
 
@@ -90,19 +86,12 @@ async function getRepoBaseUrl() {
 	return fallback;
 }
 
-// Helper function to get latest release from DNS
+// Helper function to get latest release from the configured GitHub repo
 async function getLatestRelease() {
 	try {
-		const version = await checkVersionFromDNS(SERVER_VERSION_DNS);
-		const base = await getRepoBaseUrl();
-		return {
-			tagName: `v${version}`,
-			version: version,
-			publishedAt: null, // DNS doesn't provide publish date
-			htmlUrl: `${base}/releases/tag/v${version}`,
-		};
+		return await agentVersionService.getLatestReleaseInfo();
 	} catch (error) {
-		logger.error("Error fetching latest release from DNS:", error.message);
+		logger.error("Error fetching latest release from GitHub:", error.message);
 		throw error; // Re-throw to be caught by the calling function
 	}
 }

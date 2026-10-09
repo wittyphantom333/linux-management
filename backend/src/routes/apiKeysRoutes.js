@@ -6,7 +6,7 @@
 
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
+const crypto = require("node:crypto");
 const logger = require("../utils/logger");
 const { getPrismaClient } = require("../config/prisma");
 const { authenticateToken } = require("../middleware/auth");

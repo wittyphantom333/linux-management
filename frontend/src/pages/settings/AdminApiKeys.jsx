@@ -1,14 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	AlertCircle,
-	CheckCircle,
-	Copy,
-	Search,
-	Shield,
-	Trash2,
-	User,
-	X,
-} from "lucide-react";
+import { AlertCircle, Search, Shield, Trash2, User, X } from "lucide-react";
 import { useState } from "react";
 import { apiKeysAPI } from "../../utils/api";
 
@@ -56,7 +47,7 @@ const AdminApiKeys = () => {
 			apiKeysAPI
 				.createAdmin(data.username, data.email, data.name)
 				.then((r) => r.data),
-		onSuccess: (data) => {
+		onSuccess: (_data) => {
 			queryClient.invalidateQueries(["admin-api-keys"]);
 			setShowCreateAdmin(false);
 			setAdminForm({ username: "", email: "", name: "" });

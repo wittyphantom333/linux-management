@@ -29,6 +29,29 @@ const VersionUpdateTab = () => {
 		}
 	}, [settings]);
 
+	// Derive the GitHub repo base URL from the configured setting (for the
+	// "Repository" link in Release Information).
+	const repoBaseUrl = (() => {
+		const raw = (githubRepoUrl || "").trim();
+		if (!raw) return null;
+		if (raw.startsWith("http")) {
+			try {
+				const parts = new URL(raw).pathname.split("/").filter(Boolean);
+				if (parts.length >= 2) {
+					return `https://github.com/${parts[0]}/${parts[1]}`;
+				}
+			} catch {
+				return null;
+			}
+			return null;
+		}
+		const parts = raw.split("/").filter(Boolean);
+		if (parts.length >= 2) {
+			return `https://github.com/${parts[0]}/${parts[1]}`;
+		}
+		return null;
+	})();
+
 	const saveGithubRepoUrl = async () => {
 		setSavingRepoUrl(true);
 		try {
@@ -250,12 +273,15 @@ const VersionUpdateTab = () => {
 								</span>
 								<div className="flex items-center gap-2">
 									<a
-										href="https://github.com/wittyphantom333/linux-management"
+										href={repoBaseUrl}
 										target="_blank"
 										rel="noopener noreferrer"
 										className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-mono"
 									>
-										wittyphantom333/linux-management{" "}
+										{(repoBaseUrl || "github.com").replace(
+											"https://github.com/",
+											"",
+										)}{" "}
 										<ExternalLink className="h-3 w-3 inline ml-1" />
 									</a>
 								</div>
@@ -308,7 +334,8 @@ const VersionUpdateTab = () => {
 						GitHub Repository URL
 					</h3>
 					<p className="text-xs text-secondary-500 dark:text-secondary-400 mb-3">
-						The GitHub repo used for version checks and agent downloads. Enter any valid format: "owner/repo", full URL, or API URL.
+						The GitHub repo used for version checks and agent downloads. Enter
+						any valid format: "owner/repo", full URL, or API URL.
 					</p>
 					<div className="flex gap-2 items-start">
 						<input
