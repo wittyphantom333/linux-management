@@ -116,11 +116,12 @@ router.post("/create", authenticateToken, async (req, res) => {
 		const prisma = getPrismaClient();
 		const userId = req.user.id;
 		const isUser = req.user.role === "user";
+		const isAdmin = ["admin", "superadmin"].includes(req.user.role);
 
-		if (!isUser) {
+		if (!isUser && !isAdmin) {
 			return res
 				.status(403)
-				.json({ error: "Only regular users can create personal API keys" });
+				.json({ error: "You do not have permission to create API keys" });
 		}
 
 		const { name } = req.body;
@@ -134,10 +135,17 @@ router.post("/create", authenticateToken, async (req, res) => {
 		const keyHash = await bcrypt.hash(apiKey, 12);
 		const maskedKey = maskApiKey(apiKey);
 
-		await prisma.$executeRaw`
-			INSERT INTO user_api_keys (user_id, name, key_hash, masked_key)
-			VALUES (${userId}, ${name}, ${keyHash}, ${maskedKey})
-		`;
+		if (isUser) {
+			await prisma.$executeRaw`
+				INSERT INTO user_api_keys (user_id, name, key_hash, masked_key)
+				VALUES (${userId}, ${name}, ${keyHash}, ${maskedKey})
+			`;
+		} else {
+			await prisma.$executeRaw`
+				INSERT INTO admin_api_keys (username, email, key_hash, masked_key)
+				VALUES (${req.user.username}, ${req.user.email || ""}, ${keyHash}, ${maskedKey})
+			`;
+		}
 
 		logger.info(`API key created for user ${userId} (${name})`);
 
@@ -163,6 +171,7 @@ router.post("/revoke", authenticateToken, async (req, res) => {
 		const prisma = getPrismaClient();
 		const userId = req.user.id;
 		const isUser = req.user.role === "user";
+		const isAdmin = ["admin", "superadmin"].includes(req.user.role);
 
 		const { id } = req.body;
 		if (!id) {
@@ -174,15 +183,22 @@ router.post("/revoke", authenticateToken, async (req, res) => {
 		if (isUser) {
 			result = await prisma.$executeRaw`
 				UPDATE user_api_keys
-				SET is_active = false, updated_at = NOW()
+				SET is_active = false
 				WHERE id = ${id} AND user_id = ${userId}
 			`;
-		} else {
+		} else if (isAdmin) {
 			result = await prisma.$executeRaw`
-				UPDATE admin_api_keys
-				SET is_active = false, updated_at = NOW()
-				WHERE id = ${id}
+				UPDATE user_api_keys SET is_active = false WHERE id = ${id}
 			`;
+			if (result === 0) {
+				result = await prisma.$executeRaw`
+					UPDATE admin_api_keys SET is_active = false WHERE id = ${id}
+				`;
+			}
+		} else {
+			return res
+				.status(403)
+				.json({ error: "You do not have permission to revoke API keys" });
 		}
 
 		if (result === 0) {
