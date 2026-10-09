@@ -499,7 +499,7 @@ export const apiKeysAPI = {
 	create: (name) => api.post("/api-keys/create", { name }),
 	createAdmin: (username, email, name) =>
 		api.post("/api-keys/create-admin", { username, email, name }),
-	revoke: (id) => api.post(`/api-keys/revoke/${id}`),
+	revoke: (id) => api.post("/api-keys/revoke", { id }),
 	validate: (key) =>
 		api.get("/api-keys/validate", {
 			headers: { Authorization: `Bearer ${key}` },

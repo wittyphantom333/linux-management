@@ -6,6 +6,7 @@ const {
 	update_session_activity,
 	is_tfa_bypassed,
 } = require("../utils/session_manager");
+const { authenticateApiKey, isApiKeyFormat } = require("./apiKeyAuth");
 
 const prisma = getPrismaClient();
 
@@ -25,6 +26,18 @@ const authenticateToken = async (req, res, next) => {
 		if (!token) {
 			logger.debug("Auth: no token (cookie or Authorization header)");
 			return res.status(401).json({ error: "Access token required" });
+		}
+
+		// API key path (pmk_... keys from user_api_keys / admin_api_keys)
+		if (isApiKeyFormat(token)) {
+			const result = await authenticateApiKey(token);
+			if (!result.ok) {
+				logger.debug(`Auth: API key rejected — ${result.reason}`);
+				return res.status(401).json({ error: result.reason });
+			}
+			req.user = result.user;
+			req.authMethod = "api_key";
+			return next();
 		}
 
 		logger.debug(
