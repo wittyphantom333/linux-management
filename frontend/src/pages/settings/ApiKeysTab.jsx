@@ -19,7 +19,7 @@ const ApiKeysTab = () => {
 
 	const { data: keys = [], isLoading } = useQuery({
 		queryKey: ["api-keys"],
-		queryFn: () => apiKeysAPI.list().then((r) => r.data),
+		queryFn: () => apiKeysAPI.list().then((r) => r.data.keys || []),
 	});
 
 	const createMutation = useMutation({
