@@ -16,6 +16,7 @@ const ApiKeysTab = () => {
 	const [createdKey, setCreatedKey] = useState(null);
 	const [createError, setCreateError] = useState(null);
 	const [copiedId, setCopiedId] = useState(null);
+	const [newKeyName, setNewKeyName] = useState("");
 
 	const { data: keys = [], isLoading } = useQuery({
 		queryKey: ["api-keys"],
@@ -23,7 +24,7 @@ const ApiKeysTab = () => {
 	});
 
 	const createMutation = useMutation({
-		mutationFn: () => apiKeysAPI.create("API").then((r) => r.data),
+		mutationFn: (name) => apiKeysAPI.create(name).then((r) => r.data),
 		onSuccess: (data) => {
 			queryClient.invalidateQueries(["api-keys"]);
 			setCreatedKey(data.apiKey || data.key || "");
@@ -62,16 +63,33 @@ const ApiKeysTab = () => {
 				</p>
 			</div>
 
-			{/* Create button */}
-			<button
-				type="button"
-				onClick={() => createMutation.mutate()}
-				disabled={createMutation.isPending}
-				className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-md text-sm font-medium transition-colors"
-			>
-				<Plus className="h-4 w-4" />
-				{createMutation.isPending ? "Creating…" : "Create API Key"}
-			</button>
+			{/* Create button with name input */}
+			<div className="flex gap-2 items-center">
+				<input
+					type="text"
+					value={newKeyName}
+					onChange={(e) => setNewKeyName(e.target.value)}
+					placeholder="Name this key..."
+					className="flex-1 max-w-xs px-3 py-2 border border-secondary-300 dark:border-secondary-600 rounded-md bg-white dark:bg-secondary-700 text-sm text-secondary-900 dark:text-white placeholder-secondary-400"
+					onKeyDown={(e) => {
+						if (e.key === "Enter") createMutation.mutate();
+					}}
+				/>
+				<button
+					type="button"
+					onClick={() => {
+						if (!newKeyName.trim()) {
+							setNewKeyName("PatchMon Integration");
+						}
+						createMutation.mutate(newKeyName.trim());
+					}}
+					disabled={createMutation.isPending}
+					className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-md text-sm font-medium transition-colors"
+				>
+					<Plus className="h-4 w-4" />
+					{createMutation.isPending ? "Creating…" : "Create API Key"}
+				</button>
+			</div>
 
 			{createError && (
 				<div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-md p-3 flex items-center gap-2">
