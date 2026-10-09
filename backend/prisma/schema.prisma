@@ -357,7 +357,7 @@ model user_api_keys {
 model admin_api_keys {
   id         String   @id @default(uuid())
   username   String   // the admin/user this key belongs to (from users table for lookup)
-  email      String   // denormalized from users for easier display
+  email      String?  // denormalized from users for easier display — nullable
   key_hash   String   // bcrypt hash of the actual API key
   masked_key String   // e.g. "pk_••••8f29a1c3" shown in UI
   last_used_at DateTime?
