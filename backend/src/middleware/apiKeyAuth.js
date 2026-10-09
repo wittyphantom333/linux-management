@@ -55,7 +55,9 @@ async function authenticateApiKey(apiKey) {
 				return { ok: false, reason: "User for this key no longer exists" };
 			}
 
-			logger.info(`API key auth: user key "${key.name}" → user ${user.username}`);
+			logger.info(
+				`API key auth: user key "${key.name}" → user ${user.username}`,
+			);
 			return { ok: true, user };
 		}
 	}

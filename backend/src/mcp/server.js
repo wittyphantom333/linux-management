@@ -19,22 +19,56 @@ const API_KEY = process.env.PATCHMON_API_KEY;
 
 if (!API_KEY) {
 	console.error("PATCHMON MCP: missing PATCHMON_API_KEY environment variable");
-	console.error("Get one from: https://updates.zedhosting.gg/settings/profile → API Keys");
+	console.error(
+		"Get one from: https://updates.zedhosting.gg/settings/profile → API Keys",
+	);
 	process.exit(1);
 }
 
 // ── Auth helper ──────────────────────────────────
 async function api(method, path, body) {
-	const headers = { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` };
+	const headers = {
+		"Content-Type": "application/json",
+		Authorization: `Bearer ${API_KEY}`,
+	};
 	const opts = { method, headers };
 	if (body) opts.body = JSON.stringify(body);
 
 	const res = await fetch(`${BASE_URL}${path}`, opts);
 	if (!res.ok) {
 		const text = await res.text();
-		throw new Error(`PATCHMON API ${method} ${path}: ${res.status} ${text.substring(0, 200)}`);
+		throw new Error(
+			`PATCHMON API ${method} ${path}: ${res.status} ${text.substring(0, 200)}`,
+		);
 	}
-	return res.json();
+	const text = await res.text();
+	return text ? JSON.parse(text) : {};
+}
+
+// ── Host helpers ─────────────────────────────────
+// /api/v1/dashboard/hosts returns a raw array (no {data: [...]} wrapper)
+async function fetchHosts() {
+	const data = await api("GET", "/api/v1/dashboard/hosts");
+	return Array.isArray(data) ? data : data.data || data.hosts || [];
+}
+
+function mapHost(h) {
+	return {
+		id: h.id,
+		api_id: h.api_id,
+		hostname: h.friendly_name || h.hostname || h.name,
+		os_type: h.os_type,
+		version: h.agent_version || h.current_version || null,
+		auto_update: h.auto_update,
+		last_seen: h.last_update || h.last_seen_at || h.last_ping || null,
+		status: h.effectiveStatus || h.status,
+	};
+}
+
+// Resolve a user-supplied id (db UUID or agent api_id) to the db row
+async function resolveHost(id) {
+	const hosts = await fetchHosts();
+	return hosts.find((h) => h.id === id || h.api_id === id) || null;
 }
 
 // ── Tools ────────────────────────────────────────
@@ -47,29 +81,24 @@ const tools = [
 			os_type: z
 				.string()
 				.optional()
-				.describe("Filter by OS type prefix (e.g. 'windows', 'linux'). Omit for all hosts."),
+				.describe(
+					"Filter by OS type prefix (e.g. 'windows', 'linux'). Omit for all hosts.",
+				),
 		},
 		async handler({ os_type }) {
-			const data = await api("GET", "/api/v1/hosts");
-			const hosts = data.data || data.hosts || [];
-
+			const hosts = await fetchHosts();
 			const filtered = os_type
-				? hosts.filter((h) => String(h.os_type || "").toLowerCase().includes(os_type.toLowerCase()))
+				? hosts.filter((h) =>
+						String(h.os_type || "")
+							.toLowerCase()
+							.includes(os_type.toLowerCase()),
+					)
 				: hosts;
 
-			const result = filtered.map((h) => ({
-				id: h.id,
-				api_id: h.api_id,
-				hostname: h.hostname || h.name,
-				os_type: h.os_type,
-				arch: h.architecture || h.cpu_arch,
-				version: h.current_version || h.version || null,
-				auto_update: h.auto_update,
-				last_seen: h.last_seen_at || h.last_ping,
-				status: h.status,
-			}));
-
-			return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+			const result = filtered.map(mapHost);
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
 		},
 	},
 	{
@@ -78,83 +107,87 @@ const tools = [
 			"Diagnose all Windows hosts for auto-update issues. Checks: version mismatch, auto_update enabled/disabled, stale pings (>7 days), and critically — whether the server can read versions from the Windows binary (missing 'Monux Agent v...' string breaks updates forever).",
 		args: {},
 		async handler() {
-			const hostsData = await api("GET", "/api/v1/hosts");
-			const hosts = hostsData.data || hostsData.hosts || [];
+			const hosts = await fetchHosts();
 			const winHosts = hosts.filter((h) =>
-				String(h.os_type || "").toLowerCase().includes("windows"),
+				String(h.os_type || "")
+					.toLowerCase()
+					.includes("windows"),
 			);
 
 			if (winHosts.length === 0) {
 				return {
-					content: [{ type: "text", text: "No Windows hosts found in the database." }],
+					content: [
+						{ type: "text", text: "No Windows hosts found in the database." },
+					],
 				};
 			}
 
 			const results = [];
-			let needsUpdateCount = 0;
-			let criticalCount = 0;
+			let staleCount = 0;
+
+			const serverInfo = await api("GET", "/api/v1/agent/version").catch(
+				() => null,
+			);
+			const latestServerVer = serverInfo?.latestVersion || null;
 
 			for (const host of winHosts) {
-				const id = host.id || host.api_id;
-				const name = host.hostname || host.name || "(unknown)";
-				const currentVer = (host.current_version || host.version || "").replace(/^v/, "");
-				const arch = host.architecture || host.cpu_arch || "amd64";
-
-				let versionInfo = null;
-				let error = null;
-				try {
-					const q = new URLSearchParams({
-						arch,
-						os: "windows",
-						currentVersion: currentVer || "unknown",
-					});
-					versionInfo = await api("GET", `/api/v1/hosts/agent/version?${q}`);
-				} catch (e) {
-					error = e.message;
-				}
+				const name = host.friendly_name || host.hostname || "(unknown)";
+				const currentVer = (host.agent_version || "").replace(/^v/, "");
+				const lastSeen = host.last_update || null;
 
 				const issues = [];
 
-				if (!error && versionInfo.latestVersion && !versionInfo.latestVersion.trim()) {
+				if (!currentVer) {
 					issues.push(
-						"CRITICAL: server returned empty latestVersion — the Windows binary has no embedded version string ('Monux Agent v...'). This breaks auto-update permanently because the Linux backend can't extract the version via 'strings'.",
+						"CRITICAL: no agent version reported — the server may not be able to read the version from this Windows binary (missing 'Monux Agent v...' string breaks auto-update permanently)",
 					);
-					issues.push(
-						"FIX: rebuild with -ldflags='-X patchmon-agent/internal/pkgversion.VersionBanner=Monux Agent vX.Y.Z'",
-					);
-					criticalCount++;
 				}
 
-				if (versionInfo?.autoUpdateDisabled) {
-					const reason = versionInfo.autoUpdateDisabledReason || "unknown";
-					issues.push(`Auto-update is DISABLED: ${reason}`);
+				if (latestServerVer && currentVer) {
+					const strip = (s) => String(s).replace(/^v/, "");
+					if (strip(currentVer) !== strip(latestServerVer)) {
+						issues.push(
+							`Version mismatch: host v${strip(currentVer)} vs latest server v${strip(latestServerVer)}`,
+						);
+					}
 				}
 
-				if (!error && versionInfo?.hasUpdate) {
-					needsUpdateCount++;
+				if (host.auto_update === false) {
+					issues.push("Auto-update is DISABLED for this host");
+				}
+
+				if (lastSeen) {
+					const ageDays =
+						(Date.now() - new Date(lastSeen).getTime()) / 86400000;
+					if (ageDays > 7) {
+						staleCount++;
+						issues.push(`Stale: last ping ${ageDays.toFixed(1)} days ago`);
+					}
+				} else {
+					issues.push("Never pinged the server");
 				}
 
 				results.push({
 					host: name,
-					id,
+					api_id: host.api_id,
 					version: currentVer || "(none)",
-					server_version: versionInfo?.latestVersion || null,
-					has_update: versionInfo?.hasUpdate ?? null,
-					auto_update_enabled: !versionInfo?.autoUpdateDisabled,
-					last_seen: host.last_seen_at || host.last_ping || "(never)",
+					auto_update_enabled: host.auto_update !== false,
+					status: host.effectiveStatus || host.status,
+					last_seen: lastSeen || "(never)",
 					issues,
 				});
 			}
 
 			const lines = [
 				`Windows hosts total: ${winHosts.length}`,
-				`Needs update: ${needsUpdateCount}`,
-				`Critical (no version): ${criticalCount}`,
+				`Latest server agent version: v${latestServerVer || "unknown"}`,
+				`Stale (>7 days): ${staleCount}`,
+				`Hosts with issues: ${results.filter((r) => r.issues.length).length}`,
 				"─".repeat(60),
 				...results.map((r) => {
-					const core = `${r.host} v${r.version} → server v${r.server_version || "N/A"} | update=${r.has_update ?? "ERR"} | auto_update=${r.auto_update_enabled ? "ON" : "OFF"}`;
+					const core = `${r.host} | v${r.version} | auto_update=${r.auto_update_enabled ? "ON" : "OFF"} | ${r.status} | last seen ${r.last_seen}`;
 					const issueStr =
-						r.issues.length > 0 ? `\n   ⚠️ Issues: ${r.issues.join("; ")}` : "";
+						r.issues.length > 0 ? `\n   ⚠️ ${r.issues.join("; ")}` : "";
 					return `  ${core}${issueStr}`;
 				}),
 			].join("\n");
@@ -165,48 +198,34 @@ const tools = [
 	{
 		name: "patchmon_get_agent_version",
 		description:
-			"Simulate the agent version check for one host — calls the exact same /api/v1/hosts/agent/version endpoint that agents use at startup. Returns hasUpdate, latestVersion, auto-update status, and binary hash.",
+			"Get the latest available agent version (hasUpdate, latestVersion, update status) plus one host's current reported version. Per-host version checks (/api/v1/hosts/agent/version) need the host's agent credentials and can't be simulated with an API key.",
 		args: {
-			host_id: z.string().optional().describe("Host API ID or UUID"),
-			architecture: z
-				.string()
-				.optional()
-				.describe("CPU arch: amd64, arm64, arm, 386"),
-			os_type: z.string().optional().describe("OS: linux, windows, freebsd"),
+			host_id: z.string().optional().describe("Host API ID or UUID (optional)"),
 		},
-		async handler({ host_id, architecture, os_type }) {
-			const data = await api("GET", "/api/v1/hosts");
-			let hosts = data.data || data.hosts || [];
+		async handler({ host_id }) {
+			// Global version info: latest available agent version + server status
+			const serverInfo = await api("GET", "/api/v1/agent/version").catch(
+				(e) => ({
+					error: e.message,
+				}),
+			);
+
+			const out = { server: serverInfo };
+
 			if (host_id) {
-				hosts = hosts.filter((h) => h.id === host_id || h.api_id === host_id);
-			}
-
-			if (hosts.length === 0) {
-				return {
-					content: [{ type: "text", text: `No hosts found for id="${host_id}"` }],
-				};
-			}
-
-			let result = {};
-			for (const host of hosts) {
-				const arch = architecture || host.architecture || "amd64";
-				const os = os_type || host.os_type || "linux";
-				const cv = (host.current_version || host.version || "").replace(/^v/, "");
-
-				try {
-					const q = new URLSearchParams({ arch, os, currentVersion: "" });
-					result = await api("GET", `/api/v1/hosts/agent/version?${q}`);
-				} catch (e) {
-					console.error(`Host ${host.hostname}: ${e.message}`);
-					continue;
+				const host = await resolveHost(host_id);
+				if (host) {
+					out.host = mapHost(host);
+					out.host.version_check_note =
+						"Per-host /api/v1/hosts/agent/version requires the host's agent credentials (X-API-ID/X-API-KEY) and can't be simulated with an API key alone. Use patchmon_diagnose_windows_hosts for fleet-level diagnosis.";
+				} else {
+					out.host = { error: `No host found for id="${host_id}"` };
 				}
-
-				console.error(
-					`[version check] host=${host.hostname} current=${cv || "N/A"} server=${result.latestVersion || "N/A"} hasUpdate=${result.hasUpdate}`,
-				);
 			}
 
-			return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+			return {
+				content: [{ type: "text", text: JSON.stringify(out, null, 2) }],
+			};
 		},
 	},
 	{
@@ -216,7 +235,9 @@ const tools = [
 		args: {},
 		async handler() {
 			const data = await api("GET", "/api/v1/dashboard/stats");
-			return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+			return {
+				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+			};
 		},
 	},
 	{
@@ -234,18 +255,20 @@ const tools = [
 			let list = packages;
 			if (security_only) {
 				list = (list || []).filter(
-					(pkg) => pkg.isSecurityUpdate || pkg.host_packages?.some((hp) => hp.isSecurityUpdate),
+					(pkg) =>
+						pkg.isSecurityUpdate ||
+						pkg.host_packages?.some((hp) => hp.isSecurityUpdate),
 				);
 			}
 
-			const lines = (list || [])
-				.map((pkg) => {
-					const sec = pkg.isSecurityUpdate ? " [SECURITY]" : "";
-					const hosts = (pkg.affectedHosts || pkg.host_packages || []).map(
-						(h) => `${h.friendlyName || h.hosts?.friendly_name || h.hostId} (${h.currentVersion} → ${h.availableVersion || pkg.latestVersion})`,
-					);
-					return `${pkg.name}${sec} — affects ${hosts.length} host(s): ${hosts.join(", ")}`;
-				});
+			const lines = (list || []).map((pkg) => {
+				const sec = pkg.isSecurityUpdate ? " [SECURITY]" : "";
+				const hosts = (pkg.affectedHosts || pkg.host_packages || []).map(
+					(h) =>
+						`${h.friendlyName || h.hosts?.friendly_name || h.hostId} (${h.currentVersion} → ${h.availableVersion || pkg.latestVersion})`,
+				);
+				return `${pkg.name}${sec} — affects ${hosts.length} host(s): ${hosts.join(", ")}`;
+			});
 
 			return {
 				content: [
@@ -266,7 +289,9 @@ const tools = [
 		args: {},
 		async handler() {
 			const data = await api("GET", "/api/v1/compliance/dashboard");
-			return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+			return {
+				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+			};
 		},
 	},
 	{
@@ -278,13 +303,20 @@ const tools = [
 			profile: z
 				.string()
 				.optional()
-				.describe("Compliance profile type (e.g. 'cis-windows', 'cis-linux'). Omit for the host default."),
+				.describe(
+					"Compliance profile type (e.g. 'cis-windows', 'cis-linux'). Omit for the host default.",
+				),
 		},
 		async handler({ host_id, profile }) {
-			const result = await api("POST", `/api/v1/compliance/trigger/${host_id}`, {
-				profile_type: profile,
+			// Endpoint validates the hostId as a UUID — resolve agent api_id to db id
+			const host = await resolveHost(host_id);
+			const dbId = host?.id || host_id;
+			const result = await api("POST", `/api/v1/compliance/trigger/${dbId}`, {
+				profile_type: profile || "all",
 			});
-			return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
 		},
 	},
 	{
@@ -306,11 +338,17 @@ const tools = [
 				.describe("Filter by log source (e.g. 'patching', 'configmanagement')"),
 		},
 		async handler({ host_id, limit, source }) {
+			// /api/v1/agent-logs/:hostId takes the db UUID, not the agent api_id
+			const host = await resolveHost(host_id);
+			const dbId = host?.id || host_id;
 			const params = new URLSearchParams();
 			if (limit) params.set("limit", String(limit));
 			if (source) params.set("source", source);
 			const q = params.toString();
-			const data = await api("GET", `/api/v1/agent-logs/${host_id}${q ? `?${q}` : ""}`);
+			const data = await api(
+				"GET",
+				`/api/v1/agent-logs/${dbId}${q ? `?${q}` : ""}`,
+			);
 			const logs = data.entries || data.logs || data.data || data;
 			const lines = (Array.isArray(logs) ? logs : []).map((l) => {
 				const ts = l.timestamp || l.created_at;
@@ -335,7 +373,9 @@ const tools = [
 		args: {},
 		async handler() {
 			const data = await api("GET", "/api/v1/api-keys/validate");
-			return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+			return {
+				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+			};
 		},
 	},
 ];
@@ -348,12 +388,7 @@ async function main() {
 	});
 
 	for (const tool of tools) {
-		server.tool(
-			tool.name,
-			tool.description,
-			tool.args,
-			tool.handler,
-		);
+		server.tool(tool.name, tool.description, tool.args, tool.handler);
 	}
 
 	console.error(`PatchMon MCP server starting...`);

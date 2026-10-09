@@ -48,7 +48,7 @@ router.get("/", authenticateToken, async (req, res) => {
 				ORDER BY created_at DESC
 			`;
 			result = {
-				keys: keys.map(k => ({
+				keys: keys.map((k) => ({
 					id: k.id,
 					name: k.name,
 					maskedKey: String(k.masked_key),
@@ -75,7 +75,7 @@ router.get("/", authenticateToken, async (req, res) => {
 
 			result = {
 				keys: [
-					...userKeys.map(k => ({
+					...userKeys.map((k) => ({
 						id: k.id,
 						type: "user",
 						user_id: String(k.user_id),
@@ -85,7 +85,7 @@ router.get("/", authenticateToken, async (req, res) => {
 						createdAt: k.created_at.toISOString(),
 						isActive: Boolean(k.is_active),
 					})),
-					...adminKeys.map(k => ({
+					...adminKeys.map((k) => ({
 						id: k.id,
 						type: "admin",
 						username: k.username,
@@ -118,12 +118,16 @@ router.post("/create", authenticateToken, async (req, res) => {
 		const isUser = req.user.role === "user";
 
 		if (!isUser) {
-			return res.status(403).json({ error: "Only regular users can create personal API keys" });
+			return res
+				.status(403)
+				.json({ error: "Only regular users can create personal API keys" });
 		}
 
 		const { name } = req.body;
 		if (!name || typeof name !== "string" || name.length > 100) {
-			return res.status(400).json({ error: "A valid name (max 100 chars) is required" });
+			return res
+				.status(400)
+				.json({ error: "A valid name (max 100 chars) is required" });
 		}
 
 		const apiKey = generateApiKey();
@@ -182,7 +186,9 @@ router.post("/revoke", authenticateToken, async (req, res) => {
 		}
 
 		if (result === 0) {
-			return res.status(404).json({ error: "API key not found or no permissions" });
+			return res
+				.status(404)
+				.json({ error: "API key not found or no permissions" });
 		}
 
 		logger.info(`API key ${id} revoked`);
@@ -214,7 +220,7 @@ router.get("/validate", async (req, res) => {
 
 		// Search user keys first
 		const userKeys = await prisma.$queryRaw`
-			SELECT id, user_id, name, masked_key, last_used_at, created_at
+			SELECT id, user_id, name, masked_key, key_hash, last_used_at, created_at
 			FROM user_api_keys
 			WHERE is_active = true
 		`;
@@ -230,7 +236,13 @@ router.get("/validate", async (req, res) => {
 				// Get user info
 				const users = await prisma.users.findUnique({
 					where: { id: String(key.user_id) },
-					select: { id: true, username: true, email: true, role: true, last_login: true },
+					select: {
+						id: true,
+						username: true,
+						email: true,
+						role: true,
+						last_login: true,
+					},
 				});
 
 				return res.json({
@@ -246,7 +258,7 @@ router.get("/validate", async (req, res) => {
 
 		// Search admin keys
 		const adminKeys = await prisma.$queryRaw`
-			SELECT id, username, email, masked_key, last_used_at
+			SELECT id, username, email, masked_key, key_hash, last_used_at
 			FROM admin_api_keys
 			WHERE is_active = true
 		`;

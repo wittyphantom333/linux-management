@@ -2,9 +2,7 @@
 	"name": "patchmon-mcp",
 	"description": "PatchMon server API — diagnose Windows agent auto-update issues, list hosts, check versions, verify binary availability.",
 	"command": "node",
-	"args": [
-		"/Users/witt/Projects/PatchMon/backend/src/mcp/server.js"
-	],
+	"args": ["/Users/witt/Projects/PatchMon/backend/src/mcp/server.js"],
 	"env": {
 		"PATCHMON_URL": "http://172.16.21.31:3380",
 		"PATCHMON_API_KEY": "<PUT_YOUR_API_KEY_HERE>"

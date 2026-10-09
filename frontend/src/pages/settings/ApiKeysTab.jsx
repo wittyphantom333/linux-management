@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle, Copy, Key, Plus, Trash2, X } from "lucide-react";
+import {
+	AlertCircle,
+	CheckCircle,
+	Copy,
+	Key,
+	Plus,
+	Trash2,
+	X,
+} from "lucide-react";
 import { useState } from "react";
 import { apiKeysAPI } from "../../utils/api";
 
@@ -88,7 +96,10 @@ const ApiKeysTab = () => {
 								</button>
 							</div>
 						</div>
-						<button onClick={() => setCreatedKey(null)} className="text-green-600 hover:text-green-800 dark:text-green-400">
+						<button
+							onClick={() => setCreatedKey(null)}
+							className="text-green-600 hover:text-green-800 dark:text-green-400"
+						>
 							<X className="h-4 w-4" />
 						</button>
 					</div>

@@ -11,7 +11,8 @@ router.get("/rules", async (_req, res) => {
 		res.json({
 			rules: [],
 			count: 0,
-			message: "Rules are embedded in each agent binary. Remote updates available via /rules/update.",
+			message:
+				"Rules are embedded in each agent binary. Remote updates available via /rules/update.",
 		});
 	} catch (error) {
 		logger.error("Failed to get compliance rules:", error.message);
@@ -47,7 +48,8 @@ router.post(
 				logger.info(`Received ZIP ruleset (${response.data.length} bytes)`);
 				return res.json({
 					success: true,
-					message: "ZIP ruleset uploaded. Agents will download and parse when needed.",
+					message:
+						"ZIP ruleset uploaded. Agents will download and parse when needed.",
 					fileSize: response.data.length,
 				});
 			} else {
@@ -74,7 +76,9 @@ router.post(
 			});
 		} catch (error) {
 			logger.error("Failed to update ruleset:", error.message);
-			res.status(500).json({ error: "Failed to update ruleset", details: error.message });
+			res
+				.status(500)
+				.json({ error: "Failed to update ruleset", details: error.message });
 		}
 	},
 );
@@ -85,7 +89,10 @@ router.get("/rules/download", async (_req, res) => {
 		const rules = getLocalRules(); // In future, load from DB or file store
 
 		res.setHeader("Content-Type", "application/json");
-		res.setHeader("Content-Disposition", 'attachment; filename="patchmon-cis-windows-rules.json"');
+		res.setHeader(
+			"Content-Disposition",
+			'attachment; filename="patchmon-cis-windows-rules.json"',
+		);
 		res.json(rules);
 	} catch (error) {
 		logger.error("Failed to download ruleset:", error.message);

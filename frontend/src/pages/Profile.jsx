@@ -27,12 +27,12 @@ import {
 
 import { useEffect, useId, useState } from "react";
 import DiscordIcon from "../components/DiscordIcon";
-import ApiKeysTab from "./settings/ApiKeysTab";
-import McpInfoTab from "./settings/McpInfoTab";
 import { useAuth } from "../contexts/AuthContext";
 import { THEME_PRESETS, useColorTheme } from "../contexts/ColorThemeContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { discordAPI, isCorsError, tfaAPI } from "../utils/api";
+import ApiKeysTab from "./settings/ApiKeysTab";
+import McpInfoTab from "./settings/McpInfoTab";
 
 const Profile = () => {
 	const usernameId = useId();

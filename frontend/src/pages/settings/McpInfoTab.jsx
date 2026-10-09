@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle, Copy, Key, Plus, Server, Terminal, X } from "lucide-react";
+import {
+	AlertCircle,
+	CheckCircle,
+	Copy,
+	Key,
+	Plus,
+	Server,
+	Terminal,
+	X,
+} from "lucide-react";
 import { useState } from "react";
 import { apiKeysAPI } from "../../utils/api";
 
@@ -66,7 +75,9 @@ const McpInfoTab = () => {
 			setCreateError(null);
 		},
 		onError: (err) => {
-			setCreateError(err?.response?.data?.error || err.message || "Failed to create key");
+			setCreateError(
+				err?.response?.data?.error || err.message || "Failed to create key",
+			);
 		},
 	});
 
@@ -108,7 +119,9 @@ const McpInfoTab = () => {
 				{createError && (
 					<div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-md p-3 flex items-center gap-2">
 						<AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
-						<p className="text-sm text-red-800 dark:text-red-200">{createError}</p>
+						<p className="text-sm text-red-800 dark:text-red-200">
+							{createError}
+						</p>
 					</div>
 				)}
 
@@ -129,7 +142,11 @@ const McpInfoTab = () => {
 									className="flex-shrink-0 p-2 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-700 rounded-md bg-white dark:bg-secondary-800 hover:text-green-800"
 									title="Copy key"
 								>
-									{copied === "key" ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+									{copied === "key" ? (
+										<CheckCircle className="h-4 w-4" />
+									) : (
+										<Copy className="h-4 w-4" />
+									)}
 								</button>
 							</div>
 							<div className="flex items-start gap-2">
@@ -142,7 +159,11 @@ const McpInfoTab = () => {
 									className="flex-shrink-0 p-2 text-secondary-300 hover:text-white bg-secondary-800 rounded"
 									title="Copy command"
 								>
-									{copied === "cmd" ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+									{copied === "cmd" ? (
+										<CheckCircle className="h-4 w-4" />
+									) : (
+										<Copy className="h-4 w-4" />
+									)}
 								</button>
 							</div>
 						</div>
@@ -158,10 +179,14 @@ const McpInfoTab = () => {
 					<div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
 						<div>
 							<p className="text-sm text-secondary-700 dark:text-secondary-300">
-								You have {isLoading ? "…" : `${activeKeys.length} active key${activeKeys.length === 1 ? "" : "s"}`}
+								You have{" "}
+								{isLoading
+									? "…"
+									: `${activeKeys.length} active key${activeKeys.length === 1 ? "" : "s"}`}
 								{activeKeys.length > 0 && !isLoading && (
 									<span className="text-secondary-500 dark:text-secondary-400">
-										{" "}({activeKeys.map((k) => k.name || "unnamed").join(", ")})
+										{" "}
+										({activeKeys.map((k) => k.name || "unnamed").join(", ")})
 									</span>
 								)}
 								. Keys are shown only once at creation.
@@ -174,7 +199,9 @@ const McpInfoTab = () => {
 							className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-md text-sm font-medium transition-colors"
 						>
 							<Plus className="h-4 w-4" />
-							{createMutation.isPending ? "Creating…" : "Create key & show command"}
+							{createMutation.isPending
+								? "Creating…"
+								: "Create key & show command"}
 						</button>
 					</div>
 				)}
@@ -189,7 +216,10 @@ const McpInfoTab = () => {
 					Register with Vivus
 				</h4>
 				<p className="text-sm text-secondary-700 dark:text-secondary-300 mb-3">
-					Run this in your terminal, replacing <code className="px-1 bg-secondary-100 dark:bg-secondary-700 rounded text-xs">pmk_&lt;YOUR_KEY&gt;</code>{" "}
+					Run this in your terminal, replacing{" "}
+					<code className="px-1 bg-secondary-100 dark:bg-secondary-700 rounded text-xs">
+						pmk_&lt;YOUR_KEY&gt;
+					</code>{" "}
 					with your API key (or use the pre-filled command from step 1):
 				</p>
 				<div className="flex items-start gap-2">
@@ -202,13 +232,23 @@ const McpInfoTab = () => {
 						className="flex-shrink-0 p-2 text-secondary-300 hover:text-white bg-secondary-800 rounded"
 						title="Copy command"
 					>
-						{copied === "placeholder" ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+						{copied === "placeholder" ? (
+							<CheckCircle className="h-4 w-4" />
+						) : (
+							<Copy className="h-4 w-4" />
+						)}
 					</button>
 				</div>
 				<p className="text-xs text-secondary-500 dark:text-secondary-400 mt-3">
-					Requires <code className="px-1 bg-secondary-100 dark:bg-secondary-700 rounded">node</code> on PATH and the PatchMon repo at{" "}
-					<code className="px-1 bg-secondary-100 dark:bg-secondary-700 rounded">{serverPath}</code>
-					 (adjust the path if you installed elsewhere).
+					Requires{" "}
+					<code className="px-1 bg-secondary-100 dark:bg-secondary-700 rounded">
+						node
+					</code>{" "}
+					on PATH and the PatchMon repo at{" "}
+					<code className="px-1 bg-secondary-100 dark:bg-secondary-700 rounded">
+						{serverPath}
+					</code>
+					(adjust the path if you installed elsewhere).
 				</p>
 			</div>
 
@@ -231,7 +271,10 @@ const McpInfoTab = () => {
 						"What do the agent logs say for host ps-dc1?",
 						"Trigger a CIS scan on the domain controller",
 					].map((ex) => (
-						<p key={ex} className="text-sm text-secondary-600 dark:text-secondary-400 flex items-center gap-2">
+						<p
+							key={ex}
+							className="text-sm text-secondary-600 dark:text-secondary-400 flex items-center gap-2"
+						>
 							<Terminal className="h-3.5 w-3.5 text-primary-500 flex-shrink-0" />
 							{ex}
 						</p>
@@ -253,7 +296,9 @@ const McpInfoTab = () => {
 								<code className="text-xs font-mono text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/20 px-2 py-0.5 rounded">
 									{tool.name}
 								</code>
-								<p className="text-xs text-secondary-600 dark:text-secondary-400 mt-1">{tool.desc}</p>
+								<p className="text-xs text-secondary-600 dark:text-secondary-400 mt-1">
+									{tool.desc}
+								</p>
 							</div>
 						</div>
 					))}

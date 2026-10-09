@@ -22,7 +22,7 @@ const { execSync } = require("child_process");
 // ── Args ─────────────────────────────────────
 function arg(name) {
 	const flag = `--${name}=`;
-	return (process.argv.find(a => a.startsWith(flag)) || "").replace(flag, "");
+	return (process.argv.find((a) => a.startsWith(flag)) || "").replace(flag, "");
 }
 
 const serverUrl = arg("server") || "http://172.16.21.31:3380";
@@ -40,13 +40,16 @@ async function httpGet(path) {
 		const headers = {};
 		if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 
-		const req = mod.get(url, res => {
+		const req = mod.get(url, (res) => {
 			let body = "";
-			res.on("data", c => body += c);
+			res.on("data", (c) => (body += c));
 			res.on("end", () => resolve({ status: res.statusCode, body }));
 		});
 		req.on("error", reject);
-		req.setTimeout(15000, () => { reject(new Error("timeout")); req.destroy(); });
+		req.setTimeout(15000, () => {
+			reject(new Error("timeout"));
+			req.destroy();
+		});
 	});
 }
 
@@ -103,7 +106,7 @@ async function main() {
 	console.log(`\n📊 Total hosts: ${hosts.length}`);
 
 	// ── Filter Windows ─────────────────────────
-	const winHosts = hosts.filter(h => {
+	const winHosts = hosts.filter((h) => {
 		const os = String(h.os_type || "").toLowerCase();
 		return os.includes("windows");
 	});
@@ -124,7 +127,7 @@ async function main() {
 	console.log("  SUMMARY");
 	console.log(sep);
 	// ...filled in by the loop counters below...
-	const upToDate = winHosts.filter(h => {
+	const upToDate = winHosts.filter((h) => {
 		const lv = (h.latestVersion || "").replace("v", "");
 		const cv = (h.currentVersion || h.current_version || "").replace("v", "");
 		return lv && cv && lv === cv;
@@ -132,10 +135,14 @@ async function main() {
 
 	console.log(`  Total Windows hosts : ${winHosts.length}`);
 	console.log(`  Up to date          : ${upToDate}`);
-	console.log(`  Need update         : ${winHosts.filter(h => !h.upToDate).length}`);
+	console.log(
+		`  Need update         : ${winHosts.filter((h) => !h.upToDate).length}`,
+	);
 	console.log(sep);
 
-	const allOk = winHosts.every(h => h.issues?.length === 0 && h.hasUpdate === false);
+	const allOk = winHosts.every(
+		(h) => h.issues?.length === 0 && h.hasUpdate === false,
+	);
 	if (allOk) {
 		console.log("\n✅ All Windows hosts are up to date.");
 	} else {
@@ -147,10 +154,14 @@ async function main() {
 async function diagnoseHost(host) {
 	const id = host.id || host.api_id || "(no id)";
 	const name = host.hostname || host.name || "(no hostname)";
-	const currentVer = (host.current_version || host.version || "").replace("v", "");
+	const currentVer = (host.current_version || host.version || "").replace(
+		"v",
+		"",
+	);
 	const osType = host.os_type || host.platform || "unknown";
 	const arch = host.architecture || host.cpu_arch || host.arch || "amd64";
-	const lastSeen = host.last_seen_at || host.last_ping || host.last_activity || null;
+	const lastSeen =
+		host.last_seen_at || host.last_ping || host.last_activity || null;
 	const autoUpdate = host.auto_update;
 
 	// Collect issues for this host
@@ -161,7 +172,9 @@ async function diagnoseHost(host) {
 	console.log(`  ID:     ${id}`);
 	console.log(`  OS:     ${osType}  Arch: ${arch}`);
 	console.log(`  Version: ${currentVer || "(none)"}`);
-	console.log(`  Auto-update: ${(autoUpdate === undefined || autoUpdate === null) ? "N/A" : (autoUpdate ? "enabled ✓" : "DISABLED ⚠️")}`);
+	console.log(
+		`  Auto-update: ${autoUpdate === undefined || autoUpdate === null ? "N/A" : autoUpdate ? "enabled ✓" : "DISABLED ⚠️"}`,
+	);
 	console.log(`  Last seen: ${lastSeen || "(never)"}`);
 
 	// 1. Simulate the agent version check call
@@ -172,19 +185,30 @@ async function diagnoseHost(host) {
 		const resp = JSON.parse(verRes.body);
 
 		host.latestVersion = (resp.latestVersion || "").replace("v", "");
-		host.currentVersion = (resp.currentVersion || currentVer || "").replace("v", "");
+		host.currentVersion = (resp.currentVersion || currentVer || "").replace(
+			"v",
+			"",
+		);
 		host.hasUpdate = resp.hasUpdate;
 		host.autoUpdateDisabled = resp.autoUpdateDisabled;
 		host.upToDate = host.hasUpdate === false && !host.autoUpdateDisabled;
 
 		console.log(`\n  📋 /agent/version response:`);
 		console.log(`     currentVersion: ${resp.currentVersion || "N/A"}`);
-		console.log(`     latestVersion:  ${resp.latestVersion || "N/A"} (on server)`);
-		console.log(`     hasUpdate:      ${resp.hasUpdate ? "YES → update available" : "NO ✓"}`);
+		console.log(
+			`     latestVersion:  ${resp.latestVersion || "N/A"} (on server)`,
+		);
+		console.log(
+			`     hasUpdate:      ${resp.hasUpdate ? "YES → update available" : "NO ✓"}`,
+		);
 
 		if (host.autoUpdateDisabled) {
-			issues.push(`Auto-update is DISABLED${resp.autoUpdateDisabledReason ? ` (${resp.autoUpdateDisabledReason})` : ""}`);
-			console.log(`     ⚠️  auto-update: ${resp.autoUpdateDisabledReason || "disabled"}`);
+			issues.push(
+				`Auto-update is DISABLED${resp.autoUpdateDisabledReason ? ` (${resp.autoUpdateDisabledReason})` : ""}`,
+			);
+			console.log(
+				`     ⚠️  auto-update: ${resp.autoUpdateDisabledReason || "disabled"}`,
+			);
 		}
 
 		if (resp.downloadUrl) {
@@ -197,10 +221,13 @@ async function diagnoseHost(host) {
 
 		// Check for the critical "no version" failure mode
 		if (!resp.latestVersion || resp.latestVersion.trim() === "") {
-			const issue = "Server returned empty latestVersion — Windows binary has no embedded version string.";
+			const issue =
+				"Server returned empty latestVersion — Windows binary has no embedded version string.";
 			issues.push(issue);
 			console.log(`     ❌ ${issue}`);
-			console.log(`        Fix: rebuild with '-ldflags=...-X ...VersionBanner=Monux Agent vX.Y.Z'`);
+			console.log(
+				`        Fix: rebuild with '-ldflags=...-X ...VersionBanner=Monux Agent vX.Y.Z'`,
+			);
 		}
 
 		if (resp.hasUpdate && !host.autoUpdateDisabled) {
@@ -228,7 +255,8 @@ async function diagnoseHost(host) {
 	// 3. Staleness check (>7 days since last seen)
 	if (lastSeen) {
 		const lastSeenDate = new Date(lastSeen);
-		const ageDays = (Date.now() - lastSeenDate.getTime()) / (1000 * 60 * 60 * 24);
+		const ageDays =
+			(Date.now() - lastSeenDate.getTime()) / (1000 * 60 * 60 * 24);
 		if (ageDays > 7) {
 			issues.push(`Agent hasn't pinged in ${Math.round(ageDays)} days (stale)`);
 			console.log(`\n  ⚠️  Agent stale: ${Math.round(ageDays)} days ago`);
@@ -241,14 +269,14 @@ async function diagnoseHost(host) {
 	// Print issues
 	if (issues.length > 0) {
 		console.log(`\n  📝 Issues (${issues.length}):`);
-		issues.forEach(i => console.log(`     • ${i}`));
+		issues.forEach((i) => console.log(`     • ${i}`));
 	}
 
 	host.issues = issues;
 	console.log();
 }
 
-main().catch(err => {
+main().catch((err) => {
 	console.error("Fatal error:", err.message);
 	process.exit(1);
 });
