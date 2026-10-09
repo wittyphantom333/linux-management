@@ -451,6 +451,7 @@ app.use(`/api/${apiVersion}/patch-management`, patchManagementRoutes);
 app.use(`/api/${apiVersion}/ai`, aiRoutes);
 app.use(`/api/${apiVersion}/alerts`, alertRoutes);
 app.use(`/api/${apiVersion}/agent-logs`, agentLogsRoutes);
+app.use(`/api/${apiVersion}/api-keys`, authenticateToken, apiKeysRoutes);
 
 // Bull Board - will be populated after queue manager initializes
 let bullBoardRouter = null;
