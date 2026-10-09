@@ -169,33 +169,49 @@ class AgentVersionService {
 		this.checkInterval = 30 * 60 * 1000; // 30 minutes
 	}
 
-	async _refreshRepoInfo() {
-		try {
-			const prisma = require("../config/prisma").getPrismaClient();
-			const settings = await prisma.settings.findFirst({
-				orderBy: [{ updated_at: "desc" }, { id: "desc" }],
-			});
-			if (settings?.github_repo_url) {
-				const raw = settings.github_repo_url.replace(/\/+$/, "");
-				if (raw.startsWith("http")) {
-					const url = new URL(raw);
-					const parts = url.pathname.split("/").filter(Boolean);
-					if (parts.length >= 2) {
-						this._repoOwner = parts[0];
-						this._repoName = parts[1];
-					}
-				} else {
-					const parts = raw.split("/");
-					if (parts.length >= 2) {
-						this._repoOwner = parts[0];
-						this._repoName = parts[1];
-					}
-				}
+	async _loadRepoInfoFromDb() {
+		const prisma = require("../config/prisma").getPrismaClient();
+		const settings = await prisma.settings.findFirst({
+			orderBy: [{ updated_at: "desc" }, { id: "desc" }],
+		});
+		const raw = (settings?.github_repo_url || "")
+			.replace(/\.git$/i, "")
+			.replace(/\/+$/, "")
+			.trim();
+		if (!raw) return;
+		let parts = [];
+		if (raw.startsWith("http")) {
+			try {
+				parts = new URL(raw).pathname.split("/").filter(Boolean);
+			} catch (_e) {
+				return;
 			}
-		} catch (_e) {}
+		} else {
+			parts = raw.split("/");
+		}
+		if (parts.length >= 2) {
+			this._repoOwner = parts[0];
+			this._repoName = parts[1];
+		}
 	}
 
+	// Awaitable getter with a 60s TTL cache so UI edits to github_repo_url
+	// take effect quickly without a DB query on every request.
 	async _getRepoApiUrl() {
+		const now = Date.now();
+		if (this._repoInfoPromise) {
+			await this._repoInfoPromise.catch(() => {});
+		}
+		if (
+			!this._repoInfoPromise ||
+			!this._repoInfoAt ||
+			now - this._repoInfoAt > 60_000
+		) {
+			this._repoInfoAt = now;
+			this._repoInfoPromise = this._loadRepoInfoFromDb().catch((_e) => {});
+			await this._repoInfoPromise;
+			this._repoApiUrlCache = null;
+		}
 		const base = `https://api.github.com/repos/${this._repoOwner}/${this._repoName}`;
 		if (!this._repoApiUrlCache || this._repoApiUrlCache !== base) {
 			this._repoApiUrlCache = base;
