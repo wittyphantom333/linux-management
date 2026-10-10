@@ -390,8 +390,8 @@ export const versionAPI = {
 	getCurrent: () => api.get("/version/current"),
 	checkUpdates: () => api.get("/version/check-updates"),
 	testSshKey: (data) => api.post("/version/test-ssh-key", data),
-	applyUpdate: () =>
-		api.post("/version/apply-update", null, { timeout: 30000 }),
+	applyUpdate: () => api.post("/version/apply-update", {}, { timeout: 30000 }),
+	getServerStatus: () => api.get("/version/server-status", { timeout: 30000 }),
 	getApplyUpdateStatus: (jobId) =>
 		api.get(`/version/apply-update/${jobId}`, { timeout: 30000 }),
 };

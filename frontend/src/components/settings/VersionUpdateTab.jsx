@@ -154,7 +154,10 @@ const VersionUpdateTab = () => {
 		},
 	});
 
-	// Version checking state
+	// Version checking state. `serverStatus` is the authoritative source for
+	// "server update available" — it compares the deployed commit against the
+	// remote deploy branch (see /version/server-status). The legacy `latestRelease`
+	// (an agent release from GitHub) is kept only for the reference link.
 	const [versionInfo, setVersionInfo] = useState({
 		currentVersion: null,
 		latestVersion: null,
@@ -162,6 +165,7 @@ const VersionUpdateTab = () => {
 		checking: false,
 		error: null,
 		github: null,
+		serverStatus: null,
 	});
 
 	// Version checking functions
@@ -172,12 +176,23 @@ const VersionUpdateTab = () => {
 			const response = await versionAPI.checkUpdates();
 			const data = response.data;
 
+			// Authoritative server update status from the deploy branch.
+			let serverStatus = null;
+			try {
+				serverStatus = (await versionAPI.getServerStatus()).data;
+			} catch (ssErr) {
+				console.error("Server status check error:", ssErr);
+			}
+
 			setVersionInfo({
 				currentVersion: data.currentVersion,
 				latestVersion: data.latestVersion,
-				isUpdateAvailable: data.isUpdateAvailable,
+				isUpdateAvailable: serverStatus
+					? serverStatus.updateAvailable
+					: data.isUpdateAvailable,
 				last_update_check: data.lastUpdateCheck || data.last_update_check,
 				latestRelease: data.latestRelease,
+				serverStatus,
 				checking: false,
 				error: null,
 			});
@@ -302,32 +317,37 @@ const VersionUpdateTab = () => {
 						</span>
 					</div>
 
-					{/* Latest Release */}
-					{versionInfo.latestRelease && (
-						<div className="bg-white dark:bg-secondary-800 rounded-lg p-4 border border-secondary-200 dark:border-secondary-600">
+					{/* Latest Version (server deploy branch) */}
+					{versionInfo.serverStatus && (
+						<div
+							className={`bg-white dark:bg-secondary-800 rounded-lg p-4 border ${
+								versionInfo.serverStatus.updateAvailable
+									? "border-orange-300 dark:border-orange-700"
+									: "border-secondary-200 dark:border-secondary-600"
+							}`}
+						>
 							<div className="flex items-center gap-2 mb-2">
-								<Download className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+								<Download
+									className={`h-4 w-4 ${
+										versionInfo.serverStatus.updateAvailable
+											? "text-orange-600 dark:text-orange-400"
+											: "text-green-600 dark:text-green-400"
+									}`}
+								/>
 								<span className="text-sm font-medium text-secondary-700 dark:text-secondary-300">
-									Latest Release
+									{versionInfo.serverStatus.updateAvailable
+										? "New Version Available"
+										: "Latest Version"}
 								</span>
 							</div>
 							<div className="space-y-1">
 								<span className="text-lg font-mono text-secondary-900 dark:text-white">
-									{versionInfo.latestRelease.tagName}
+									{versionInfo.serverStatus.remoteCommit || "unknown"}
 								</span>
-								{versionInfo.latestRelease.htmlUrl && (
-									<div className="text-xs text-secondary-500 dark:text-secondary-400">
-										<a
-											href={versionInfo.latestRelease.htmlUrl}
-											target="_blank"
-											rel="noopener noreferrer"
-											className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-										>
-											View on GitHub{" "}
-											<ExternalLink className="h-3 w-3 inline ml-1" />
-										</a>
-									</div>
-								)}
+								<div className="text-xs text-secondary-500 dark:text-secondary-400">
+									branch: {versionInfo.serverStatus.branch} · deployed:{" "}
+									{versionInfo.serverStatus.localCommit || "unknown"}
+								</div>
 							</div>
 						</div>
 					)}

@@ -314,6 +314,26 @@ router.get(
 	},
 );
 
+// Authoritative server update status: compares the deployed commit against
+// the remote deploy branch (development). This is what the Server Version
+// page should use for "update available" — independent of agent releases.
+router.get(
+	"/server-status",
+	authenticateToken,
+	requireManageSettings,
+	async (_req, res) => {
+		try {
+			const status = await serverUpdateService.checkForUpdate();
+			res.json(status);
+		} catch (error) {
+			logger.error("Error getting server status:", error);
+			res
+				.status(500)
+				.json({ error: "Failed to get server status", detail: error.message });
+		}
+	},
+);
+
 // Apply a server self-update: pull latest from the configured branch,
 // install deps, build the frontend, and restart the service.
 // Kicks off an async job immediately; the UI polls the status route below.

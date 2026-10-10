@@ -180,6 +180,50 @@ function applyUpdate() {
 }
 
 /**
+ * Determine whether a server update is available by comparing the deployed
+ * commit against the remote deploy branch. This is the source of truth for
+ * "update available" on the server-version page (independent of agent
+ * releases). Resolves to a status object; never throws.
+ */
+async function checkForUpdate() {
+	const result = {
+		branch: BRANCH,
+		localCommit: null,
+		remoteCommit: null,
+		updateAvailable: false,
+		detail: null,
+	};
+	try {
+		const local = await run(
+			`git -C ${REPO_DIR} rev-parse --short HEAD 2>/dev/null`,
+		);
+		result.localCommit = local.output.trim() || null;
+
+		// Fetch only the remote branch tip (lightweight, no working-tree change).
+		await run(`git -C ${REPO_DIR} fetch --quiet origin ${BRANCH} 2>/dev/null`, {
+			timeout: 30_000,
+		});
+		const remote = await run(
+			`git -C ${REPO_DIR} rev-parse --short origin/${BRANCH} 2>/dev/null`,
+		);
+		result.remoteCommit = remote.output.trim() || null;
+
+		if (result.localCommit && result.remoteCommit) {
+			result.updateAvailable =
+				result.localCommit.toLowerCase() !== result.remoteCommit.toLowerCase();
+			result.detail = result.updateAvailable
+				? `Deployed ${result.localCommit}, branch ${BRANCH} is at ${result.remoteCommit}`
+				: `Up to date on ${BRANCH} (${result.localCommit})`;
+		} else {
+			result.detail = "Could not determine deployed or remote commit";
+		}
+	} catch (err) {
+		result.detail = `Update check failed: ${err.message}`;
+	}
+	return result;
+}
+
+/**
  * Return a snapshot of a job's current state (for polling).
  */
 function getJobStatus(jobId) {
@@ -192,6 +236,7 @@ function getJobStatus(jobId) {
 module.exports = {
 	applyUpdate,
 	getJobStatus,
+	checkForUpdate,
 	// Exposed for diagnostics/README; not required by routes.
 	config: { REPO_DIR, BRANCH, SERVICE, USE_SUDO },
 };
