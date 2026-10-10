@@ -36,19 +36,28 @@ function log() {
 }
 
 /**
- * Run a single shell command via `bash -lc` and return { code, output }.
+ * Run a single shell command via `bash -c` (non-login) and return { code, output }.
  * Resolves on completion; never throws (errors are surfaced via output).
+ *
+ * NOTE: we intentionally avoid `-l` (login shell) because it tries to read
+ * the service user's .bash_profile, which is not readable here and breaks the
+ * command. The service environment PATH already covers /usr/bin (node, npm,
+ * git, sudo all live there).
  */
 function run(cmd, { timeout = 900_000 } = {}) {
 	return new Promise((resolve) => {
 		log().info(`[apply-update] $ ${cmd}`);
 		execFile(
 			"bash",
-			["-lc", cmd],
+			["-c", cmd],
 			{
 				timeout,
 				maxBuffer: 10 * 1024 * 1024,
 				encoding: "utf8",
+				env: {
+					...process.env,
+					PATH: `${process.env.PATH || ""}:/usr/bin:/usr/local/bin:/bin`,
+				},
 			},
 			(error, stdout, stderr) => {
 				const output = `${stdout || ""}${stderr ? `\n${stderr}` : ""}`;
