@@ -8,28 +8,68 @@ const logger = require("../utils/logger");
  * Server self-update service.
  *
  * Deploys the latest code from the configured git branch to this host and
- * restarts the service. Runs entirely from within the server process (no
+ * reloads the service. Runs entirely from within the server process (no
  * external agent), which makes it possible to expose a single "Apply Update"
  * button in the UI.
  *
  * Configuration (all optional, with production defaults):
  *   UPDATE_REPO_DIR   path to the deployed git checkout (default: /opt/updates.zedhosting.gg)
  *   UPDATE_BRANCH     branch to deploy (default: development)
- *   UPDATE_SERVICE    systemd unit to restart (default: updates.zedhosting.gg.service)
- *   UPDATE_SUDO       set to "false" to skip the sudo prefix (default: sudo is used)
  *
- * Jobs are stored in-memory and are keyed by a job id. The UI polls
- * getJobStatus() until the job settles.
+ * IMPORTANT (systemd sandbox): the service unit runs with ProtectHome=true,
+ * ProtectSystem=strict, NoNewPrivileges=true, PrivateTmp=true and
+ * ReadWritePaths=/opt/updates.zedhosting.gg. Consequences for child processes:
+ *  - The real HOME (/home/<user>) is completely inaccessible from inside the
+ *    service — bash, git and npm all fail with EACCES on it regardless of
+ *    file ownership. Children therefore get HOME pointed inside the repo
+ *    (writable per ReadWritePaths).
+ *  - NODE_ENV=production must be dropped for children, else npm skips
+ *    devDependencies and `prepare` (lefthook) breaks the install.
+ *  - sudo cannot work (NoNewPrivileges). "Restart" is done by exiting the
+ *    process; systemd Restart=always brings the service back on new code.
+ *
+ * Job state is persisted to STATE_FILE inside the repo so the UI can keep
+ * polling across the restart that the apply flow itself triggers.
  */
 
 const REPO_DIR = process.env.UPDATE_REPO_DIR || "/opt/updates.zedhosting.gg";
 const BRANCH = process.env.UPDATE_BRANCH || "development";
-const SERVICE = process.env.UPDATE_SERVICE || "updates.zedhosting.gg.service";
-const USE_SUDO = process.env.UPDATE_SUDO !== "false";
-const SUDO = USE_SUDO ? "sudo " : "";
+const UPDATE_HOME = path.join(REPO_DIR, ".update-home");
+const STATE_FILE = path.join(REPO_DIR, ".apply-update-state.json");
 
 // jobId -> { status, startedAt, finishedAt, steps, currentStep, log, error }
 const jobs = new Map();
+
+// Re-seed the job map from disk so UI polling survives the self-restart.
+try {
+	if (fs.existsSync(STATE_FILE)) {
+		const saved = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+		if (saved?.jobId) {
+			// A job still marked "running" means the process died mid-update
+			// (we always persist terminal states before exiting on purpose).
+			if (saved.status === "running") {
+				saved.status = "failed";
+				saved.error =
+					"Update process was interrupted (server restarted mid-update).";
+				saved.finishedAt = new Date().toISOString();
+			}
+			jobs.set(saved.jobId, saved);
+		}
+	}
+} catch (_e) {
+	// Corrupt/absent state file — start clean.
+}
+
+function persistJob(jobId) {
+	try {
+		const job = jobs.get(jobId);
+		if (job) {
+			fs.writeFileSync(STATE_FILE, JSON.stringify({ jobId, ...job }));
+		}
+	} catch (_e) {
+		// Best-effort persistence; polling still works if we stay alive.
+	}
+}
 
 function log() {
 	return logger;
@@ -39,14 +79,18 @@ function log() {
  * Run a single shell command via `bash -c` (non-login) and return { code, output }.
  * Resolves on completion; never throws (errors are surfaced via output).
  *
- * NOTE: we intentionally avoid `-l` (login shell) because it tries to read
- * the service user's .bash_profile, which is not readable here and breaks the
- * command. The service environment PATH already covers /usr/bin (node, npm,
- * git, sudo all live there).
+ * The child env overrides HOME (see UPDATE_HOME) because the service runs
+ * under systemd sandboxing (ProtectHome=true) which makes the real home
+ * unreadable — bash/git/npm would all fail with EACCES otherwise. NODE_ENV is
+ * dropped so npm installs devDependencies (vite/lefthook are needed to build).
  */
 function run(cmd, { timeout = 900_000 } = {}) {
 	return new Promise((resolve) => {
 		log().info(`[apply-update] $ ${cmd}`);
+		try {
+			fs.mkdirSync(UPDATE_HOME, { recursive: true });
+		} catch (_e) {}
+		const { NODE_ENV: _drop, ...childEnv } = process.env;
 		execFile(
 			"bash",
 			["-c", cmd],
@@ -55,7 +99,8 @@ function run(cmd, { timeout = 900_000 } = {}) {
 				maxBuffer: 10 * 1024 * 1024,
 				encoding: "utf8",
 				env: {
-					...process.env,
+					...childEnv,
+					HOME: UPDATE_HOME,
 					PATH: `${process.env.PATH || ""}:/usr/bin:/usr/local/bin:/bin`,
 				},
 			},
@@ -95,15 +140,18 @@ function applyUpdate() {
 		commitAfter: null,
 	};
 	jobs.set(jobId, job);
+	persistJob(jobId);
 
 	const append = (line) => {
 		job.log = `${job.log}\n${line}`.trimStart();
+		persistJob(jobId);
 	};
 
 	const finish = (ok, error) => {
 		job.status = ok ? "success" : "failed";
 		job.finishedAt = new Date().toISOString();
 		job.error = error || null;
+		persistJob(jobId);
 		log().info(`[apply-update] job ${jobId} finished: ${job.status}`);
 	};
 
@@ -140,7 +188,8 @@ function applyUpdate() {
 			);
 			job.commitAfter = after.output.trim() || null;
 
-			// 2. Install dependencies.
+			// 2. Install dependencies (NODE_ENV dropped in run() so devDeps
+			// like vite/lefthook install too).
 			job.currentStep = "Install dependencies";
 			append("→ Installing dependencies…");
 			step = await run(`set -e; cd ${REPO_DIR}; npm install`);
@@ -158,27 +207,17 @@ function applyUpdate() {
 				return;
 			}
 
-			// 4. Restart the service.
+			// 4. Restart the service. sudo is impossible inside the sandbox
+			// (NoNewPrivileges=true), so we exit instead; systemd's
+			// Restart=always brings the service back on the new code.
 			job.currentStep = "Restart service";
-			append(`→ Restarting ${SERVICE}…`);
-			step = await run(`${SUDO}systemctl restart ${SERVICE}`);
-			if (step.code !== 0) {
-				finish(
-					false,
-					`Service restart failed:\n${step.output} ` +
-						"(If this is a permissions problem, allow " +
-						`${SERVICE} restart for the service user via a scoped sudoers rule.)`,
-				);
-				return;
-			}
-
-			// Confirm it came back up.
-			const active = await run(
-				`${SUDO}systemctl is-active ${SERVICE} 2>/dev/null`,
+			append(
+				"→ Restarting service (self-exit; systemd Restart=always brings it back)…",
 			);
-			const activeState = active.output.trim();
-			append(`Service state: ${activeState || "unknown"}`);
 			finish(true, null);
+
+			// Give in-flight HTTP responses a moment, then hand off to systemd.
+			setTimeout(() => process.exit(0), 1500);
 		} catch (err) {
 			log().error(`[apply-update] job ${jobId} unexpected error:`, err);
 			finish(false, `Unexpected error: ${err.message}`);
@@ -219,7 +258,8 @@ async function checkForUpdate() {
 
 		if (result.localCommit && result.remoteCommit) {
 			result.updateAvailable =
-				result.localCommit.toLowerCase() !== result.remoteCommit.toLowerCase();
+				result.localCommit.toLowerCase() !==
+				result.remoteCommit.toLowerCase();
 			result.detail = result.updateAvailable
 				? `Deployed ${result.localCommit}, branch ${BRANCH} is at ${result.remoteCommit}`
 				: `Up to date on ${BRANCH} (${result.localCommit})`;
@@ -246,6 +286,6 @@ module.exports = {
 	applyUpdate,
 	getJobStatus,
 	checkForUpdate,
-	// Exposed for diagnostics/README; not required by routes.
-	config: { REPO_DIR, BRANCH, SERVICE, USE_SUDO },
+	// Exposed for diagnostics; not required by routes.
+	config: { REPO_DIR, BRANCH, UPDATE_HOME },
 };

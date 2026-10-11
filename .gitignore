@@ -194,3 +194,7 @@ docker/compose_dev_*
 # Conductor agent prompts (keep local, not public)
 docs/conductor-prompts/
 .encryption_key
+
+# Server self-update runtime files
+.update-home/
+.apply-update-state.json
