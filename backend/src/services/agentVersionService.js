@@ -823,8 +823,8 @@ class AgentVersionService {
 				`⬇️ Downloading binary for version ${version} architecture ${architecture}...`,
 			);
 
-			// Get the release info from GitHub
-			const response = await axios.get(await this._getRepoApiUrl(), {
+			// Get the release list from GitHub (the /releases list endpoint)
+			const response = await axios.get(await this._getReleasesUrl(), {
 				timeout: 10000,
 				headers: this._githubHeaders(),
 			});
@@ -1024,10 +1024,10 @@ class AgentVersionService {
 	async downloadVersion(version, progressCallback = null) {
 		try {
 			logger.info(`⬇️ Downloading agent version ${version}...`);
-			logger.info(`🌐 GitHub API URL: ${await this._getRepoApiUrl()}`);
+			logger.info(`🌐 GitHub releases URL: ${await this._getReleasesUrl()}`);
 
-			// Get the release info from GitHub
-			const response = await axios.get(await this._getRepoApiUrl(), {
+			// Get the release info from GitHub (the /releases list endpoint)
+			const response = await axios.get(await this._getReleasesUrl(), {
 				timeout: 10000,
 				headers: this._githubHeaders(),
 			});
