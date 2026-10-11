@@ -32,10 +32,13 @@ function getCurrentVersion() {
 	}
 }
 
-// Add endpoint to get latest version (for frontend - public endpoint)
+// Add endpoint to get latest version (for frontend - public endpoint).
+// Portal line: tag convention `portal/vX.Y.Z`. Used by the login screen and
+// the release-notes display. Distinct from the agent release line
+// (`agent/vX.Y.Z`).
 router.get("/latest", async (_req, res) => {
 	try {
-		const latestRelease = await getLatestRelease();
+		const latestRelease = await getPortalLatestRelease();
 		res.json({
 			version: latestRelease.version,
 			tagName: latestRelease.tagName,
@@ -49,8 +52,8 @@ router.get("/latest", async (_req, res) => {
 			const base = await getRepoBaseUrl();
 			res.json({
 				version: settings.latest_version,
-				tagName: `v${settings.latest_version}`,
-				htmlUrl: `${base}/releases/tag/v${settings.latest_version}`,
+				tagName: `portal/v${settings.latest_version}`,
+				htmlUrl: `${base}/releases/tag/portal/v${settings.latest_version}`,
 			});
 		} else {
 			res.status(500).json({ error: "Failed to get latest version" });
@@ -87,13 +90,16 @@ async function getRepoBaseUrl() {
 	return fallback;
 }
 
-// Helper function to get latest release from the configured GitHub repo
-async function getLatestRelease() {
+// Helper function to get latest portal release (tag convention `portal/vX.Y.Z`)
+async function getPortalLatestRelease() {
 	try {
-		return await agentVersionService.getLatestReleaseInfo();
+		return await agentVersionService.getPortalLatestReleaseInfo();
 	} catch (error) {
-		logger.error("Error fetching latest release from GitHub:", error.message);
-		throw error; // Re-throw to be caught by the calling function
+		logger.error(
+			"Error fetching latest portal release from GitHub:",
+			error.message,
+		);
+		throw error;
 	}
 }
 
@@ -276,20 +282,23 @@ router.get(
 
 			let latestRelease = null;
 
-			// Fetch fresh version from DNS
+			// Fetch fresh portal-line release (tag convention `portal/vX.Y.Z`)
 			try {
-				latestRelease = await getLatestRelease();
+				latestRelease = await getPortalLatestRelease();
 			} catch (dnsError) {
-				logger.warn("Failed to fetch version from DNS:", dnsError.message);
+				logger.warn(
+					"Failed to fetch portal release from GitHub:",
+					dnsError.message,
+				);
 
 				// Fall back to cached data
 				if (settings.latest_version) {
 					const base = await getRepoBaseUrl();
 					latestRelease = {
 						version: settings.latest_version,
-						tagName: `v${settings.latest_version}`,
+						tagName: `portal/v${settings.latest_version}`,
 						publishedAt: null,
-						htmlUrl: `${base}/releases/tag/v${settings.latest_version}`,
+						htmlUrl: `${base}/releases/tag/portal/v${settings.latest_version}`,
 					};
 				}
 			}

@@ -170,9 +170,12 @@ class VersionUpdateCheck {
 			let serverUpdateAvailable = false;
 
 			try {
-				// Check latest release from the configured GitHub repo
-				serverLatestVersion = (await agentVersionService.getLatestReleaseInfo())
-					.version;
+				// Check latest *portal* release from the configured GitHub repo
+				// (tag convention `portal/vX.Y.Z`). Agent releases live under
+				// `agent/vX.Y.Z` and are handled below.
+				serverLatestVersion = (
+					await agentVersionService.getPortalLatestReleaseInfo()
+				).version;
 
 				if (!serverLatestVersion) {
 					logger.warn("⚠️ Could not determine latest release from GitHub");

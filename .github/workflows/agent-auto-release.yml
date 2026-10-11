@@ -30,8 +30,8 @@ jobs:
         run: |
           VERSION=$(grep -oP 'var Version = "\K[^"]+' agent-source-code/internal/pkgversion/version.go)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Detected version: ${VERSION} (tag: v${VERSION})"
+          echo "tag=agent/v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Detected version: ${VERSION} (tag: agent/v${VERSION})"
 
       - name: Check if tag already exists
         id: check_tag
@@ -154,10 +154,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ needs.check-and-release.outputs.tag }}"
+          VERSION="${TAG#agent/}"
+          VERSION="${VERSION#v}"
           echo "Creating release ${TAG} with binaries..."
           gh release create "${TAG}" \
             --repo "${{ github.repository }}" \
-            --title "Agent ${TAG}" \
+            --title "Agent v${VERSION}" \
             --generate-notes \
             --target "${{ github.sha }}" \
             release-assets/*

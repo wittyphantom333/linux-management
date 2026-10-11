@@ -258,8 +258,7 @@ async function checkForUpdate() {
 
 		if (result.localCommit && result.remoteCommit) {
 			result.updateAvailable =
-				result.localCommit.toLowerCase() !==
-				result.remoteCommit.toLowerCase();
+				result.localCommit.toLowerCase() !== result.remoteCommit.toLowerCase();
 			result.detail = result.updateAvailable
 				? `Deployed ${result.localCommit}, branch ${BRANCH} is at ${result.remoteCommit}`
 				: `Up to date on ${BRANCH} (${result.localCommit})`;

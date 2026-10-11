@@ -476,44 +476,109 @@ class AgentVersionService {
 	}
 
 	/**
-	 * Fetch the latest release info (version, tag, htmlUrl) from the configured
-	 * GitHub repo. Used by both the agent version flows and the server
-	 * version-check endpoints (single source of truth — no DNS).
+	 * List releases from the configured GitHub repo and return the first one
+	 * whose tag_name matches the given prefix (e.g. "agent/" or "portal/").
+	 *
+	 * @param {"agent"|"portal"} line
+	 * @param {boolean} fallbackToLatest - when true and no matching release
+	 *   exists, fall back to `/releases/latest`. Used by the agent line for
+	 *   compatibility with repos whose tags are not yet prefixed. The portal
+	 *   line passes false so it never surfaces agent releases.
+	 */
+	async _getLatestReleaseByLine(line, fallbackToLatest = false) {
+		const base = await this._getRepoApiUrl();
+		try {
+			const response = await axios.get(`${base}/releases?per_page=50`, {
+				timeout: 15000,
+				headers: this._githubHeaders(),
+			});
+			const prefix = `${line}/`;
+			const match = (response.data || []).find((r) =>
+				r.tag_name?.startsWith(prefix),
+			);
+			if (match) {
+				return match;
+			}
+		} catch (err) {
+			if (err.response?.status !== 404) {
+				logger.warn(
+					`⚠️ /releases listing failed for line "${line}": ${err.message}`,
+				);
+			}
+		}
+		if (fallbackToLatest) {
+			const fallback = await axios.get(await this._getLatestReleaseUrl(), {
+				timeout: 15000,
+				headers: this._githubHeaders(),
+			});
+			return fallback.data;
+		}
+		return null;
+	}
+
+	/**
+	 * Fetch the latest *agent* release info (version, tag, htmlUrl) from the
+	 * configured GitHub repo. Tag convention: `agent/vX.Y.Z`.
+	 * Falls back to `/releases/latest` for repos that have not adopted the
+	 * `agent/` prefix yet (current tags are un-prefixed agent releases).
 	 */
 	async getLatestReleaseInfo() {
-		const response = await axios.get(await this._getLatestReleaseUrl(), {
-			timeout: 15000,
-			headers: this._githubHeaders(),
-		});
-		const tagName = response.data?.tag_name;
+		const release = await this._getLatestReleaseByLine("agent", true);
+		const tagName = release?.tag_name;
 		if (!tagName) {
-			throw new Error("No tag_name in latest release response");
+			throw new Error("No tag_name in latest agent release response");
 		}
-		const version = tagName.replace(/^v/i, "").trim();
+		const version = tagName
+			.replace(/^agent\//i, "")
+			.replace(/^v/i, "")
+			.trim();
 		const base = await this._getHtmlBaseUrl();
 		return {
 			version,
 			tagName,
-			htmlUrl: `${base}/releases/tag/${tagName}`,
-			publishedAt: response.data?.published_at || null,
+			htmlUrl: `${base}/releases/tag/${encodeURIComponent(tagName)}`,
+			publishedAt: release?.published_at || null,
+		};
+	}
+
+	/**
+	 * Fetch the latest *portal* release info (version, tag, htmlUrl) from the
+	 * configured GitHub repo. Tag convention: `portal/vX.Y.Z`.
+	 * Returns null when no portal-line release exists (no fallback to the
+	 * agent line).
+	 */
+	async getPortalLatestReleaseInfo() {
+		const release = await this._getLatestReleaseByLine("portal", false);
+		const tagName = release?.tag_name;
+		if (!tagName) {
+			return null;
+		}
+		const version = tagName
+			.replace(/^portal\//i, "")
+			.replace(/^v/i, "")
+			.trim();
+		const base = await this._getHtmlBaseUrl();
+		return {
+			version,
+			tagName,
+			htmlUrl: `${base}/releases/tag/${encodeURIComponent(tagName)}`,
+			publishedAt: release?.published_at || null,
 		};
 	}
 
 	async checkLatestVersionFromGitHub() {
 		try {
-			const url = await this._getLatestReleaseUrl();
-			const response = await axios.get(url, {
-				timeout: 15000,
-				headers: this._githubHeaders(),
-			});
-
-			const tagName = response.data?.tag_name;
+			const release = await this._getLatestReleaseByLine("agent", true);
+			const tagName = release?.tag_name;
 			if (!tagName) {
-				throw new Error("No tag_name in latest release response");
+				throw new Error("No tag_name in latest agent release response");
 			}
 
-			// Strip leading 'v' prefix if present
-			const version = tagName.replace(/^v/i, "").trim();
+			// Strip leading `agent/` and `v` prefixes if present
+			const version = tagName
+				.replace(/^agent\//i, "")
+				.replace(/^v/i, "")
+				.trim();
 
 			// Validate semver format
 			if (!/^\d+\.\d+\.\d+/.test(version)) {
@@ -766,7 +831,11 @@ class AgentVersionService {
 
 			const releases = response.data;
 			const release = releases.find(
-				(r) => r.tag_name.replace("v", "") === version,
+				(r) =>
+					r.tag_name
+						.replace(/^agent\//i, "")
+						.replace(/^v/i, "")
+						.trim() === version,
 			);
 
 			if (!release) {
@@ -985,18 +1054,25 @@ class AgentVersionService {
 				`🔍 Looking for version: ${normalizedVersion} (original: ${version})`,
 			);
 
-			// Find the release matching the requested version
-			// Try multiple matching strategies
+			// Find the release matching the requested version.
+			// Tags may be bare ("1.6.9"), v-prefixed ("v1.6.9"), or on the
+			// agent line ("agent/v1.6.9").
+			const strip = (t) =>
+				t
+					.replace(/^agent\//i, "")
+					.replace(/^v/i, "")
+					.trim();
 			let release = releases.find(
-				(r) => r.tag_name.replace(/^v/, "").trim() === normalizedVersion,
+				(r) => strip(r.tag_name) === normalizedVersion,
 			);
 
-			// If not found, try with 'v' prefix
+			// If not found, try explicit tag forms
 			if (!release) {
 				release = releases.find(
 					(r) =>
 						r.tag_name === `v${normalizedVersion}` ||
-						r.tag_name === normalizedVersion,
+						r.tag_name === normalizedVersion ||
+						r.tag_name === `agent/v${normalizedVersion}`,
 				);
 			}
 
@@ -1004,8 +1080,7 @@ class AgentVersionService {
 			if (!release) {
 				release = releases.find(
 					(r) =>
-						r.tag_name.replace(/^v/, "").trim().toLowerCase() ===
-						normalizedVersion.toLowerCase(),
+						strip(r.tag_name).toLowerCase() === normalizedVersion.toLowerCase(),
 				);
 			}
 
@@ -1133,12 +1208,15 @@ class AgentVersionService {
 				throw new Error("No releases found in GitHub response");
 			}
 
-			// Extract version numbers from tag names (remove 'v' prefix if present)
+			// Extract version numbers from tag names (remove 'agent/' and 'v' prefixes)
 			// Filter out drafts and only include published releases
 			const versions = releases
 				.filter((release) => !release.draft) // Exclude draft releases
 				.map((release) => ({
-					version: release.tag_name.replace(/^v/, ""),
+					version: release.tag_name
+						.replace(/^agent\//i, "")
+						.replace(/^v/i, "")
+						.trim(),
 					tag_name: release.tag_name,
 					published_at: release.published_at,
 					prerelease: release.prerelease,
@@ -1167,11 +1245,11 @@ class AgentVersionService {
 				return [
 					{
 						version: this.latestVersion,
-						tag_name: `v${this.latestVersion}`,
+						tag_name: `agent/v${this.latestVersion}`,
 						published_at: null,
 						prerelease: false,
 						draft: false,
-						html_url: `${await this._getHtmlBaseUrl()}/releases/tag/v${this.latestVersion}`,
+						html_url: `${await this._getHtmlBaseUrl()}/releases/tag/agent/v${this.latestVersion}`,
 					},
 				];
 			}
