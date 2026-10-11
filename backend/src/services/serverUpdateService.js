@@ -28,8 +28,7 @@ const SERVICE = process.env.UPDATE_SERVICE || "updates.zedhosting.gg.service";
 const USE_SUDO = process.env.UPDATE_SUDO !== "false";
 const SUDO = USE_SUDO ? "sudo " : "";
 
-// Jobs are stored in-memory and keyed by job id. The UI polls getJobStatus()
-// until the job settles.
+// jobId -> { status, startedAt, finishedAt, steps, currentStep, log, error }
 const jobs = new Map();
 
 function log() {
@@ -37,19 +36,17 @@ function log() {
 }
 
 /**
- * Run a single shell command via `bash -c` (non-login) with an isolated,
- * fully-writable HOME directory so child processes never touch the service
- * user's home (which may have root-owned files, missing dotfiles, etc.).
+ * Run a single shell command via `bash -c` (non-login) and return { code, output }.
  * Resolves on completion; never throws (errors are surfaced via output).
+ *
+ * NOTE: we intentionally avoid `-l` (login shell) because it tries to read
+ * the service user's .bash_profile, which is not readable here and breaks the
+ * command. The service environment PATH already covers /usr/bin (node, npm,
+ * git, sudo all live there).
  */
 function run(cmd, { timeout = 900_000 } = {}) {
 	return new Promise((resolve) => {
 		log().info(`[apply-update] $ ${cmd}`);
-		// Create a clean temp HOME for this command — no .bashrc, no root-owned
-		// cache files, nothing the service user can't write to.
-		const tmpHome = path.join(os.tmpdir(), `apply-update-${Date.now()}-${crypto.randomUUID().slice(0, 6)}`);
-		fs.mkdirSync(tmpHome, { recursive: true });
-
 		execFile(
 			"bash",
 			["-c", cmd],
@@ -59,9 +56,7 @@ function run(cmd, { timeout = 900_000 } = {}) {
 				encoding: "utf8",
 				env: {
 					...process.env,
-					HOME: tmpHome,
-					NODE_ENV: process.env.NODE_ENV || "production",
-					PATH: `${process.env.PATH || "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"}:${REPO_DIR}/node_modules/.bin`,
+					PATH: `${process.env.PATH || ""}:/usr/bin:/usr/local/bin:/bin`,
 				},
 			},
 			(error, stdout, stderr) => {
