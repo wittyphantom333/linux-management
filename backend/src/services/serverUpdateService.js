@@ -228,6 +228,22 @@ function applyUpdate() {
 }
 
 /**
+ * Read the portal version (package.json) from the deployed checkout.
+ * The portal version line is `portal/vX.Y.Z`; this is the human-readable
+ * version the server-version page should display (commits are only detail).
+ */
+function readPortalVersion() {
+	try {
+		const pkg = JSON.parse(
+			fs.readFileSync(path.join(REPO_DIR, "backend", "package.json"), "utf8"),
+		);
+		return pkg?.version || null;
+	} catch (_e) {
+		return null;
+	}
+}
+
+/**
  * Determine whether a server update is available by comparing the deployed
  * commit against the remote deploy branch. This is the source of truth for
  * "update available" on the server-version page (independent of agent
@@ -238,6 +254,7 @@ async function checkForUpdate() {
 		branch: BRANCH,
 		localCommit: null,
 		remoteCommit: null,
+		portalVersion: readPortalVersion(),
 		updateAvailable: false,
 		detail: null,
 	};
@@ -259,9 +276,12 @@ async function checkForUpdate() {
 		if (result.localCommit && result.remoteCommit) {
 			result.updateAvailable =
 				result.localCommit.toLowerCase() !== result.remoteCommit.toLowerCase();
+			const pv = result.portalVersion
+				? `portal/v${result.portalVersion}`
+				: "unknown";
 			result.detail = result.updateAvailable
-				? `Deployed ${result.localCommit}, branch ${BRANCH} is at ${result.remoteCommit}`
-				: `Up to date on ${BRANCH} (${result.localCommit})`;
+				? `Deployed ${pv} (${result.localCommit}), branch ${BRANCH} is at ${result.remoteCommit}`
+				: `Up to date on ${BRANCH} — ${pv} (${result.localCommit})`;
 		} else {
 			result.detail = "Could not determine deployed or remote commit";
 		}

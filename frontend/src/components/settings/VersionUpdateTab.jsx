@@ -342,7 +342,9 @@ const VersionUpdateTab = () => {
 							</div>
 							<div className="space-y-1">
 								<span className="text-lg font-mono text-secondary-900 dark:text-white">
-									{versionInfo.serverStatus.remoteCommit || "unknown"}
+									{versionInfo.serverStatus.portalVersion
+										? `v${versionInfo.serverStatus.portalVersion}`
+										: versionInfo.serverStatus.remoteCommit || "unknown"}
 								</span>
 								<div className="text-xs text-secondary-500 dark:text-secondary-400">
 									branch: {versionInfo.serverStatus.branch} · deployed:{" "}
