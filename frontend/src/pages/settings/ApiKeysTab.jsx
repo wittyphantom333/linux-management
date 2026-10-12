@@ -37,6 +37,15 @@ const ApiKeysTab = () => {
 		},
 	});
 
+	// Shared create handler: guarantees a non-empty name is sent.
+	// Both the Enter key and the button used to send "" or undefined
+	// (async state update race) which the backend rejects with a 400.
+	const handleCreate = () => {
+		const name = newKeyName.trim() || "PatchMon Integration";
+		setNewKeyName(name);
+		createMutation.mutate(name);
+	};
+
 	const revokeMutation = useMutation({
 		mutationFn: (id) => apiKeysAPI.revoke(id).then((r) => r.data),
 		onSuccess: () => queryClient.invalidateQueries(["api-keys"]),
@@ -72,17 +81,12 @@ const ApiKeysTab = () => {
 					placeholder="Name this key..."
 					className="flex-1 max-w-xs px-3 py-2 border border-secondary-300 dark:border-secondary-600 rounded-md bg-white dark:bg-secondary-700 text-sm text-secondary-900 dark:text-white placeholder-secondary-400"
 					onKeyDown={(e) => {
-						if (e.key === "Enter") createMutation.mutate();
+						if (e.key === "Enter") handleCreate();
 					}}
 				/>
 				<button
 					type="button"
-					onClick={() => {
-						if (!newKeyName.trim()) {
-							setNewKeyName("PatchMon Integration");
-						}
-						createMutation.mutate(newKeyName.trim());
-					}}
+					onClick={handleCreate}
 					disabled={createMutation.isPending}
 					className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-md text-sm font-medium transition-colors"
 				>
