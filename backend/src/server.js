@@ -109,6 +109,7 @@ const aiRoutes = require("./routes/aiRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const agentLogsRoutes = require("./routes/agentLogsRoutes");
 const apiKeysRoutes = require("./routes/apiKeysRoutes");
+const auditRoutes = require("./routes/auditRoutes");
 const { initSettings } = require("./services/settingsService");
 const { queueManager } = require("./services/automation");
 const {
@@ -452,6 +453,7 @@ app.use(`/api/${apiVersion}/ai`, aiRoutes);
 app.use(`/api/${apiVersion}/alerts`, alertRoutes);
 app.use(`/api/${apiVersion}/agent-logs`, agentLogsRoutes);
 app.use(`/api/${apiVersion}/api-keys`, authenticateToken, apiKeysRoutes);
+app.use(`/api/${apiVersion}/audit`, auditRoutes);
 
 // Bull Board - will be populated after queue manager initializes
 let bullBoardRouter = null;

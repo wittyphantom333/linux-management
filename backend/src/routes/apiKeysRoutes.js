@@ -10,6 +10,7 @@ const crypto = require("node:crypto");
 const logger = require("../utils/logger");
 const { getPrismaClient } = require("../config/prisma");
 const { authenticateToken } = require("../middleware/auth");
+const { AUDIT_EVENTS, logAuditEvent } = require("../utils/auditLogger");
 
 const router = express.Router();
 
@@ -149,6 +150,15 @@ router.post("/create", authenticateToken, async (req, res) => {
 
 		logger.info(`API key created for user ${userId} (${name})`);
 
+		logAuditEvent({
+			event: AUDIT_EVENTS.API_KEY_CREATED,
+			userId: String(userId),
+			username: req.user.username,
+			ipAddress: req.ip,
+			userAgent: req.get("user-agent"),
+			details: { name, keyType: isUser ? "user" : "admin" },
+		}).catch(() => {});
+
 		res.json({
 			success: true,
 			apiKey, // Only returned once!
@@ -208,6 +218,15 @@ router.post("/revoke", authenticateToken, async (req, res) => {
 		}
 
 		logger.info(`API key ${id} revoked`);
+
+		logAuditEvent({
+			event: AUDIT_EVENTS.API_KEY_REVOKED,
+			userId: String(userId),
+			username: req.user.username,
+			ipAddress: req.ip,
+			userAgent: req.get("user-agent"),
+			details: { keyId: id },
+		}).catch(() => {});
 
 		res.json({ success: true, message: "API key revoked successfully" });
 	} catch (error) {

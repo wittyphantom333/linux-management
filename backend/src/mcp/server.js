@@ -65,6 +65,20 @@ async function api(method, path, body) {
 	return text ? JSON.parse(text) : {};
 }
 
+// Fire-and-forget: report a tool invocation to the server's audit log
+// (POST /api/v1/audit/mcp-tool). A logging failure must never break a tool,
+// so errors are swallowed.
+function reportToolCall({ tool, args = {}, success, durationMs, error }) {
+	if (!API_KEY) return;
+	api("POST", "/api/v1/audit/mcp-tool", {
+		tool,
+		args,
+		success,
+		durationMs: typeof durationMs === "number" ? durationMs : null,
+		error: error ? String(error).substring(0, 500) : null,
+	}).catch(() => {});
+}
+
 // ── Host helpers ─────────────────────────────────
 // /api/v1/dashboard/hosts returns a raw array (no {data: [...]} wrapper)
 async function fetchHosts() {
@@ -387,6 +401,210 @@ const tools = [
 		},
 	},
 	{
+		name: "patchmon_host_detail",
+		description:
+			"Deep-dive one host without dumping the whole fleet: identity, OS, IP, agent version, auto_update, reboot-needed, uptime, docker/compliance/config-management flags, pending-update counts, and host-group membership. Optionally include recent agent logs.",
+		args: {
+			host_id: z.string().describe("Host ID (UUID or API ID)"),
+			include_logs: z
+				.boolean()
+				.optional()
+				.describe("Also fetch the last 20 agent log entries for this host"),
+		},
+		async handler({ host_id, include_logs }) {
+			const host = await resolveHost(host_id);
+			if (!host) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `No host found for id="${host_id}". Use patchmon_list_hosts to see available ids.`,
+						},
+					],
+				};
+			}
+
+			const pick = (keys) => {
+				const out = {};
+				for (const k of keys) {
+					if (host[k] !== undefined && host[k] !== null) out[k] = host[k];
+				}
+				return out;
+			};
+
+			const detail = {
+				identity: pick([
+					"friendly_name",
+					"hostname",
+					"ip",
+					"api_id",
+					"machine_id",
+				]),
+				os: pick(["os_type", "os_version", "system_uptime"]),
+				agent: pick([
+					"agent_version",
+					"auto_update",
+					"needs_reboot",
+					"effectiveStatus",
+					"last_update",
+					"isStale",
+				]),
+				features: pick([
+					"docker_enabled",
+					"compliance_enabled",
+					"compliance_on_demand_only",
+					"configmanagement_enabled",
+				]),
+				updates: pick([
+					"updatesCount",
+					"securityUpdatesCount",
+					"totalPackagesCount",
+				]),
+				hostGroups: host.host_group_memberships || [],
+				notes: host.notes || null,
+			};
+
+			let logs = null;
+			if (include_logs) {
+				try {
+					const params = new URLSearchParams();
+					params.set("limit", "20");
+					const data = await api(
+						"GET",
+						`/api/v1/agent-logs/${host.id}?${params.toString()}`,
+					);
+					const entries = data.entries || data.logs || data.data || data;
+					logs = (Array.isArray(entries) ? entries : [])
+						.slice(0, 20)
+						.map(
+							(l) =>
+								`${l.timestamp || l.created_at} [${(l.level || "info").toUpperCase()}] ${l.source || "-"}: ${l.message}`,
+						);
+				} catch (e) {
+					logs = `failed to fetch logs: ${e.message}`;
+				}
+			}
+
+			const out = [JSON.stringify(detail, null, 2)];
+			if (include_logs && logs) {
+				out.push(
+					typeof logs === "string"
+						? logs
+						: `\nRecent agent logs (${logs.length}):\n${logs.join("\n")}`,
+				);
+			}
+			return { content: [{ type: "text", text: out.join("\n") }] };
+		},
+	},
+	{
+		name: "patchmon_compliance_diff",
+		description:
+			"Show WHY a host is failing CIS compliance: fetches the host's latest scan and returns each failing rule with its title, severity, expected vs actual value, and remediation guidance. Use after patchmon_compliance_status to turn 'score 88' into actionable items.",
+		args: {
+			host_id: z.string().describe("Host ID (UUID or API ID)"),
+			profile: z
+				.string()
+				.optional()
+				.describe(
+					"Optional profile type to filter results (e.g. 'cis-windows', 'cis-linux'). Omit for the host's latest scan overall.",
+				),
+			limit: z
+				.number()
+				.int()
+				.min(1)
+				.max(300)
+				.optional()
+				.describe("Max failing rules to return (default 50)"),
+		},
+		async handler({ host_id, profile, limit }) {
+			const host = await resolveHost(host_id);
+			if (!host) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `No host found for id="${host_id}". Use patchmon_list_hosts to see available ids.`,
+						},
+					],
+				};
+			}
+
+			// Latest scan for this host
+			let scan;
+			try {
+				scan = await api("GET", `/api/v1/compliance/scans/${host.id}/latest`);
+			} catch (e) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `No compliance scan found for ${host.friendly_name || host.hostname || host.id} (or scan fetch failed: ${e.message}). Try patchmon_trigger_compliance_scan first.`,
+						},
+					],
+				};
+			}
+
+			const failedCount =
+				scan.failed ?? scan.failed_count ?? scan.fail ?? "unknown";
+			const lines = [];
+			lines.push(
+				`Host: ${host.friendly_name || host.hostname || host.id}`,
+				`Scan: ${scan.id} | profile ${scan.compliance_profiles?.name || scan.compliance_profiles?.type || profile || "n/a"} | status ${scan.status}`,
+				`Score: ${scan.score ?? "n/a"} | passed ${scan.passed ?? "?"} / failed ${failedCount} / skipped ${scan.skipped ?? "?"}`,
+			);
+
+			if (failedCount === 0 || failedCount === "0") {
+				lines.push("No failing rules — host is compliant on this profile.");
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+				};
+			}
+
+			// Fetch the failing rules (with rule metadata) for this scan
+			const params = new URLSearchParams();
+			params.set("status", "fail");
+			if (limit) params.set("limit", String(limit));
+			let results = [];
+			try {
+				const data = await api(
+					"GET",
+					`/api/v1/compliance/results/${scan.id}?${params.toString()}`,
+				);
+				results =
+					data.results || data.data || (Array.isArray(data) ? data : []);
+			} catch (e) {
+				lines.push(`(could not load failing-rule details: ${e.message})`);
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+				};
+			}
+
+			if (!results.length) {
+				lines.push("No failing-rule details available for this scan.");
+			} else {
+				lines.push("");
+				lines.push(`Failing rules (${results.length}):`);
+				for (const r of results) {
+					const rule = r.compliance_rules || {};
+					const title =
+						rule.title || rule.rule_ref || r.rule_id || "(untitled)";
+					const sev = rule.severity ? ` [${rule.severity}]` : "";
+					const expected = r.expected ? `\n  expected: ${r.expected}` : "";
+					const actual = r.actual ? `\n  actual:   ${r.actual}` : "";
+					const rem =
+						r.remediation || rule.remediation
+							? `\n  fix:      ${String(r.remediation || rule.remediation)
+									.split("\n")[0]
+									.slice(0, 160)}`
+							: "";
+					lines.push(`  - ${title}${sev}${expected}${actual}${rem}`);
+				}
+			}
+
+			return { content: [{ type: "text", text: lines.join("\n") }] };
+		},
+	},
+	{
 		name: "patchmon_validate",
 		description:
 			"Validate the current API key against the PatchMon server. Returns the key's owner (username), role (user/admin), and last-used time. Use this to debug authentication problems.",
@@ -443,7 +661,29 @@ async function main() {
 	});
 
 	for (const tool of tools) {
-		server.tool(tool.name, tool.description, tool.args, tool.handler);
+		const orig = tool.handler;
+		server.tool(tool.name, tool.description, tool.args, async (args) => {
+			const started = Date.now();
+			try {
+				const result = await orig(args);
+				reportToolCall({
+					tool: tool.name,
+					args,
+					success: true,
+					durationMs: Date.now() - started,
+				});
+				return result;
+			} catch (err) {
+				reportToolCall({
+					tool: tool.name,
+					args,
+					success: false,
+					durationMs: Date.now() - started,
+					error: err?.message,
+				});
+				throw err;
+			}
+		});
 	}
 
 	console.error(`PatchMon MCP server starting...`);

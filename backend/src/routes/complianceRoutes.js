@@ -9,6 +9,7 @@ const { verifyApiKey } = require("../utils/apiKeyUtils");
 const agentWs = require("../services/agentWs");
 const { queueManager, QUEUE_NAMES } = require("../services/automation");
 const { redis } = require("../services/automation/shared/redis");
+const { AUDIT_EVENTS, logAuditEvent } = require("../utils/auditLogger");
 
 const prisma = getPrismaClient();
 
@@ -2066,6 +2067,19 @@ router.post("/trigger/:hostId", async (req, res) => {
 			logger.info(
 				`[Compliance] Scan queued for host ${safe_host_id}; job_id=${job.id} agent_connected=${connected}`,
 			);
+			logAuditEvent({
+				event: AUDIT_EVENTS.COMPLIANCE_SCAN_TRIGGERED,
+				userId: req.user?.id ? String(req.user.id) : null,
+				username: req.user?.username || null,
+				ipAddress: req.ip,
+				userAgent: req.get("user-agent"),
+				details: {
+					hostId: safe_host_id,
+					jobId: job.id,
+					profileType: profile_type,
+					enableRemediation: enable_remediation,
+				},
+			}).catch(() => {});
 			return res.json({
 				message: connected
 					? enable_remediation

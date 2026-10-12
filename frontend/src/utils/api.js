@@ -519,4 +519,10 @@ export const agentLogsAPI = {
 		api.delete(`/agent-logs/${hostId}`, { params }),
 };
 
+// Audit / Usage & Logs API (admin-only)
+export const auditAPI = {
+	list: (params = {}) => api.get("/audit", { params }),
+	summary: () => api.get("/audit/summary"),
+};
+
 export default api;

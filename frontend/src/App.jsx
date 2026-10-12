@@ -24,6 +24,7 @@ const PackageDetail = lazy(() => import("./pages/PackageDetail"));
 const Packages = lazy(() => import("./pages/Packages"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Automation = lazy(() => import("./pages/Automation"));
+const AuditLog = lazy(() => import("./pages/AuditLog"));
 const Repositories = lazy(() => import("./pages/Repositories"));
 const RepositoryDetail = lazy(() => import("./pages/RepositoryDetail"));
 const Docker = lazy(() => import("./pages/Docker"));
@@ -436,6 +437,16 @@ function AppRoutes() {
 						<ProtectedRoute requirePermission="can_manage_settings">
 							<Layout>
 								<SettingsUsers />
+							</Layout>
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path="/audit-log"
+					element={
+						<ProtectedRoute requirePermission="can_manage_settings">
+							<Layout>
+								<AuditLog />
 							</Layout>
 						</ProtectedRoute>
 					}

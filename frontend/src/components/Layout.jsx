@@ -16,6 +16,7 @@ import {
 	Plus,
 	RefreshCw,
 	Route,
+	ScrollText,
 	Server,
 	Settings,
 	Settings2,
@@ -349,6 +350,15 @@ const Layout = ({ children }) => {
 					href: "/settings/users",
 					icon: Settings,
 					showUpgradeIcon: updateAvailable,
+				});
+			}
+
+			if (canManageSettings()) {
+				serverItems.push({
+					name: "Usage & Logs",
+					href: "/audit-log",
+					icon: ScrollText,
+					beta: false,
 				});
 			}
 
