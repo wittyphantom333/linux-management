@@ -33,17 +33,27 @@ async function resolveDisplayNames(rows) {
 			rows.map((r) => r.user_id).filter((v) => v && typeof v === "string"),
 		),
 	];
-	const users =
+	// A user_id may be a users.id (user keys / sessions) OR an admin_api_keys.id
+	// (admin keys / MCP calls — for those, req.user.id is the key's own id).
+	const [users, adminKeys] =
 		userIds.length > 0
-			? await prisma.users.findMany({
-					where: { id: { in: userIds } },
-					select: { id: true, username: true },
-				})
-			: [];
-	const userMap = new Map(users.map((u) => [u.id, u.username]));
+			? await Promise.all([
+					prisma.users.findMany({
+						where: { id: { in: userIds } },
+						select: { id: true, username: true },
+					}),
+					prisma.admin_api_keys.findMany({
+						where: { id: { in: userIds } },
+						select: { id: true, username: true },
+					}),
+				])
+			: [[], []];
+	const nameMap = new Map([
+		...users.map((u) => [u.id, u.username]),
+		...adminKeys.map((k) => [k.id, k.username]),
+	]);
 
 	return rows.map((r) => {
-		let name = userMap.get(r.user_id) || null;
 		let details = {};
 		if (r.details) {
 			try {
@@ -52,12 +62,11 @@ async function resolveDisplayNames(rows) {
 				details = {};
 			}
 		}
-		if (!name && details && details.username) name = details.username;
-		return {
-			...r,
-			details,
-			username: name || (r.user_id ? r.user_id : "anonymous"),
-		};
+		const name =
+			nameMap.get(r.user_id) ||
+			details?.username ||
+			(r.user_id ? r.user_id : "anonymous");
+		return { ...r, details, username: name };
 	});
 }
 
