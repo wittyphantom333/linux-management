@@ -161,7 +161,7 @@ const ApiKeysTab = () => {
 								<div className="flex items-center justify-between gap-4">
 									<div className="min-w-0 flex-1">
 										<p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
-											{key.name || "Unnamed key"}
+											{key.name || key.username || "Unnamed key"}
 										</p>
 										<div className="flex items-center gap-2 mt-1">
 											<span className="font-mono text-xs text-secondary-500 dark:text-secondary-400 truncate max-w-[280px]">
@@ -169,7 +169,12 @@ const ApiKeysTab = () => {
 											</span>
 											<button
 												type="button"
-												onClick={() => copyToClipboard(key.key, key.id)}
+												onClick={() =>
+													copyToClipboard(
+														key.maskedKey || key.masked_key,
+														key.id,
+													)
+												}
 												className="text-primary-600 hover:text-primary-700 dark:text-primary-400 flex-shrink-0"
 											>
 												{copiedId === key.id ? (
