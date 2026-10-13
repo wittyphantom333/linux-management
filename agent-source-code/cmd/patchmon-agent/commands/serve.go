@@ -943,6 +943,9 @@ func reportIntegrationStatus(ctx context.Context) {
 		openscapScanner := compliance.NewOpenSCAPScanner(logger)
 		dockerBenchScanner := compliance.NewDockerBenchScanner(logger)
 		oscapDockerScanner := compliance.NewOscapDockerScanner(logger)
+		windowsCISScanner := compliance.NewWindowsCISScanner(logger)
+
+		isWindows := runtime.GOOS == "windows"
 
 		// Get scanner details (includes OS info, profiles, etc.)
 		scannerDetails := openscapScanner.GetScannerDetails()
@@ -950,11 +953,26 @@ func reportIntegrationStatus(ctx context.Context) {
 		// Build components status map based on ACTUAL availability
 		components := make(map[string]string)
 
-		// Check OpenSCAP availability
+		// Check OpenSCAP availability. On Windows there is no OpenSCAP — the
+		// CIS scanner is the compliance mechanism there, so a missing oscap
+		// binary is "unavailable" (not a failure) and must not drag the overall
+		// status to "error".
 		if openscapScanner.IsAvailable() {
 			components["openscap"] = "ready"
+		} else if isWindows {
+			components["openscap"] = "unavailable"
 		} else {
 			components["openscap"] = "failed"
+		}
+
+		// Windows CIS scanner (native registry/service checks). Only applies on
+		// Windows; this is what makes a Windows host report "ready".
+		if isWindows {
+			if windowsCISScanner.IsAvailable() {
+				components["cis-windows"] = "ready"
+			} else {
+				components["cis-windows"] = "failed"
+			}
 		}
 
 		// Check Docker integration and related tools

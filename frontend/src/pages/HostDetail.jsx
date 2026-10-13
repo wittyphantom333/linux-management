@@ -5077,7 +5077,10 @@ const HostDetail = () => {
 												{!complianceSetupStatus?.status?.scanner_info
 													?.openscap_version &&
 													!complianceSetupStatus?.status?.scanner_info
-														?.content_file && (
+														?.content_file &&
+													!(host?.os_type || "")
+														.toLowerCase()
+														.includes("windows") && (
 														<p className="text-xs text-secondary-500 dark:text-secondary-400 mt-1">
 															No version or path data yet. Use Refresh status or
 															Install scanner.
