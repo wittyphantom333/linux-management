@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -141,7 +140,7 @@ func defaultRuleset() []CISRule {
 			Section:     "Account Policies",
 			Severity:    "low",
 			CheckType:   "policy_value",
-			CheckKey:    "System\\CurrentControlSet\\Control\\Lsa",
+			CheckKey:    "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
 			CheckValue:  "NoLMHash",
 			CheckData:   "1",
 			Operator:    "eq",
@@ -156,7 +155,7 @@ func defaultRuleset() []CISRule {
 			Section:     "Local Policies",
 			Severity:    "medium",
 			CheckType:   "policy_value",
-			CheckKey:    "System\\CurrentControlSet\\Control\\Lsa",
+			CheckKey:    "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
 			CheckValue:  "CrashOnAuditFail",
 			CheckData:   "0",
 			Operator:    "eq",
@@ -171,7 +170,7 @@ func defaultRuleset() []CISRule {
 			Section:     "Logon Rights",
 			Severity:    "low",
 			CheckType:   "policy_value",
-			CheckKey:    "System\\CurrentControlSet\\Control\\Lsa",
+			CheckKey:    "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa",
 			CheckValue:  "LimitBlankPasswordUse",
 			CheckData:   "1",
 			Operator:    "eq",
@@ -188,7 +187,7 @@ func defaultRuleset() []CISRule {
 			CheckType:   "registry_key",
 			CheckKey:    "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
 			CheckValue:  "WUServer",
-			Operator:    "", // check existence
+			Operator:    "exists",
 			Remediation: "Configure Windows Update server via GPO",
 		},
 
@@ -407,61 +406,66 @@ func (s *WindowsCISScanner) evaluateRule(_ context.Context, rule CISRule) scanRe
 	return result
 }
 
-// evaluateRegistryKey reads a Windows registry key and checks the value
+// evaluateRegistryKey reads a registry key/value using the native Windows
+// registry API — no dependency on cmd.exe being reachable from the service's
+// session.
 func (s *WindowsCISScanner) evaluateRegistryKey(rule CISRule) scanResult {
-	result := scanResult{Rule: rule, Status: "fail"}
+	result := scanResult{Rule: rule, Expected: rule.CheckData}
 
-	// Use reg query command (built into Windows, works in Session 0 / SYSTEM)
-	cmdStr := fmt.Sprintf(`reg query "%s" /v "%s"`, rule.CheckKey, rule.CheckValue)
-	cmd := exec.Command("cmd", "/c", cmdStr)
-	output, err := cmd.Output()
-
+	actualValue, found, err := cisRegistryValue(rule.CheckKey, rule.CheckValue)
 	if err != nil {
-		// reg query returns non-zero if key or value not found
-		result.Status = "notapplicable"
-		result.Finding = "Registry key or value not found"
-		result.Actual = ""
+		result.Status = "error"
+		result.Finding = fmt.Sprintf("Failed to read registry %s\\%s: %v", rule.CheckKey, rule.CheckValue, err)
+		return result
+	}
+
+	// Existence checks operate on the key (value optional).
+	switch rule.Operator {
+	case "exists":
+		if found {
+			result.Status = "pass"
+			result.Finding = "Registry key exists"
+			result.Actual = "present"
+			result.Expected = "present"
+		} else {
+			result.Status = "fail"
+			result.Finding = fmt.Sprintf("Registry key does not exist: %s", rule.CheckKey)
+			result.Actual = "absent"
+			result.Expected = "present"
+		}
+		return result
+	case "not_exists":
+		if !found {
+			result.Status = "pass"
+			result.Finding = "Registry key does not exist (as required)"
+			result.Actual = "absent"
+			result.Expected = "absent"
+		} else {
+			result.Status = "fail"
+			result.Finding = fmt.Sprintf("Registry key exists (should not exist): %s", rule.CheckKey)
+			result.Actual = "present"
+			result.Expected = "absent"
+		}
+		return result
+	}
+
+	// Value comparison checks require the value to be set.
+	if !found {
+		result.Status = "fail"
+		result.Finding = fmt.Sprintf("Registry value not set: %s\\%s", rule.CheckKey, rule.CheckValue)
 		result.Expected = rule.CheckData
 		return result
 	}
 
-	// Parse the output to extract the actual value
-	actualValue := parseRegOutput(string(output), rule.CheckValue)
 	result.Actual = actualValue
-
-	// Perform comparison based on operator
 	switch rule.Operator {
-	case "eq":
-		if actualValue == rule.CheckData {
-			result.Status = "pass"
-			result.Finding = fmt.Sprintf("Value matches: %s", rule.Title)
-		} else {
-			result.Status = "fail"
-			result.Finding = fmt.Sprintf("Expected: %s, Actual: %s", rule.CheckData, actualValue)
-		}
 	case "neq":
 		if actualValue != rule.CheckData {
 			result.Status = "pass"
-			result.Finding = fmt.Sprintf("Value correctly differs from expected")
+			result.Finding = "Value correctly differs from expected"
 		} else {
 			result.Status = "fail"
 			result.Finding = fmt.Sprintf("Expected NOT %s, got same value", rule.CheckData)
-		}
-	case "exists":
-		if actualValue != "" {
-			result.Status = "pass"
-			result.Finding = "Registry key exists"
-		} else {
-			result.Status = "fail"
-			result.Finding = "Expected registry value to exist but not found"
-		}
-	case "not_exists":
-		if actualValue == "" {
-			result.Status = "pass"
-			result.Finding = "Registry key correctly does not exist"
-		} else {
-			result.Status = "fail"
-			result.Finding = fmt.Sprintf("Expected registry value NOT to exist, but found: %s", actualValue)
 		}
 	case "contains":
 		if strings.Contains(actualValue, rule.CheckData) {
@@ -477,11 +481,12 @@ func (s *WindowsCISScanner) evaluateRegistryKey(rule CISRule) scanResult {
 	case "lte":
 		result.Status = evaluateNumericComparison(actualValue, rule.CheckData, "<=")
 		result.Finding = formatComparisonResult(actualValue, rule.CheckData, "<=", result.Status == "pass")
+	case "eq":
+		fallthrough
 	default:
-		// Default to equality check
 		if actualValue == rule.CheckData {
 			result.Status = "pass"
-			result.Finding = "Default: value matches expected"
+			result.Finding = fmt.Sprintf("Value matches: %s", rule.Title)
 		} else {
 			result.Status = "fail"
 			result.Finding = fmt.Sprintf("Expected: %s, Actual: %s", rule.CheckData, actualValue)
@@ -492,34 +497,25 @@ func (s *WindowsCISScanner) evaluateRegistryKey(rule CISRule) scanResult {
 }
 
 // evaluateServiceState checks if a Windows service is in the expected state
+// using the native Service Control Manager API.
 func (s *WindowsCISScanner) evaluateServiceState(rule CISRule) scanResult {
-	result := scanResult{Rule: rule, Status: "fail"}
+	result := scanResult{Rule: rule, Status: "fail", Expected: rule.CheckData}
 
-	cmd := exec.Command("cmd", "/c", fmt.Sprintf(`sc query "%s"`, rule.CheckKey))
-	output, err := cmd.Output()
-
+	state, found, err := cisServiceState(rule.CheckKey)
 	if err != nil {
 		result.Status = "error"
 		result.Finding = fmt.Sprintf("Failed to query service %s: %v", rule.CheckKey, err)
 		return result
 	}
-
-	// Parse sc query output for STATE field
-	state := extractServiceState(string(output))
+	if !found {
+		result.Status = "error"
+		result.Finding = fmt.Sprintf("Service %s is not installed", rule.CheckKey)
+		return result
+	}
 
 	result.Actual = state
-	result.Expected = rule.CheckData
-
 	switch rule.Operator {
-	case "eq":
-		if normalizeState(state) == normalizeState(rule.CheckData) {
-			result.Status = "pass"
-			result.Finding = fmt.Sprintf("Service %s is %s (as expected)", rule.CheckKey, state)
-		} else {
-			result.Status = "fail"
-			result.Finding = fmt.Sprintf("Expected service to be %s, but it is %s", rule.CheckData, state)
-		}
-	case "not_eq": // renamed from not_eq due to Go identifier rules - actually using 'neq' below
+	case "neq", "not_eq":
 		if normalizeState(state) != normalizeState(rule.CheckData) {
 			result.Status = "pass"
 			result.Finding = fmt.Sprintf("Service %s is NOT %s (as expected)", rule.CheckKey, rule.CheckData)
@@ -527,35 +523,41 @@ func (s *WindowsCISScanner) evaluateServiceState(rule CISRule) scanResult {
 			result.Status = "fail"
 			result.Finding = fmt.Sprintf("Expected service NOT to be %s, but it is", rule.CheckData)
 		}
+	case "eq", "":
+		if normalizeState(state) == normalizeState(rule.CheckData) {
+			result.Status = "pass"
+			result.Finding = fmt.Sprintf("Service %s is %s (as expected)", rule.CheckKey, state)
+		} else {
+			result.Status = "fail"
+			result.Finding = fmt.Sprintf("Expected service to be %s, but it is %s", rule.CheckData, state)
+		}
 	default:
-		result.Status = "pass" // default if no operator specified
-		result.Finding = "Service query successful"
+		result.Status = "fail"
+		result.Finding = fmt.Sprintf("Unsupported operator %q for service state", rule.Operator)
 	}
 
 	return result
 }
 
-// evaluatePolicyValue checks a local security policy value via reg query or secedit
+// evaluatePolicyValue checks a local security policy value using the native
+// registry API (the primary source for most LSA / audit policy settings).
 func (s *WindowsCISScanner) evaluatePolicyValue(rule CISRule) scanResult {
-	result := scanResult{Rule: rule, Status: "fail"}
+	result := scanResult{Rule: rule, Status: "fail", Expected: rule.CheckData}
 
-	cmdStr := fmt.Sprintf(`reg query "%s" /v "%s"`, rule.CheckKey, rule.CheckValue)
-	cmd := exec.Command("cmd", "/c", cmdStr)
-	output, err := cmd.Output()
-
+	actualValue, found, err := cisRegistryValue(rule.CheckKey, rule.CheckValue)
 	if err != nil {
+		result.Status = "error"
+		result.Finding = fmt.Sprintf("Failed to read policy %s\\%s: %v", rule.CheckKey, rule.CheckValue, err)
+		return result
+	}
+	if !found {
 		result.Status = "notapplicable"
 		result.Finding = "Policy value not configured"
-		result.Actual = ""
-		result.Expected = rule.CheckData
 		return result
 	}
 
-	actualValue := parseRegOutput(string(output), rule.CheckValue)
 	result.Actual = actualValue
-
-	switch rule.Operator {
-	case "eq":
+	if rule.Operator == "eq" || rule.Operator == "" {
 		if actualValue == rule.CheckData {
 			result.Status = "pass"
 			result.Finding = fmt.Sprintf("Policy matches: %s", rule.Title)
@@ -563,14 +565,9 @@ func (s *WindowsCISScanner) evaluatePolicyValue(rule CISRule) scanResult {
 			result.Status = "fail"
 			result.Finding = fmt.Sprintf("Expected: %s, Actual: %s", rule.CheckData, actualValue)
 		}
-	default:
-		if actualValue != "" {
-			result.Status = "pass"
-			result.Finding = "Policy value is configured"
-		} else {
-			result.Status = "fail"
-			result.Finding = "Policy value not set"
-		}
+	} else {
+		result.Status = "fail"
+		result.Finding = fmt.Sprintf("Unsupported operator %q for policy value", rule.Operator)
 	}
 
 	return result
@@ -594,54 +591,6 @@ func (s *WindowsCISScanner) evaluateFileExists(rule CISRule) scanResult {
 	}
 
 	return result
-}
-
-// parseRegOutput extracts the value from reg query output
-func parseRegOutput(output, valueName string) string {
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-
-	for _, line := range lines {
-		// Look for lines containing the value name (usually "    REG_SZ    ValueName")
-		if strings.Contains(line, valueName) || strings.HasSuffix(strings.Fields(line)[0], valueName) {
-			parts := strings.Fields(line)
-			if len(parts) > 2 {
-				return strings.Join(parts[2:], " ")
-			}
-		}
-	}
-
-	// Fallback: try to find the value in a simpler format
-	for _, line := range lines {
-		if strings.Contains(strings.ToUpper(line), strings.ToUpper(valueName)) {
-			// Extract after the colon or space
-			if idx := strings.Index(line, ":"); idx > 0 {
-				return strings.TrimSpace(line[idx+1:])
-			}
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				return parts[len(parts)-1]
-			}
-		}
-	}
-
-	return ""
-}
-
-// extractServiceState extracts the SERVICE_STATE from sc query output
-func extractServiceState(output string) string {
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "STATE") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				stateStr := parts[len(parts)-1]
-				// Remove trailing newline or carriage return
-				stateStr = strings.TrimRight(stateStr, "\r\n")
-				return stateStr
-			}
-		}
-	}
-	return "unknown"
 }
 
 // normalizeState normalizes service state for comparison
@@ -697,14 +646,18 @@ func formatComparisonResult(actual, expected string, operator string, passed boo
 		sanitizeForLog(expected), "", operator, sanitizeForLog(actual))
 }
 
-// calculateScore computes the compliance percentage
+// calculateScore computes the compliance percentage over the rules that were
+// actually evaluated (pass or fail). Not-applicable and error rules are
+// excluded from both the numerator and denominator — counting them as passes
+// previously inflated the score to ~88% even when every check failed.
 func calculateScore(results []scanResult) float64 {
-	if len(results) == 0 {
+	passed := countStatus(results, "pass")
+	failed := countStatus(results, "fail")
+	total := passed + failed
+
+	if total == 0 {
 		return 0
 	}
-
-	passed := countStatus(results, "pass") + countStatus(results, "notapplicable")
-	total := len(results)
 
 	score := (float64(passed) / float64(total)) * 100
 
