@@ -23,6 +23,7 @@ const {
 	requireManageConfigManagement,
 } = require("../middleware/permissions");
 const { pushReportNow, isConnected } = require("../services/agentWs");
+const { AUDIT_EVENTS, logAuditEvent } = require("../utils/auditLogger");
 
 const prisma = getPrismaClient();
 const router = express.Router();
@@ -1342,6 +1343,74 @@ router.get(
 		} catch (error) {
 			logger.error(`[ConfigMgmt] Failed to get job: ${error.message}`);
 			return res.status(500).json({ error: "Failed to get job" });
+		}
+	},
+);
+
+// POST /api/v1/configmanagement/jobs/:id/cancel - Cancel a pending/running job
+router.post(
+	"/jobs/:id/cancel",
+	authenticateToken,
+	requireManageConfigManagement,
+	async (req, res) => {
+		/* #swagger.tags = ['Config Management - Jobs'] */
+		/* #swagger.summary = 'Cancel a config management job' */
+		/* #swagger.description = 'Cancel a pending or running job (e.g. stuck waiting on offline hosts). Marks the job cancelled and clears all pending/running per-host rows so no late agent report can resurrect it. Requires JWT auth.' */
+		/* #swagger.security = [{ "bearerAuth": [] }] */
+		try {
+			const { id } = req.params;
+			const job = await prisma.cm_jobs.findUnique({ where: { id } });
+			if (!job) return res.status(404).json({ error: "Job not found" });
+			if (!["pending", "running"].includes(job.status)) {
+				return res
+					.status(400)
+					.json({ error: "Only pending or running jobs can be cancelled" });
+			}
+
+			const [, cleared] = await prisma.$transaction([
+				prisma.cm_jobs.update({
+					where: { id },
+					data: {
+						status: "cancelled",
+						completed_at: new Date(),
+					},
+				}),
+				prisma.cm_job_hosts.updateMany({
+					where: { job_id: id, status: { in: ["pending", "running"] } },
+					data: {
+						status: "cancelled",
+						completed_at: new Date(),
+					},
+				}),
+			]);
+
+			logger.info(
+				`[ConfigMgmt] Job ${id} ("${job.rule_name}") cancelled by ${req.user?.username}: cleared ${cleared} pending/running host(s)`,
+			);
+
+			logAuditEvent({
+				event: AUDIT_EVENTS.CM_JOB_CANCELLED,
+				userId: req.user?.id ? String(req.user.id) : null,
+				username: req.user?.username || null,
+				ipAddress: req.ip,
+				userAgent: req.get("user-agent"),
+				details: {
+					jobId: id,
+					ruleName: job.rule_name,
+					previousStatus: job.status,
+					clearedHosts: cleared,
+				},
+			}).catch(() => {});
+
+			return res.json({
+				success: true,
+				message: "Job cancelled",
+				jobId: id,
+				clearedHosts: cleared,
+			});
+		} catch (error) {
+			logger.error(`[ConfigMgmt] Failed to cancel job: ${error.message}`);
+			return res.status(500).json({ error: "Failed to cancel job" });
 		}
 	},
 );

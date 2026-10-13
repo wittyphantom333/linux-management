@@ -49,6 +49,7 @@ export const configManagementAPI = {
 	listJobs: (params = {}) => api.get("/configmanagement/jobs", { params }),
 	getJob: (id) => api.get(`/configmanagement/jobs/${id}`),
 	getActiveJobs: () => api.get("/configmanagement/jobs/active"),
+	cancelJob: (id) => api.post(`/configmanagement/jobs/${id}/cancel`),
 
 	// ── Diagnostics ────────────────────────────────────────────────────
 	diagnose: () => api.get("/configmanagement/diagnose"),

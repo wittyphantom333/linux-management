@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	AlertTriangle,
 	ArrowLeft,
@@ -12,6 +12,7 @@ import {
 	XCircle,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import { useToast } from "../../contexts/ToastContext";
 import { configManagementAPI } from "../../utils/configManagementApi";
 
 const STATUS_STYLES = {
@@ -23,6 +24,7 @@ const STATUS_STYLES = {
 	completed_with_errors:
 		"bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
 	failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+	cancelled: "bg-gray-200 text-gray-700 dark:bg-gray-700/50 dark:text-gray-300",
 };
 
 const STATUS_ICONS = {
@@ -31,6 +33,7 @@ const STATUS_ICONS = {
 	completed: CheckCircle2,
 	completed_with_errors: AlertTriangle,
 	failed: XCircle,
+	cancelled: XCircle,
 };
 
 function statusBadge(status) {
@@ -70,6 +73,26 @@ function formatDate(dateStr) {
 
 export default function JobDetail() {
 	const { id } = useParams();
+	const queryClient = useQueryClient();
+	const { success: toastSuccess, error: toastError } = useToast();
+
+	const cancelJob = useMutation({
+		mutationFn: (jobId) =>
+			configManagementAPI.cancelJob(jobId).then((r) => r.data),
+		onSuccess: (data) => {
+			queryClient.invalidateQueries({ queryKey: ["configmgmt", "job", id] });
+			queryClient.invalidateQueries({
+				queryKey: ["configmgmt", "active-jobs"],
+			});
+			queryClient.invalidateQueries({ queryKey: ["configmgmt", "jobs"] });
+			toastSuccess(
+				`Job cancelled (${data?.clearedHosts ?? 0} host(s) cleared)`,
+			);
+		},
+		onError: (err) => {
+			toastError(err?.response?.data?.error || "Failed to cancel job");
+		},
+	});
 
 	const { data: jobData, isLoading } = useQuery({
 		queryKey: ["configmgmt", "job", id],
@@ -123,6 +146,31 @@ export default function JobDetail() {
 					</p>
 				</div>
 				{statusBadge(job.status)}
+				{["pending", "running"].includes(job.status) && (
+					<button
+						type="button"
+						disabled={cancelJob.isPending}
+						onClick={() => {
+							if (
+								window.confirm(
+									`Cancel this job? ${
+										job.pending_hosts ?? job.host_statuses?.pending ?? 0
+									} pending host(s) will be cleared and the job closed.`,
+								)
+							) {
+								cancelJob.mutate(id);
+							}
+						}}
+						className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-red-300 text-red-700 dark:border-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50 transition-colors"
+					>
+						{cancelJob.isPending ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<XCircle className="h-4 w-4" />
+						)}
+						Cancel job
+					</button>
+				)}
 			</div>
 
 			{/* Summary cards */}

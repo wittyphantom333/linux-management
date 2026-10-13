@@ -70,6 +70,9 @@ const AUDIT_EVENTS = {
 	// MCP / integration events
 	MCP_TOOL_CALL: "MCP_TOOL_CALL",
 	COMPLIANCE_SCAN_TRIGGERED: "COMPLIANCE_SCAN_TRIGGERED",
+
+	// Job lifecycle events
+	CM_JOB_CANCELLED: "CM_JOB_CANCELLED",
 };
 
 /**
