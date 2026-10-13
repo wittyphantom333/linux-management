@@ -85,8 +85,14 @@ export default function JobDetail() {
 				queryKey: ["configmgmt", "active-jobs"],
 			});
 			queryClient.invalidateQueries({ queryKey: ["configmgmt", "jobs"] });
+			const cleared =
+				typeof data?.clearedHosts === "object"
+					? (data?.clearedHosts?.count ?? 0)
+					: (data?.clearedHosts ?? 0);
 			toastSuccess(
-				`Job cancelled (${data?.clearedHosts ?? 0} host(s) cleared)`,
+				cleared > 0
+					? `Job cancelled (${cleared} host(s) cleared)`
+					: "Job cancelled",
 			);
 		},
 		onError: (err) => {
