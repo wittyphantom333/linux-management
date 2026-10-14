@@ -5027,53 +5027,86 @@ const HostDetail = () => {
 														</span>
 													)}
 												</div>
-												<div className="space-y-1.5 text-sm">
-													{complianceSetupStatus?.status?.scanner_info
-														?.openscap_version && (
+												{(host?.os_type || "")
+													.toLowerCase()
+													.includes("windows") ? (
+													<div className="space-y-1.5 text-sm">
 														<div className="flex gap-2">
 															<span className="text-secondary-500 dark:text-secondary-400 font-medium shrink-0">
-																OpenSCAP
+																Scanner
 															</span>
 															<span className="text-secondary-900 dark:text-white font-mono">
-																{
-																	complianceSetupStatus.status.scanner_info
-																		.openscap_version
-																}
+																Windows CIS Benchmark
 															</span>
 														</div>
-													)}
-													{(complianceSetupStatus?.status?.scanner_info
-														?.content_package ||
-														complianceSetupStatus?.status?.scanner_info
-															?.ssg_version) && (
-														<div className="flex gap-2">
-															<span className="text-secondary-500 dark:text-secondary-400 font-medium shrink-0">
-																SSG content
-															</span>
-															<span className="text-secondary-900 dark:text-white font-mono">
-																{complianceSetupStatus.status.scanner_info
-																	.content_package ||
-																	complianceSetupStatus.status.scanner_info
-																		.ssg_version ||
-																	"—"}
-															</span>
-														</div>
-													)}
-													{complianceSetupStatus?.status?.scanner_info
-														?.content_file && (
-														<div className="flex gap-2">
-															<span className="text-secondary-500 dark:text-secondary-400 font-medium shrink-0">
-																Content file on server
-															</span>
-															<span className="text-secondary-900 dark:text-white font-mono text-xs break-all min-w-0">
-																{
-																	complianceSetupStatus.status.scanner_info
-																		.content_file
-																}
-															</span>
-														</div>
-													)}
-												</div>
+														{complianceSetupStatus?.status?.scanner_info
+															?.windows_cis_rules != null && (
+															<div className="flex gap-2">
+																<span className="text-secondary-500 dark:text-secondary-400 font-medium shrink-0">
+																	CIS rules
+																</span>
+																<span className="text-secondary-900 dark:text-white font-mono">
+																	{
+																		complianceSetupStatus.status.scanner_info
+																			.windows_cis_rules
+																	}
+																</span>
+															</div>
+														)}
+														<p className="text-xs text-secondary-500 dark:text-secondary-400 mt-1">
+															Runs native registry &amp; service checks — no
+															OpenSCAP / SSG needed on Windows.
+														</p>
+													</div>
+												) : (
+													<div className="space-y-1.5 text-sm">
+														{complianceSetupStatus?.status?.scanner_info
+															?.openscap_version && (
+															<div className="flex gap-2">
+																<span className="text-secondary-500 dark:text-secondary-400 font-medium shrink-0">
+																	OpenSCAP
+																</span>
+																<span className="text-secondary-900 dark:text-white font-mono">
+																	{
+																		complianceSetupStatus.status.scanner_info
+																			.openscap_version
+																	}
+																</span>
+															</div>
+														)}
+														{(complianceSetupStatus?.status?.scanner_info
+															?.content_package ||
+															complianceSetupStatus?.status?.scanner_info
+																?.ssg_version) && (
+															<div className="flex gap-2">
+																<span className="text-secondary-500 dark:text-secondary-400 font-medium shrink-0">
+																	SSG content
+																</span>
+																<span className="text-secondary-900 dark:text-white font-mono">
+																	{complianceSetupStatus.status.scanner_info
+																		.content_package ||
+																		complianceSetupStatus.status.scanner_info
+																			.ssg_version ||
+																		"—"}
+																</span>
+															</div>
+														)}
+														{complianceSetupStatus?.status?.scanner_info
+															?.content_file && (
+															<div className="flex gap-2">
+																<span className="text-secondary-500 dark:text-secondary-400 font-medium shrink-0">
+																	Content file on server
+																</span>
+																<span className="text-secondary-900 dark:text-white font-mono text-xs break-all min-w-0">
+																	{
+																		complianceSetupStatus.status.scanner_info
+																			.content_file
+																	}
+																</span>
+															</div>
+														)}
+													</div>
+												)}
 												{!complianceSetupStatus?.status?.scanner_info
 													?.openscap_version &&
 													!complianceSetupStatus?.status?.scanner_info
