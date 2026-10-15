@@ -287,6 +287,11 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 		}
 	}, []);
 
+	// Remove fenced code blocks from content for display (buttons show them)
+	const stripCodeBlocks = useCallback((content) => {
+		return content.replace(/```(?:\w*\n)?[\s\S]*?```/g, "").trim();
+	}, []);
+
 	// Extract code blocks from AI message content
 	const extractCodeBlocks = useCallback((content) => {
 		const codeBlockRegex = /```(?:\w*\n)?([\s\S]*?)```/g;
@@ -1659,7 +1664,11 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 													)}
 													<div className="flex-1 min-w-0">
 														<div className="text-secondary-200 whitespace-pre-wrap break-words">
-															{msg.content}
+															{msg.role === "user"
+																? msg.content
+																: codeBlocks.length
+																	? stripCodeBlocks(msg.content)
+																	: msg.content}
 														</div>
 														{/* Send to Terminal buttons for detected commands */}
 														{codeBlocks.length > 0 && isConnected && (
