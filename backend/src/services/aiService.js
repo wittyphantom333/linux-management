@@ -436,7 +436,17 @@ async function getAssistance(
 			: `You are an agent. You may run READ-ONLY diagnostic commands (${readExamples}). ${shellNote} If you need to run one NOW, end your reply with a single line exactly: COMMAND: <the command>. One command per turn, at most 500 chars, no newlines in the command, and no other text after the COMMAND line. If you already know the answer or ran enough checks, answer with your final text and NO COMMAND line.`
 		: `${shellNote} If you suggest a shell command for the user to run, put it in a fenced code block.`;
 
-	const prompt = `${question}\n\n${protocol}`;
+	// Qwen3 models treat "/no_think" as a soft switch that disables the
+	// thinking phase. The agent protocol makes qwen3.8:27b reason for 90s+
+	// (observed: Windows agentLoop calls 504 at the gateway timeout while
+	// plain chat calls finish), so agent turns skip thinking — they need
+	// one fast COMMAND line, not deep reasoning.
+	const noThinkSwitch =
+		options.agentLoop && /qwen3/i.test(settings.ai_model || "")
+			? " /no_think"
+			: "";
+
+	const prompt = `${question}\n\n${protocol}${noThinkSwitch}`;
 
 	return callAI(settings, prompt, {
 		type: "assistant",
