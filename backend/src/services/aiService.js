@@ -140,7 +140,10 @@ async function callOpenRouter(apiKey, model, messages, options = {}) {
 	}
 
 	const data = await response.json();
-	return data.choices[0]?.message?.content || "";
+	const message = data.choices?.[0]?.message;
+	// Some reasoning models (e.g. qwen3.8:27b) return an empty "content" and
+	// put the answer in "reasoning"/"thinking". Fall back so the UI gets text.
+	return message?.content || message?.reasoning || message?.thinking || "";
 }
 
 /**
@@ -200,7 +203,10 @@ async function callOpenAI(apiKey, model, messages, options = {}) {
 	}
 
 	const data = await response.json();
-	return data.choices[0]?.message?.content || "";
+	const message = data.choices?.[0]?.message;
+	// Some reasoning models (e.g. qwen3.8:27b) return an empty "content" and
+	// put the answer in "reasoning"/"thinking". Fall back so the UI gets text.
+	return message?.content || message?.reasoning || message?.thinking || "";
 }
 
 /**
@@ -279,7 +285,10 @@ async function callOllama(apiKey, model, messages, options = {}, baseUrl) {
 	}
 
 	const data = await response.json();
-	return data.choices[0]?.message?.content || "";
+	const message = data.choices?.[0]?.message;
+	// Some reasoning models (e.g. qwen3.8:27b) return an empty "content" and
+	// put the answer in "reasoning"/"thinking". Fall back so the UI gets text.
+	return message?.content || message?.reasoning || message?.thinking || "";
 }
 
 /**
@@ -337,7 +346,10 @@ async function callAI(settings, prompt, options = {}) {
 
 	// Call the appropriate provider
 	const callOptions = {
-		maxTokens: options.type === "completion" ? 100 : 1024,
+		// Reasoning models (e.g. qwen3.8:27b) burn their budget on the
+		// "reasoning" field before emitting "content"; 1024 was too small and
+		// returned empty content. Give assistant calls a bigger budget.
+		maxTokens: options.type === "completion" ? 100 : 4096,
 		temperature: options.type === "completion" ? 0.3 : 0.7,
 	};
 
