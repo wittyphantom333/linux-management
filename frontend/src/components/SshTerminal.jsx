@@ -107,6 +107,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	const [aiExecMode, setAiExecMode] = useState(false);
 	const terminalBufferRef = useRef("");
 	const aiInputRef = useRef(null);
+	const aiAgentStopRef = useRef(false);
 	const currentLineRef = useRef(""); // Track current line for AI context
 
 	// Load cached username from localStorage, keyed by host ID for per-host caching
@@ -228,27 +229,120 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 		return terminalBufferRef.current.slice(-3000); // Last ~3000 chars
 	}, []);
 
-	// Send message to AI assistant
+	// Parse the trailing `COMMAND: <cmd>` protocol line from an AI reply
+	const parseAgentCommand = (text) => {
+		const match = text
+			.split("\n")
+			.reverse()
+			.find((line) => /^\s*COMMAND:\s*(.+)$/i.test(line));
+		if (!match) return null;
+		const cmd = match
+			.replace(/^\s*COMMAND:\s*/i, "")
+			.trim()
+			.slice(0, 500);
+		return cmd || null;
+	};
+
+	const stripCommandLine = (text) =>
+		text.replace(/^\s*COMMAND:.*$/im, "").trim();
+
+	// Wait until terminal output stops changing, then return the new output
+	const waitForTerminalOutput = async (before, timeoutMs = 15000) => {
+		const start = Date.now();
+		let last = terminalBufferRef.current;
+		let stable = 0;
+		while (Date.now() - start < timeoutMs) {
+			await new Promise((r) => setTimeout(r, 400));
+			if (aiAgentStopRef.current) break;
+			const cur = terminalBufferRef.current;
+			if (cur === last) {
+				stable += 1;
+				if (stable >= 2 && cur !== before) break;
+			} else {
+				stable = 0;
+				last = cur;
+			}
+		}
+		const buf = terminalBufferRef.current;
+		const fresh =
+			buf === before
+				? ""
+				: buf.startsWith(before)
+					? buf.slice(before.length)
+					: buf.slice(-3000);
+		return fresh.replace(/\r/g, "\n").trim().slice(-3000);
+	};
+
+	// Agent loop: AI replies with `COMMAND: <cmd>` to run it on this session;
+	// we execute it, feed the output back, and continue until it answers.
+	const MAX_AGENT_TURNS = 6;
+
 	const sendAiMessage = async () => {
 		if (!aiInput.trim() || aiLoading || !aiEnabled) return;
 
 		const userMessage = aiInput.trim();
 		setAiInput("");
+		aiAgentStopRef.current = false;
 		setAiMessages((prev) => [...prev, { role: "user", content: userMessage }]);
 		setAiLoading(true);
 
-		try {
-			const response = await aiAPI.assist({
-				question: userMessage,
-				context: getTerminalContext(),
-				history: aiMessages.slice(-10), // Last 10 messages for context
-				mode: aiExecMode ? "execute" : "chat",
-			});
+		const execMode = aiExecMode;
+		const history = aiMessages.slice(-6);
+		let question = userMessage;
 
-			setAiMessages((prev) => [
-				...prev,
-				{ role: "assistant", content: response.data.response },
-			]);
+		try {
+			let finalAnswered = false;
+			for (let turn = 0; turn < MAX_AGENT_TURNS; turn++) {
+				if (aiAgentStopRef.current) break;
+
+				const response = await aiAPI.assist({
+					question,
+					context: getTerminalContext(),
+					history,
+					mode: execMode ? "execute" : "chat",
+					agentLoop: true,
+				});
+				const raw = response.data.response || "";
+				const command = parseAgentCommand(raw);
+
+				if (!command) {
+					setAiMessages((prev) => [
+						...prev,
+						{ role: "assistant", content: raw.trim() || "(empty response)" },
+					]);
+					finalAnswered = true;
+					break;
+				}
+
+				// AI wants to run a command: show the step, run it, feed output back
+				const stepText = stripCommandLine(raw) || "Running command…";
+				setAiMessages((prev) => [
+					...prev,
+					{ role: "assistant", content: stepText, ranCommand: command },
+				]);
+
+				const before = terminalBufferRef.current;
+				execCommandToTerminal(command);
+				const output = await waitForTerminalOutput(before);
+
+				history.push({
+					role: "assistant",
+					content: `${stepText}\n$ ${command}`,
+				});
+				question = `I ran the command you asked for.\n$ ${command}\nOutput:\n${
+					output || "(no output yet)"
+				}\n\nContinue: reply with another COMMAND line if you need more checks, or give your final answer if you're done.`;
+			}
+			if (!finalAnswered && !aiAgentStopRef.current) {
+				setAiMessages((prev) => [
+					...prev,
+					{
+						role: "assistant",
+						content: `Stopped after ${MAX_AGENT_TURNS} command turns without a final answer. Ask me to summarize what we found, or continue manually.`,
+						isError: true,
+					},
+				]);
+			}
 		} catch (err) {
 			setAiMessages((prev) => [
 				...prev,
@@ -261,6 +355,10 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 		} finally {
 			setAiLoading(false);
 		}
+	};
+
+	const stopAiAgent = () => {
+		aiAgentStopRef.current = true;
 	};
 
 	// Send a command from AI to terminal (without pressing Enter)
@@ -1670,38 +1768,47 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 																	? stripCodeBlocks(msg.content)
 																	: msg.content}
 														</div>
-														{/* Send to Terminal buttons for detected commands */}
-														{codeBlocks.length > 0 && isConnected && (
-															<div className="mt-2 pt-2 border-t border-secondary-600/50 space-y-1.5">
-																<span className="text-xs text-secondary-400">
-																	{aiExecMode
-																		? "Click to execute:"
-																		: "Send to terminal:"}
+														{msg.ranCommand && (
+															<div className="mt-2 pt-2 border-t border-secondary-600/50">
+																<span className="text-xs text-emerald-400/80 font-mono">
+																	✓ ran: {msg.ranCommand}
 																</span>
-																{codeBlocks.map((cmd, cmdIdx) => (
-																	<button
-																		key={`cmd-${cmdIdx}-${cmd.slice(0, 20)}`}
-																		type="button"
-																		onClick={() =>
-																			aiExecMode
-																				? execCommandToTerminal(cmd)
-																				: sendCommandToTerminal(cmd)
-																		}
-																		className="w-full flex items-center gap-2 px-2 py-1.5 text-xs bg-secondary-600/50 hover:bg-primary-600/50 border border-secondary-500/50 hover:border-primary-500/50 rounded text-left transition-colors group"
-																		title={
-																			aiExecMode
-																				? "Click to execute command in terminal"
-																				: "Click to send command to terminal (without Enter)"
-																		}
-																	>
-																		<Play className="h-3 w-3 text-primary-400 group-hover:text-primary-300 flex-shrink-0" />
-																		<code className="flex-1 text-secondary-200 group-hover:text-white font-mono truncate">
-																			{cmd}
-																		</code>
-																	</button>
-																))}
 															</div>
 														)}
+														{/* Send to Terminal buttons for detected commands */}
+														{codeBlocks.length > 0 &&
+															isConnected &&
+															!msg.ranCommand && (
+																<div className="mt-2 pt-2 border-t border-secondary-600/50 space-y-1.5">
+																	<span className="text-xs text-secondary-400">
+																		{aiExecMode
+																			? "Click to execute:"
+																			: "Send to terminal:"}
+																	</span>
+																	{codeBlocks.map((cmd, cmdIdx) => (
+																		<button
+																			key={`cmd-${cmdIdx}-${cmd.slice(0, 20)}`}
+																			type="button"
+																			onClick={() =>
+																				aiExecMode
+																					? execCommandToTerminal(cmd)
+																					: sendCommandToTerminal(cmd)
+																			}
+																			className="w-full flex items-center gap-2 px-2 py-1.5 text-xs bg-secondary-600/50 hover:bg-primary-600/50 border border-secondary-500/50 hover:border-primary-500/50 rounded text-left transition-colors group"
+																			title={
+																				aiExecMode
+																					? "Click to execute command in terminal"
+																					: "Click to send command to terminal (without Enter)"
+																			}
+																		>
+																			<Play className="h-3 w-3 text-primary-400 group-hover:text-primary-300 flex-shrink-0" />
+																			<code className="flex-1 text-secondary-200 group-hover:text-white font-mono truncate">
+																				{cmd}
+																			</code>
+																		</button>
+																	))}
+																</div>
+															)}
 													</div>
 												</div>
 											</div>
@@ -1714,6 +1821,13 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 												<span className="text-sm text-secondary-400">
 													Thinking...
 												</span>
+												<button
+													type="button"
+													onClick={stopAiAgent}
+													className="ml-auto px-2 py-1 text-xs rounded bg-secondary-600 hover:bg-secondary-500 text-white"
+												>
+													Stop
+												</button>
 											</div>
 										</div>
 									)}

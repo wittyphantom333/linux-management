@@ -413,9 +413,16 @@ async function getAssistance(
 	history = [],
 	options = {},
 ) {
-	const prompt = options.execMode
-		? `${question}\n\nEXEC MODE: Respond with ONLY the shell command(s) to run, each in its own fenced code block. No explanations, no prose, no commentary.`
-		: question;
+	// Agent protocol: the UI runs the loop. When the assistant wants to run a
+	// command it ends its reply with a single line `COMMAND: <one shell command>`.
+	// The UI executes it, feeds the output back, and asks to continue.
+	const protocol = options.agentLoop
+		? options.execMode
+			? "You are an agent. You may run any command needed to fix the problem. If you need to run a command NOW, end your reply with a single line exactly: COMMAND: <the command>. One command per turn, at most 500 chars, no newlines in the command, and no other text after the COMMAND line. If you are done, answer with your final summary and NO COMMAND line."
+			: "You are an agent. You may run READ-ONLY diagnostic commands (e.g. ps, systemctl status, journalctl, ls, cat, df, ss, rpm -q). If you need to run one NOW, end your reply with a single line exactly: COMMAND: <the command>. One command per turn, at most 500 chars, no newlines in the command, and no other text after the COMMAND line. If you already know the answer or ran enough checks, answer with your final text and NO COMMAND line."
+		: "If you suggest a shell command for the user to run, put it in a fenced code block.";
+
+	const prompt = `${question}\n\n${protocol}`;
 
 	return callAI(settings, prompt, {
 		type: "assistant",

@@ -390,7 +390,10 @@ router.post(
 				question,
 				context,
 				sanitizedHistory,
-				mode === "execute" ? { execMode: true } : {},
+				{
+					execMode: mode === "execute",
+					agentLoop: req.body.agentLoop === true,
+				},
 			);
 
 			res.json({ response });
