@@ -447,9 +447,11 @@ export const aiAPI = {
 	getProviders: () => api.get("/ai/providers"),
 	getSettings: () => api.get("/ai/settings"), // Admin only
 	updateSettings: (data) => api.put("/ai/settings", data),
-	testConnection: () => api.post("/ai/test"),
-	assist: (data) => api.post("/ai/assist", data),
-	complete: (data) => api.post("/ai/complete", data),
+	// AI calls can take well over the default 10s timeout (reasoning models
+	// spend 20-60s), so use a longer per-request timeout.
+	testConnection: () => api.post("/ai/test", {}, { timeout: 120000 }),
+	assist: (data) => api.post("/ai/assist", data, { timeout: 120000 }),
+	complete: (data) => api.post("/ai/complete", data, { timeout: 120000 }),
 };
 
 // Discord OAuth API
