@@ -1191,11 +1191,10 @@ class AgentVersionService {
 
 	async getAvailableVersions() {
 		try {
-			logger.info(
-				`🌐 Fetching releases from GitHub: ${await this._getRepoApiUrl()}`,
-			);
+			const releasesUrl = await this._getReleasesUrl();
+			logger.info(`🌐 Fetching releases from GitHub: ${releasesUrl}`);
 			// Fetch all releases from GitHub
-			const response = await axios.get(await this._getRepoApiUrl(), {
+			const response = await axios.get(releasesUrl, {
 				timeout: 10000,
 				headers: this._githubHeaders(),
 			});
