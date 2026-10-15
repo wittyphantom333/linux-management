@@ -11,6 +11,7 @@ import {
 	Info,
 	Key,
 	Loader2,
+	OctagonX,
 	PanelRightClose,
 	PanelRightOpen,
 	Play,
@@ -1794,31 +1795,58 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 										<span className="text-sm font-medium text-white">
 											AI Assistant
 										</span>
+									</div>
+									<div className="flex items-center gap-2">
+										{/* Auto toggle switch: chat (read-only) vs auto (may change the host) */}
 										<button
 											type="button"
+											role="switch"
+											aria-checked={aiExecMode}
 											onClick={() => setAiExecMode((v) => !v)}
 											title={
 												aiExecMode
-													? "Exec mode: AI replies with only the command; buttons run it"
-													: "Chat mode: AI explains and suggests commands"
+													? "Auto mode: the agent may run any command, including ones that change this host"
+													: "Chat mode: the agent only runs read-only diagnostic commands"
 											}
-											className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-												aiExecMode
-													? "bg-primary-600/60 border-primary-500 text-white"
-													: "bg-secondary-700/50 border-secondary-500/50 text-secondary-300 hover:text-white"
-											}`}
+											className="flex items-center gap-1.5"
 										>
-											{aiExecMode ? "Exec: ON" : "Exec: OFF"}
+											<span
+												className={`text-xs ${aiExecMode ? "text-primary-300" : "text-secondary-400"}`}
+											>
+												Auto
+											</span>
+											<span
+												className={`relative inline-block h-4 w-7 rounded-full transition-colors ${
+													aiExecMode ? "bg-primary-600" : "bg-secondary-600"
+												}`}
+											>
+												<span
+													className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${
+														aiExecMode ? "left-3.5" : "left-0.5"
+													}`}
+												/>
+											</span>
+										</button>
+										<button
+											type="button"
+											onClick={() => setAiPanelOpen(false)}
+											className="text-secondary-400 hover:text-white"
+										>
+											<X className="h-4 w-4" />
 										</button>
 									</div>
-									<button
-										type="button"
-										onClick={() => setAiPanelOpen(false)}
-										className="text-secondary-400 hover:text-white"
-									>
-										<X className="h-4 w-4" />
-									</button>
 								</div>
+
+								{/* Auto-mode disclaimer */}
+								{aiExecMode && (
+									<div className="px-3 py-2 bg-amber-900/30 border-b border-amber-700/40 flex items-start gap-1.5">
+										<Info className="h-3.5 w-3.5 mt-0.5 text-amber-400 flex-shrink-0" />
+										<p className="text-xs text-amber-200/90 leading-snug">
+											Auto mode: the AI may run commands that change this host.
+											Chat mode only runs read-only checks.
+										</p>
+									</div>
+								)}
 
 								{/* Messages Area */}
 								<div
@@ -1938,7 +1966,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 												className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
 												title="Stop the agent"
 											>
-												Stop
+												<OctagonX className="h-4 w-4" />
 											</button>
 										</div>
 									) : (
