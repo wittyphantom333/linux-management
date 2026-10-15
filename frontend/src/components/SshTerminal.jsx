@@ -225,9 +225,22 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	const aiEnabled = aiStatus?.ai_enabled && aiStatus?.ai_api_key_set;
 
 	// Get recent terminal output for AI context
-	const getTerminalContext = useCallback(() => {
-		return terminalBufferRef.current.slice(-3000); // Last ~3000 chars
+	// Strip ANSI escapes (colors, cursor moves, bracketed-paste markers, OSC
+	// titles) so the AI gets plain text instead of \x1b[... noise
+	const stripAnsi = useCallback((text) => {
+		return text
+			.replace(/\r\n/g, "\n")
+			.replace(
+				// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escapes inherently requires matching ESC/BEL control chars
+				/\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b./g,
+				"",
+			)
+			.replace(/\r/g, "\n");
 	}, []);
+
+	const getTerminalContext = useCallback(() => {
+		return stripAnsi(terminalBufferRef.current).slice(-3000); // Last ~3000 chars
+	}, [stripAnsi]);
 
 	// Parse the trailing `COMMAND: <cmd>` protocol line from an AI reply
 	const parseAgentCommand = (text) => {
@@ -244,7 +257,42 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	};
 
 	const stripCommandLine = (text) =>
-		text.replace(/^\s*COMMAND:.*$/im, "").trim();
+		text.replace(/^\s*COMMAND:.*$/gim, "").trim();
+
+	// Commands that would block the terminal forever (interactive/streaming)
+	const INTERACTIVE_CMD_RE =
+		/^\s*(top|htop|less|more|vim|vi|nano|watch|ssh|telnet)\b|^\s*(tail|journalctl|dmesg)\b.*\s-[fF]\b/;
+
+	// Make AI-proposed commands safe on an interactive PTY: block pagers and
+	// follow-mode, and add --no-pager to tools that page by default
+	const sanitizeAgentCommand = (cmd) => {
+		const trimmed = cmd.trim();
+		if (INTERACTIVE_CMD_RE.test(trimmed)) return null;
+		const parts = trimmed.split(/\s+/);
+		const tool = parts[0];
+		const pagers = [
+			"systemctl",
+			"journalctl",
+			"ip",
+			"ipctl",
+			"git",
+			"docker",
+			"docker-compose",
+			"podman",
+			"npm",
+			"man",
+			"loginctl",
+			"machinectl",
+			"networkctl",
+			"timedatectl",
+			"hostnamectl",
+			"busctl",
+		];
+		if (pagers.includes(tool) && !trimmed.includes("--no-pager")) {
+			return `${trimmed} --no-pager`;
+		}
+		return trimmed;
+	};
 
 	// Wait until terminal output stops changing, then return the new output
 	const waitForTerminalOutput = async (before, timeoutMs = 15000) => {
@@ -270,7 +318,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 				: buf.startsWith(before)
 					? buf.slice(before.length)
 					: buf.slice(-3000);
-		return fresh.replace(/\r/g, "\n").trim().slice(-3000);
+		return stripAnsi(fresh).trim().slice(-3000);
 	};
 
 	// Agent loop: AI replies with `COMMAND: <cmd>` to run it on this session;
@@ -303,9 +351,9 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 					agentLoop: true,
 				});
 				const raw = response.data.response || "";
-				const command = parseAgentCommand(raw);
+				const rawCommand = parseAgentCommand(raw);
 
-				if (!command) {
+				if (!rawCommand) {
 					setAiMessages((prev) => [
 						...prev,
 						{ role: "assistant", content: raw.trim() || "(empty response)" },
@@ -314,12 +362,32 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 					break;
 				}
 
+				const command = sanitizeAgentCommand(rawCommand);
 				// AI wants to run a command: show the step, run it, feed output back
 				const stepText = stripCommandLine(raw) || "Running command…";
 				setAiMessages((prev) => [
 					...prev,
-					{ role: "assistant", content: stepText, ranCommand: command },
+					{
+						role: "assistant",
+						content: stepText,
+						ranCommand: command || rawCommand,
+						blockedCommand: !command,
+					},
 				]);
+
+				if (!command) {
+					setAiMessages((prev) => [
+						...prev,
+						{
+							role: "assistant",
+							content:
+								"Not running that command automatically — it opens an interactive session (top/vim/follow-mode/ssh) that would hang the terminal. Run it manually if you really need it.",
+							isError: true,
+						},
+					]);
+					finalAnswered = true;
+					break;
+				}
 
 				const before = terminalBufferRef.current;
 				execCommandToTerminal(command);
@@ -1770,8 +1838,17 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 														</div>
 														{msg.ranCommand && (
 															<div className="mt-2 pt-2 border-t border-secondary-600/50">
-																<span className="text-xs text-emerald-400/80 font-mono">
-																	✓ ran: {msg.ranCommand}
+																<span
+																	className={`text-xs font-mono ${
+																		msg.blockedCommand
+																			? "text-red-400/80"
+																			: "text-emerald-400/80"
+																	}`}
+																>
+																	{msg.blockedCommand
+																		? "✗ blocked: "
+																		: "✓ ran: "}
+																	{msg.ranCommand}
 																</span>
 															</div>
 														)}

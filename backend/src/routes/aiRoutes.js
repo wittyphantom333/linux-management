@@ -22,7 +22,7 @@ const router = express.Router();
 
 // Rate limiting for AI endpoints using Redis (works across multiple instances)
 const RATE_LIMIT_WINDOW = 60; // 1 minute in seconds
-const RATE_LIMIT_MAX = 30; // 30 requests per minute
+const RATE_LIMIT_MAX = 60; // 60 req/min — agent loop uses up to 6 turns per question
 
 async function checkRateLimit(userId) {
 	try {
@@ -341,7 +341,7 @@ router.post(
 	"/assist",
 	authenticateToken,
 	[
-		body("question").isString().isLength({ min: 1, max: 2000 }),
+		body("question").isString().isLength({ min: 1, max: 8000 }),
 		body("context").optional().isString().isLength({ max: 10000 }),
 		body("history").optional().isArray(),
 		body("mode").optional().isIn(["chat", "execute"]),
