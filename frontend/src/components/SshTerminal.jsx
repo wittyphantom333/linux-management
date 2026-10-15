@@ -104,6 +104,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	const [aiMessages, setAiMessages] = useState([]);
 	const [aiInput, setAiInput] = useState("");
 	const [aiLoading, setAiLoading] = useState(false);
+	const [aiExecMode, setAiExecMode] = useState(false);
 	const terminalBufferRef = useRef("");
 	const aiInputRef = useRef(null);
 	const currentLineRef = useRef(""); // Track current line for AI context
@@ -241,6 +242,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 				question: userMessage,
 				context: getTerminalContext(),
 				history: aiMessages.slice(-10), // Last 10 messages for context
+				mode: aiExecMode ? "execute" : "chat",
 			});
 
 			setAiMessages((prev) => [
@@ -268,6 +270,18 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 				JSON.stringify({
 					type: "input",
 					data: command,
+				}),
+			);
+		}
+	}, []);
+
+	// Execute a command from AI: paste it and press Enter
+	const execCommandToTerminal = useCallback((command) => {
+		if (wsRef.current?.readyState === WebSocket.OPEN) {
+			wsRef.current.send(
+				JSON.stringify({
+					type: "input",
+					data: `${command}\r`,
 				}),
 			);
 		}
@@ -1578,11 +1592,27 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 							<div className="w-80 flex-shrink-0 border-l border-secondary-700 flex flex-col bg-secondary-800/50 overflow-hidden">
 								{/* Panel Header */}
 								<div className="p-3 border-b border-secondary-700 flex items-center justify-between">
-									<div className="flex items-center gap-2">
+									<div className="flex items-center gap-2 flex-1 min-w-0">
 										<Bot className="h-4 w-4 text-primary-400" />
 										<span className="text-sm font-medium text-white">
 											AI Assistant
 										</span>
+										<button
+											type="button"
+											onClick={() => setAiExecMode((v) => !v)}
+											title={
+												aiExecMode
+													? "Exec mode: AI replies with only the command; buttons run it"
+													: "Chat mode: AI explains and suggests commands"
+											}
+											className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+												aiExecMode
+													? "bg-primary-600/60 border-primary-500 text-white"
+													: "bg-secondary-700/50 border-secondary-500/50 text-secondary-300 hover:text-white"
+											}`}
+										>
+											{aiExecMode ? "Exec: ON" : "Exec: OFF"}
+										</button>
 									</div>
 									<button
 										type="button"
@@ -1635,15 +1665,25 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 														{codeBlocks.length > 0 && isConnected && (
 															<div className="mt-2 pt-2 border-t border-secondary-600/50 space-y-1.5">
 																<span className="text-xs text-secondary-400">
-																	Send to terminal:
+																	{aiExecMode
+																		? "Click to execute:"
+																		: "Send to terminal:"}
 																</span>
 																{codeBlocks.map((cmd, cmdIdx) => (
 																	<button
 																		key={`cmd-${cmdIdx}-${cmd.slice(0, 20)}`}
 																		type="button"
-																		onClick={() => sendCommandToTerminal(cmd)}
+																		onClick={() =>
+																			aiExecMode
+																				? execCommandToTerminal(cmd)
+																				: sendCommandToTerminal(cmd)
+																		}
 																		className="w-full flex items-center gap-2 px-2 py-1.5 text-xs bg-secondary-600/50 hover:bg-primary-600/50 border border-secondary-500/50 hover:border-primary-500/50 rounded text-left transition-colors group"
-																		title="Click to send command to terminal"
+																		title={
+																			aiExecMode
+																				? "Click to execute command in terminal"
+																				: "Click to send command to terminal (without Enter)"
+																		}
 																	>
 																		<Play className="h-3 w-3 text-primary-400 group-hover:text-primary-300 flex-shrink-0" />
 																		<code className="flex-1 text-secondary-200 group-hover:text-white font-mono truncate">

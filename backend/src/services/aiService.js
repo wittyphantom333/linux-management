@@ -411,8 +411,13 @@ async function getAssistance(
 	question,
 	terminalContext = "",
 	history = [],
+	options = {},
 ) {
-	return callAI(settings, question, {
+	const prompt = options.execMode
+		? `${question}\n\nEXEC MODE: Respond with ONLY the shell command(s) to run, each in its own fenced code block. No explanations, no prose, no commentary.`
+		: question;
+
+	return callAI(settings, prompt, {
 		type: "assistant",
 		context: terminalContext,
 		history,
