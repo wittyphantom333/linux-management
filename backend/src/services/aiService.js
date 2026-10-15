@@ -286,6 +286,11 @@ async function callOllama(apiKey, model, messages, options = {}, baseUrl) {
 			max_tokens: options.maxTokens || 1024,
 			temperature: options.temperature || 0.7,
 			stream: false,
+			// Agent-loop turns need one fast COMMAND line, not a 90s+ thinking
+			// phase (Windows+agent prompts blew past the gateway timeout even
+			// with a 600-token cap). This gateway suppresses reasoning when
+			// think:false — verified mechanism, unlike the /no_think text suffix.
+			...(options.agentLoop ? { think: false } : {}),
 		}),
 	});
 
@@ -380,6 +385,7 @@ async function callAI(settings, prompt, options = {}) {
 				? 100
 				: 4096,
 		temperature: options.type === "completion" ? 0.3 : 0.7,
+		agentLoop: options.agentLoop,
 	};
 
 	switch (ai_provider) {
@@ -459,17 +465,7 @@ async function getAssistance(
 			: `You are an agent. You may run READ-ONLY diagnostic commands (${readExamples}). ${shellNote} If you need to run one NOW, end your reply with a single line exactly: COMMAND: <the command>. One command per turn, at most 500 chars, no newlines in the command, and no other text after the COMMAND line. If you already know the answer or ran enough checks, answer with your final text and NO COMMAND line.`
 		: `${shellNote} If you suggest a shell command for the user to run, put it in a fenced code block.`;
 
-	// Qwen3 models treat "/no_think" as a soft switch that disables the
-	// thinking phase. The agent protocol makes qwen3.8:27b reason for 90s+
-	// (observed: Windows agentLoop calls 504 at the gateway timeout while
-	// plain chat calls finish), so agent turns skip thinking — they need
-	// one fast COMMAND line, not deep reasoning.
-	const noThinkSwitch =
-		options.agentLoop && /qwen3/i.test(settings.ai_model || "")
-			? " /no_think"
-			: "";
-
-	const prompt = `${question}\n\n${protocol}${noThinkSwitch}`;
+	const prompt = `${question}\n\n${protocol}`;
 
 	return callAI(settings, prompt, {
 		type: "assistant",
