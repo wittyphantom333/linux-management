@@ -141,9 +141,14 @@ async function callOpenRouter(apiKey, model, messages, options = {}) {
 
 	const data = await response.json();
 	const message = data.choices?.[0]?.message;
-	// Some reasoning models (e.g. qwen3.8:27b) return an empty "content" and
-	// put the answer in "reasoning"/"thinking". Fall back so the UI gets text.
-	return message?.content || message?.reasoning || message?.thinking || "";
+	if (message?.content) return message.content;
+	// Some reasoning models (e.g. qwen3.8:27b) burn the token budget on the
+	// "reasoning" field and leave "content" empty; fall back so the UI gets
+	// text. Strip "COMMAND:" lines from the raw thinking trace first — the
+	// agent loop must never auto-execute a command the model only drafted
+	// mid-thought.
+	const reasoning = message?.reasoning || message?.thinking || "";
+	return reasoning ? reasoning.replace(/^\s*COMMAND:.*$/gim, "") : "";
 }
 
 /**
@@ -204,9 +209,14 @@ async function callOpenAI(apiKey, model, messages, options = {}) {
 
 	const data = await response.json();
 	const message = data.choices?.[0]?.message;
-	// Some reasoning models (e.g. qwen3.8:27b) return an empty "content" and
-	// put the answer in "reasoning"/"thinking". Fall back so the UI gets text.
-	return message?.content || message?.reasoning || message?.thinking || "";
+	if (message?.content) return message.content;
+	// Some reasoning models (e.g. qwen3.8:27b) burn the token budget on the
+	// "reasoning" field and leave "content" empty; fall back so the UI gets
+	// text. Strip "COMMAND:" lines from the raw thinking trace first — the
+	// agent loop must never auto-execute a command the model only drafted
+	// mid-thought.
+	const reasoning = message?.reasoning || message?.thinking || "";
+	return reasoning ? reasoning.replace(/^\s*COMMAND:.*$/gim, "") : "";
 }
 
 /**
@@ -286,9 +296,14 @@ async function callOllama(apiKey, model, messages, options = {}, baseUrl) {
 
 	const data = await response.json();
 	const message = data.choices?.[0]?.message;
-	// Some reasoning models (e.g. qwen3.8:27b) return an empty "content" and
-	// put the answer in "reasoning"/"thinking". Fall back so the UI gets text.
-	return message?.content || message?.reasoning || message?.thinking || "";
+	if (message?.content) return message.content;
+	// Some reasoning models (e.g. qwen3.8:27b) burn the token budget on the
+	// "reasoning" field and leave "content" empty; fall back so the UI gets
+	// text. Strip "COMMAND:" lines from the raw thinking trace first — the
+	// agent loop must never auto-execute a command the model only drafted
+	// mid-thought.
+	const reasoning = message?.reasoning || message?.thinking || "";
+	return reasoning ? reasoning.replace(/^\s*COMMAND:.*$/gim, "") : "";
 }
 
 /**
@@ -355,7 +370,15 @@ async function callAI(settings, prompt, options = {}) {
 		// Reasoning models (e.g. qwen3.8:27b) burn their budget on the
 		// "reasoning" field before emitting "content"; 1024 was too small and
 		// returned empty content. Give assistant calls a bigger budget.
-		maxTokens: options.type === "completion" ? 100 : 4096,
+		// Agent-loop turns are the exception: a short reply + one COMMAND
+		// line never needs more, and an unbounded thinking phase on Windows
+		// prompts runs past the llm gateway's 90s timeout (observed 4096-token
+		// blowout = ~91s at ~45 tok/s).
+		maxTokens: options.agentLoop
+			? 600
+			: options.type === "completion"
+				? 100
+				: 4096,
 		temperature: options.type === "completion" ? 0.3 : 0.7,
 	};
 
@@ -453,6 +476,7 @@ async function getAssistance(
 		context: terminalContext,
 		history,
 		os: options.os,
+		agentLoop: options.agentLoop,
 	});
 }
 
