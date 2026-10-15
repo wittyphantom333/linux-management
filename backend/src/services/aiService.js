@@ -424,10 +424,10 @@ async function getAssistance(
 	// The UI executes it, feeds the output back, and asks to continue.
 	const isWindows = /win/i.test(options.os || "");
 	const shellNote = isWindows
-		? "The terminal is a Windows host and the shell is PowerShell. Use Windows/PowerShell commands (e.g. Get-Service, Get-Process, Get-WinEvent, Get-ChildItem, Get-Content). Never suggest Linux-only commands like systemctl, journalctl, rpm, or df."
-		: "The terminal is a Linux/Unix host and the shell is bash. Use POSIX/Linux commands.";
+		? "Windows host, PowerShell. Use only PowerShell commands (Get-Service, Get-Process, Get-WinEvent, Get-Content); never systemctl/journalctl/rpm/df."
+		: "Linux/Unix host, bash shell.";
 	const readExamples = isWindows
-		? "e.g. Get-Service <name>, Get-Process, Get-WinEvent -LogName System -MaxEvents 20, Get-ChildItem <path>, Get-Content <file>, Get-NetTCPConnection, netstat -ano"
+		? "e.g. Get-Service <name>, Get-Process, Get-WinEvent -LogName System -MaxEvents 20"
 		: "e.g. ps, systemctl status, journalctl, ls, cat, df, ss, rpm -q";
 
 	const protocol = options.agentLoop
