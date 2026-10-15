@@ -316,11 +316,17 @@ async function callAI(settings, prompt, options = {}) {
 		throw new Error("AI API key not configured");
 	}
 
-	// Build messages array
+	// Build messages array. For Windows hosts, swap the Linux/Unix focus for
+	// Windows/PowerShell so suggestions match the actual shell.
 	const systemPrompt =
 		options.type === "completion"
 			? SYSTEM_PROMPTS.completion
-			: SYSTEM_PROMPTS.assistant;
+			: /win/i.test(options.os || "")
+				? SYSTEM_PROMPTS.assistant.replace(
+						"Focus on Linux/Unix system administration topics",
+						"Focus on Windows system administration topics (PowerShell, services, event logs, registry)",
+					)
+				: SYSTEM_PROMPTS.assistant;
 
 	const messages = [{ role: "system", content: systemPrompt }];
 
@@ -416,11 +422,19 @@ async function getAssistance(
 	// Agent protocol: the UI runs the loop. When the assistant wants to run a
 	// command it ends its reply with a single line `COMMAND: <one shell command>`.
 	// The UI executes it, feeds the output back, and asks to continue.
+	const isWindows = /win/i.test(options.os || "");
+	const shellNote = isWindows
+		? "The terminal is a Windows host and the shell is PowerShell. Use Windows/PowerShell commands (e.g. Get-Service, Get-Process, Get-WinEvent, Get-ChildItem, Get-Content). Never suggest Linux-only commands like systemctl, journalctl, rpm, or df."
+		: "The terminal is a Linux/Unix host and the shell is bash. Use POSIX/Linux commands.";
+	const readExamples = isWindows
+		? "e.g. Get-Service <name>, Get-Process, Get-WinEvent -LogName System -MaxEvents 20, Get-ChildItem <path>, Get-Content <file>, Get-NetTCPConnection, netstat -ano"
+		: "e.g. ps, systemctl status, journalctl, ls, cat, df, ss, rpm -q";
+
 	const protocol = options.agentLoop
 		? options.execMode
-			? "You are an agent. You may run any command needed to fix the problem. If you need to run a command NOW, end your reply with a single line exactly: COMMAND: <the command>. One command per turn, at most 500 chars, no newlines in the command, and no other text after the COMMAND line. If you are done, answer with your final summary and NO COMMAND line."
-			: "You are an agent. You may run READ-ONLY diagnostic commands (e.g. ps, systemctl status, journalctl, ls, cat, df, ss, rpm -q). If you need to run one NOW, end your reply with a single line exactly: COMMAND: <the command>. One command per turn, at most 500 chars, no newlines in the command, and no other text after the COMMAND line. If you already know the answer or ran enough checks, answer with your final text and NO COMMAND line."
-		: "If you suggest a shell command for the user to run, put it in a fenced code block.";
+			? `You are an agent. You may run any command needed to fix the problem. ${shellNote} If you need to run a command NOW, end your reply with a single line exactly: COMMAND: <the command>. One command per turn, at most 500 chars, no newlines in the command, and no other text after the COMMAND line. If you are done, answer with your final summary and NO COMMAND line.`
+			: `You are an agent. You may run READ-ONLY diagnostic commands (${readExamples}). ${shellNote} If you need to run one NOW, end your reply with a single line exactly: COMMAND: <the command>. One command per turn, at most 500 chars, no newlines in the command, and no other text after the COMMAND line. If you already know the answer or ran enough checks, answer with your final text and NO COMMAND line.`
+		: `${shellNote} If you suggest a shell command for the user to run, put it in a fenced code block.`;
 
 	const prompt = `${question}\n\n${protocol}`;
 
@@ -428,6 +442,7 @@ async function getAssistance(
 		type: "assistant",
 		context: terminalContext,
 		history,
+		os: options.os,
 	});
 }
 

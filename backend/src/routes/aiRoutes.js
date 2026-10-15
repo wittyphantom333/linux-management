@@ -345,6 +345,7 @@ router.post(
 		body("context").optional().isString().isLength({ max: 10000 }),
 		body("history").optional().isArray(),
 		body("mode").optional().isIn(["chat", "execute"]),
+		body("os").optional().isString().isLength({ max: 100 }),
 	],
 	async (req, res) => {
 		const errors = validationResult(req);
@@ -374,7 +375,7 @@ router.post(
 				return res.status(400).json({ error: "AI API key not configured" });
 			}
 
-			const { question, context, history, mode } = req.body;
+			const { question, context, history, mode, os } = req.body;
 
 			// Sanitize history to prevent injection
 			const sanitizedHistory = (history || [])
@@ -393,6 +394,7 @@ router.post(
 				{
 					execMode: mode === "execute",
 					agentLoop: req.body.agentLoop === true,
+					os: os || null,
 				},
 			);
 

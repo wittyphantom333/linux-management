@@ -358,6 +358,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 					history,
 					mode: execMode ? "execute" : "chat",
 					agentLoop: true,
+					os: host?.os_type || null,
 				});
 				const raw = response.data.response || "";
 				const rawCommand = parseAgentCommand(raw);
@@ -419,6 +420,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 						context: getTerminalContext(),
 						history,
 						mode: execMode ? "execute" : "chat",
+						os: host?.os_type || null,
 					});
 					setAiMessages((prev) => [
 						...prev,
