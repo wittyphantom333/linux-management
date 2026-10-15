@@ -399,6 +399,7 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 									frontendWs: ws,
 									hostId: host.id,
 									apiId: host.api_id,
+									mode: "proxy",
 								});
 
 								// Forward SSH proxy request to agent
@@ -491,6 +492,81 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 									);
 								}
 								return; // Don't proceed with direct connection
+							}
+
+							if (connectionMode === "agent") {
+								// Agent shell mode: the agent spawns a local PTY on the
+								// host itself and streams it over its already-authenticated
+								// WebSocket — no SSH credentials, no sshd required.
+								if (!agentWsModule) {
+									ws.send(
+										JSON.stringify({
+											type: "error",
+											message: "Agent WebSocket service not available",
+										}),
+									);
+									return;
+								}
+
+								if (!agentWsModule.isConnected(host.api_id)) {
+									ws.send(
+										JSON.stringify({
+											type: "error",
+											message:
+												"Agent not connected. Please ensure the agent is running and connected.",
+										}),
+									);
+									return;
+								}
+
+								const agentWs = agentWsModule.getConnectionByApiId(host.api_id);
+								if (!agentWs || agentWs.readyState !== WebSocket.OPEN) {
+									ws.send(
+										JSON.stringify({
+											type: "error",
+											message: "Agent WebSocket connection lost",
+										}),
+									);
+									return;
+								}
+
+								proxySessionId = crypto.randomBytes(16).toString("hex");
+								sshProxySessions.set(proxySessionId, {
+									frontendWs: ws,
+									hostId: host.id,
+									apiId: host.api_id,
+									mode: "shell",
+								});
+
+								logger.info(
+									`[ssh-terminal] Sending shell open request to agent ${host.api_id} for session ${proxySessionId}`,
+								);
+
+								try {
+									agentWs.send(
+										JSON.stringify({
+											type: "shell_open",
+											session_id: proxySessionId,
+											terminal: data.terminal || "xterm-256color",
+											cols: data.cols || 80,
+											rows: data.rows || 24,
+										}),
+									);
+								} catch (err) {
+									logger.error(
+										`[ssh-terminal] Failed to send shell request to agent:`,
+										err,
+									);
+									sshProxySessions.delete(proxySessionId);
+									proxySessionId = null;
+									ws.send(
+										JSON.stringify({
+											type: "error",
+											message: "Failed to send shell request to agent",
+										}),
+									);
+								}
+								return; // Shell opened via agent; don't proceed with direct connection
 							}
 
 							// Direct mode: existing behavior
@@ -630,7 +706,10 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 									if (agentWs && agentWs.readyState === WebSocket.OPEN) {
 										agentWs.send(
 											JSON.stringify({
-												type: "ssh_proxy_input",
+												type:
+													session.mode === "shell"
+														? "shell_input"
+														: "ssh_proxy_input",
 												session_id: proxySessionId,
 												data: data.data,
 											}),
@@ -653,7 +732,10 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 									if (agentWs && agentWs.readyState === WebSocket.OPEN) {
 										agentWs.send(
 											JSON.stringify({
-												type: "ssh_proxy_resize",
+												type:
+													session.mode === "shell"
+														? "shell_resize"
+														: "ssh_proxy_resize",
 												session_id: proxySessionId,
 												cols: data.cols || 80,
 												rows: data.rows || 24,
@@ -677,7 +759,10 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 									if (agentWs && agentWs.readyState === WebSocket.OPEN) {
 										agentWs.send(
 											JSON.stringify({
-												type: "ssh_proxy_disconnect",
+												type:
+													session.mode === "shell"
+														? "shell_close"
+														: "ssh_proxy_disconnect",
 												session_id: proxySessionId,
 											}),
 										);
@@ -727,7 +812,10 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 								try {
 									agentWs.send(
 										JSON.stringify({
-											type: "ssh_proxy_disconnect",
+											type:
+												session.mode === "shell"
+													? "shell_close"
+													: "ssh_proxy_disconnect",
 											session_id: proxySessionId,
 										}),
 									);
@@ -845,27 +933,36 @@ function handleSshProxyMessage(apiId, message) {
 	}
 
 	try {
-		if (message.type === "ssh_proxy_data") {
-			// Forward SSH data to frontend
+		if (message.type === "ssh_proxy_data" || message.type === "shell_data") {
+			// Forward SSH/shell data to frontend
 			frontendWs.send(
 				JSON.stringify({
 					type: "data",
 					data: message.data,
 				}),
 			);
-		} else if (message.type === "ssh_proxy_connected") {
-			// SSH connection established via proxy
+		} else if (
+			message.type === "ssh_proxy_connected" ||
+			message.type === "shell_connected"
+		) {
+			// SSH connection / local shell established via agent
 			frontendWs.send(JSON.stringify({ type: "connected" }));
-		} else if (message.type === "ssh_proxy_error") {
-			// SSH error via proxy
+		} else if (
+			message.type === "ssh_proxy_error" ||
+			message.type === "shell_error"
+		) {
+			// SSH / shell error via agent
 			frontendWs.send(
 				JSON.stringify({
 					type: "error",
-					message: message.message || "SSH connection error",
+					message: message.message || "Agent session error",
 				}),
 			);
-		} else if (message.type === "ssh_proxy_closed") {
-			// SSH connection closed via proxy
+		} else if (
+			message.type === "ssh_proxy_closed" ||
+			message.type === "shell_closed"
+		) {
+			// SSH connection / local shell closed via agent
 			frontendWs.send(JSON.stringify({ type: "closed" }));
 			sshProxySessions.delete(sessionId);
 		}

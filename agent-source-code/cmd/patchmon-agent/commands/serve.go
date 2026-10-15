@@ -552,6 +552,20 @@ func runServiceLoop(stopCh <-chan struct{}) error {
 				if wsConn != nil {
 					handleSSHProxyDisconnect(m, wsConn)
 				}
+			case "shell_open":
+				logger.WithField("session_id", m.sshProxySessionID).Info("Handling local shell open request")
+				globalWsConnMu.RLock()
+				wsConn := globalWsConn
+				globalWsConnMu.RUnlock()
+				if wsConn != nil {
+					go handleShellOpen(m, wsConn)
+				}
+			case "shell_input":
+				handleShellInput(m)
+			case "shell_resize":
+				handleShellResize(m)
+			case "shell_close":
+				handleShellClose(m)
 			}
 		}
 	}
@@ -1196,8 +1210,8 @@ type wsMsg struct {
 	complianceMode         string // For set_compliance_mode: "disabled", "on-demand", or "enabled"
 	forceCM                bool   // For report_now: force config management re-evaluation (bypass once-schedule)
 	// SSH key install fields
-	installSSHPublicKey  string // For install_ssh_key: public key content
-	installSSHUsername   string // For install_ssh_key: target username
+	installSSHPublicKey string // For install_ssh_key: public key content
+	installSSHUsername  string // For install_ssh_key: target username
 	// SSH proxy fields
 	sshProxySessionID  string // Unique session ID for SSH proxy
 	sshProxyHost       string // SSH target host
@@ -1419,6 +1433,8 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 		globalWsConnMu.Lock()
 		globalWsConn = nil
 		globalWsConnMu.Unlock()
+		// Kill any local shell PTYs so they don't outlive the connection
+		closeAllShellSessions()
 	}()
 
 	// Create a goroutine to send Docker events through WebSocket - with cancellation support
@@ -1540,7 +1556,7 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 			ScanAllImages        bool   `json:"scan_all_images"`        // For docker_image_scan: scan all images
 			OnDemandOnly         bool   `json:"on_demand_only"`         // For set_compliance_on_demand_only (legacy)
 			Mode                 string `json:"mode"`                   // For set_compliance_mode: "disabled", "on-demand", or "enabled"
-			ForceCM              bool   `json:"force_cm"`                // For report_now: force config management re-evaluation
+			ForceCM              bool   `json:"force_cm"`               // For report_now: force config management re-evaluation
 			// SSH key install fields
 			PublicKey string `json:"public_key"` // For install_ssh_key: SSH public key to install
 			// SSH proxy fields
@@ -1701,7 +1717,7 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 			}
 			logger.WithField("username", targetUser).Info("install_ssh_key received")
 			out <- wsMsg{
-				kind:               "install_ssh_key",
+				kind:                "install_ssh_key",
 				installSSHPublicKey: payload.PublicKey,
 				installSSHUsername:  targetUser,
 			}
@@ -1797,6 +1813,49 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 			}
 			out <- wsMsg{
 				kind:              "ssh_proxy_disconnect",
+				sshProxySessionID: payload.SessionID,
+			}
+		case "shell_open":
+			if payload.SessionID == "" {
+				logger.Warn("shell_open missing session_id")
+				continue
+			}
+			logger.WithField("session_id", payload.SessionID).Info("shell_open received")
+			out <- wsMsg{
+				kind:              "shell_open",
+				sshProxySessionID: payload.SessionID,
+				sshProxyTerminal:  payload.Terminal,
+				sshProxyCols:      payload.Cols,
+				sshProxyRows:      payload.Rows,
+			}
+		case "shell_input":
+			if payload.SessionID == "" {
+				logger.Warn("shell_input missing session_id")
+				continue
+			}
+			out <- wsMsg{
+				kind:              "shell_input",
+				sshProxySessionID: payload.SessionID,
+				sshProxyData:      payload.Data,
+			}
+		case "shell_resize":
+			if payload.SessionID == "" {
+				logger.Warn("shell_resize missing session_id")
+				continue
+			}
+			out <- wsMsg{
+				kind:              "shell_resize",
+				sshProxySessionID: payload.SessionID,
+				sshProxyCols:      payload.Cols,
+				sshProxyRows:      payload.Rows,
+			}
+		case "shell_close":
+			if payload.SessionID == "" {
+				logger.Warn("shell_close missing session_id")
+				continue
+			}
+			out <- wsMsg{
+				kind:              "shell_close",
 				sshProxySessionID: payload.SessionID,
 			}
 		default:

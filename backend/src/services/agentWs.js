@@ -421,9 +421,13 @@ function init(server, prismaClient) {
 							message.type === "ssh_proxy_data" ||
 							message.type === "ssh_proxy_connected" ||
 							message.type === "ssh_proxy_error" ||
-							message.type === "ssh_proxy_closed"
+							message.type === "ssh_proxy_closed" ||
+							message.type === "shell_data" ||
+							message.type === "shell_connected" ||
+							message.type === "shell_error" ||
+							message.type === "shell_closed"
 						) {
-							// Handle SSH proxy messages from agent
+							// Handle SSH proxy / local shell messages from agent
 							handleSshProxyMessage(apiId, message);
 						}
 						// Add more message types here as needed

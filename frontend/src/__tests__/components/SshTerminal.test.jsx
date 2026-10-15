@@ -1,5 +1,8 @@
 /**
  * Unit tests for SSH Terminal Component
+ *
+ * Covers the three connection modes (agent shell, direct SSH, proxy) and
+ * the ticket-based WebSocket auth flow (fetch /api/v1/auth/ssh-ticket).
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -9,25 +12,27 @@ import SshTerminal from "../../components/SshTerminal";
 import { AuthContext } from "../../contexts/AuthContext";
 import SidebarContext from "../../contexts/SidebarContext";
 
-// Mock xterm
+// Mock xterm — must be constructable classes (the component does `new Terminal(...)`)
 vi.mock("xterm", () => ({
-	Terminal: vi.fn().mockImplementation(() => ({
-		loadAddon: vi.fn(),
-		open: vi.fn(),
-		write: vi.fn(),
-		writeln: vi.fn(),
-		onData: vi.fn(() => ({
-			dispose: vi.fn(),
-		})),
-		dispose: vi.fn(),
-	})),
+	Terminal: class Terminal {
+		loadAddon() {}
+		open() {}
+		write() {}
+		writeln() {}
+		onData() {
+			return { dispose: () => {} };
+		}
+		dispose() {}
+	},
 }));
 
 vi.mock("xterm-addon-fit", () => ({
-	FitAddon: vi.fn().mockImplementation(() => ({
-		fit: vi.fn(),
-		proposeDimensions: vi.fn(() => ({ cols: 80, rows: 24 })),
-	})),
+	FitAddon: class FitAddon {
+		fit() {}
+		proposeDimensions() {
+			return { cols: 80, rows: 24 };
+		}
+	},
 }));
 
 vi.mock("xterm/css/xterm.css", () => ({}));
@@ -46,12 +51,60 @@ vi.mock("../../utils/api", () => ({
 	},
 }));
 
+// Constructable WebSocket mock. The class itself is the global — the
+// component calls `new WebSocket(...)` and reads `WebSocket.OPEN`, so the
+// mock must be constructable and carry the static readyState constants
+// (a vi.fn-wrapped arrow function fails with "not a constructor").
+class WebSocketMock {
+	constructor(url) {
+		WebSocketMock.instances.push(this);
+		this.url = url;
+		this.readyState = WebSocketMock.CONNECTING;
+		this.onopen = null;
+		this.onclose = null;
+		this.onerror = null;
+		this.onmessage = null;
+		this.send = vi.fn();
+		this.close = vi.fn(() => {
+			this.readyState = WebSocketMock.CLOSED;
+		});
+	}
+
+	_simulateOpen() {
+		this.readyState = WebSocketMock.OPEN;
+		if (this.onopen) this.onopen();
+	}
+
+	_simulateMessage(data) {
+		if (this.onmessage) this.onmessage({ data });
+	}
+
+	_simulateError(error) {
+		if (this.onerror) this.onerror(error);
+	}
+}
+WebSocketMock.instances = [];
+WebSocketMock.CONNECTING = 0;
+WebSocketMock.OPEN = 1;
+WebSocketMock.CLOSING = 2;
+WebSocketMock.CLOSED = 3;
+
+global.WebSocket = WebSocketMock;
+
+// Mock fetch for the ssh-ticket auth flow
+const mockFetch = vi.fn(() =>
+	Promise.resolve({
+		ok: true,
+		json: async () => ({ ticket: "tkt-abc-123" }),
+	}),
+);
+global.fetch = mockFetch;
+
 describe("SshTerminal Component", () => {
 	let queryClient;
 	let mockHost;
 	let mockOnClose;
 	let mockSetSidebarCollapsed;
-	let mockToken;
 
 	beforeEach(() => {
 		queryClient = new QueryClient({
@@ -72,10 +125,10 @@ describe("SshTerminal Component", () => {
 
 		mockOnClose = vi.fn();
 		mockSetSidebarCollapsed = vi.fn();
-		mockToken = "test-jwt-token";
 
-		// Reset localStorage
-		localStorage.getItem = vi.fn(() => mockToken);
+		WebSocketMock.instances.length = 0;
+		mockFetch.mockClear();
+		localStorage.getItem = vi.fn(() => null);
 	});
 
 	afterEach(() => {
@@ -93,7 +146,7 @@ describe("SshTerminal Component", () => {
 
 		return render(
 			<QueryClientProvider client={queryClient}>
-				<AuthContext.Provider value={{ token: mockToken }}>
+				<AuthContext.Provider value={{ token: "test-jwt-token" }}>
 					<SidebarContext.Provider
 						value={{
 							sidebarCollapsed: false,
@@ -107,14 +160,51 @@ describe("SshTerminal Component", () => {
 		);
 	};
 
+	// Agent shell mode is the default connection mode; tests that exercise
+	// the SSH credential form must switch to Direct mode first.
+	const switchToDirectMode = () => {
+		fireEvent.click(screen.getByLabelText(/Direct/i));
+	};
+
+	// Fill direct-mode password credentials and click Connect
+	const connectDirect = async () => {
+		switchToDirectMode();
+		fireEvent.change(screen.getByPlaceholderText(/root/i), {
+			target: { value: "testuser" },
+		});
+		fireEvent.change(screen.getByPlaceholderText(/password/i), {
+			target: { value: "testpass" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
+
+		await waitFor(() => {
+			expect(WebSocketMock.instances.length).toBeGreaterThan(0);
+		});
+		const ws = WebSocketMock.instances[0];
+		ws._simulateOpen();
+		await waitFor(() => {
+			expect(ws.send).toHaveBeenCalled();
+		});
+		return ws;
+	};
+
 	describe("Rendering", () => {
 		it("should not render when isOpen is false", () => {
 			const { container } = renderComponent({ isOpen: false });
 			expect(container.firstChild).toBeNull();
 		});
 
-		it("should render connection form when not connected", () => {
+		it("should show agent shell panel by default (no credentials)", () => {
 			renderComponent();
+			expect(
+				screen.getByText(/no SSH server or credentials/i),
+			).toBeInTheDocument();
+			expect(screen.getByLabelText(/Agent Shell/i)).toBeChecked();
+		});
+
+		it("should render SSH credential form in Direct mode", () => {
+			renderComponent();
+			switchToDirectMode();
 			expect(screen.getByPlaceholderText(/root/i)).toBeInTheDocument();
 			expect(screen.getByPlaceholderText(/password/i)).toBeInTheDocument();
 		});
@@ -122,26 +212,26 @@ describe("SshTerminal Component", () => {
 		it("should render modal mode by default", () => {
 			renderComponent();
 			expect(screen.getByText(/SSH Terminal/i)).toBeInTheDocument();
-			expect(screen.getByText(mockHost.friendly_name)).toBeInTheDocument();
+			expect(screen.getByText(/Test Host/i)).toBeInTheDocument();
 		});
 
 		it("should render embedded mode when embedded prop is true", () => {
 			renderComponent({ embedded: true });
-			expect(screen.getByText(mockHost.friendly_name)).toBeInTheDocument();
+			expect(screen.getByText(/Test Host/i)).toBeInTheDocument();
 		});
 	});
 
 	describe("Authentication Methods", () => {
-		it("should show password authentication by default", () => {
-			renderComponent();
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			expect(passwordInput).toBeInTheDocument();
+		it("should show password authentication by default in Direct mode", () => {
+			renderComponent({ embedded: true });
+			switchToDirectMode();
+			expect(screen.getByPlaceholderText(/password/i)).toBeInTheDocument();
 		});
 
 		it("should switch to key authentication when selected", () => {
-			renderComponent();
-			const keyRadio = screen.getByLabelText(/SSH Key/i);
-			fireEvent.click(keyRadio);
+			renderComponent({ embedded: true });
+			switchToDirectMode();
+			fireEvent.click(screen.getByLabelText(/SSH Key/i));
 
 			expect(
 				screen.getByPlaceholderText(/BEGIN OPENSSH PRIVATE KEY/i),
@@ -149,9 +239,9 @@ describe("SshTerminal Component", () => {
 		});
 
 		it("should show passphrase field for key authentication", () => {
-			renderComponent();
-			const keyRadio = screen.getByLabelText(/SSH Key/i);
-			fireEvent.click(keyRadio);
+			renderComponent({ embedded: true });
+			switchToDirectMode();
+			fireEvent.click(screen.getByLabelText(/SSH Key/i));
 
 			expect(screen.getByPlaceholderText(/Passphrase/i)).toBeInTheDocument();
 		});
@@ -159,128 +249,146 @@ describe("SshTerminal Component", () => {
 
 	describe("Form Validation", () => {
 		it("should disable connect button when username is empty", () => {
-			renderComponent();
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			renderComponent({ embedded: true });
+			switchToDirectMode();
+			const connectButton = screen.getByRole("button", {
+				name: /^connect$/i,
+			});
 			expect(connectButton).toBeDisabled();
 		});
 
 		it("should disable connect button when password is empty (password auth)", () => {
-			renderComponent();
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
+			renderComponent({ embedded: true });
+			switchToDirectMode();
+			fireEvent.change(screen.getByPlaceholderText(/root/i), {
+				target: { value: "testuser" },
+			});
 
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /^connect$/i,
+			});
 			expect(connectButton).toBeDisabled();
 		});
 
 		it("should disable connect button when private key is empty (key auth)", () => {
-			renderComponent();
-			const keyRadio = screen.getByLabelText(/SSH Key/i);
-			fireEvent.click(keyRadio);
+			renderComponent({ embedded: true });
+			switchToDirectMode();
+			fireEvent.click(screen.getByLabelText(/SSH Key/i));
 
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
+			fireEvent.change(screen.getByPlaceholderText(/root/i), {
+				target: { value: "testuser" },
+			});
 
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /^connect$/i,
+			});
 			expect(connectButton).toBeDisabled();
 		});
 
 		it("should enable connect button when all required fields are filled", () => {
-			renderComponent();
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
+			renderComponent({ embedded: true });
+			switchToDirectMode();
+			fireEvent.change(screen.getByPlaceholderText(/root/i), {
+				target: { value: "testuser" },
+			});
+			fireEvent.change(screen.getByPlaceholderText(/password/i), {
+				target: { value: "testpass" },
+			});
 
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
+			const connectButton = screen.getByRole("button", {
+				name: /^connect$/i,
+			});
+			expect(connectButton).not.toBeDisabled();
+		});
 
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+		it("should show agent shell Connect button when agent mode selected", () => {
+			renderComponent({ embedded: true });
+			// Agent mode is default — credential form hidden, one Connect shown
+			expect(screen.queryByPlaceholderText(/root/i)).not.toBeInTheDocument();
+			const connectButton = screen.getByRole("button", {
+				name: /^connect$/i,
+			});
 			expect(connectButton).not.toBeDisabled();
 		});
 	});
 
 	describe("WebSocket Connection", () => {
-		it("should create WebSocket connection when connect is clicked", () => {
-			renderComponent();
-
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
-
-			// WebSocket should be created
-			expect(WebSocket).toHaveBeenCalled();
+		it("should create WebSocket connection when connect is clicked", async () => {
+			renderComponent({ embedded: true });
+			await connectDirect();
+			expect(WebSocketMock.instances.length).toBeGreaterThan(0);
 		});
 
-		it("should construct correct WebSocket URL", () => {
-			renderComponent();
+		it("should construct WebSocket URL with host ID and one-time ticket", async () => {
+			renderComponent({ embedded: true });
+			switchToDirectMode();
 
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.change(screen.getByPlaceholderText(/root/i), {
+				target: { value: "testuser" },
+			});
+			fireEvent.change(screen.getByPlaceholderText(/password/i), {
+				target: { value: "testpass" },
+			});
+			fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
 
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
+			await waitFor(() => {
+				expect(WebSocketMock.instances.length).toBeGreaterThan(0);
+			});
 
-			// Check WebSocket URL contains host ID and token
-			const wsCall = WebSocket.mock.calls[0];
-			expect(wsCall[0]).toContain(`/api/v1/ssh-terminal/${mockHost.id}`);
-			expect(wsCall[0]).toContain("token=");
+			const wsCall = WebSocketMock.instances[0].url;
+			expect(wsCall).toContain(`/api/v1/ssh-terminal/${mockHost.id}`);
+			expect(wsCall).toContain("ticket=tkt-abc-123");
 		});
 
-		it("should send connect message with credentials", async () => {
-			renderComponent();
+		it("should send direct-mode connect message with credentials", async () => {
+			renderComponent({ embedded: true });
+			const ws = await connectDirect();
 
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
-
-			// Wait for WebSocket to be created
-			await waitFor(() => {
-				expect(WebSocket).toHaveBeenCalled();
-			});
-
-			// Get the WebSocket instance
-			const wsInstance = WebSocket.mock.results[0].value;
-			wsInstance._simulateOpen();
-
-			// Wait for connect message to be sent
-			await waitFor(() => {
-				expect(wsInstance.send).toHaveBeenCalled();
-			});
-
-			// Verify connect message structure
-			const sendCalls = wsInstance.send.mock.calls;
-			const connectMessage = JSON.parse(sendCalls[0][0]);
+			const connectMessage = JSON.parse(ws.send.mock.calls[0][0]);
 			expect(connectMessage.type).toBe("connect");
+			expect(connectMessage.connection_mode).toBe("direct");
 			expect(connectMessage.username).toBe("testuser");
 			expect(connectMessage.password).toBe("testpass");
 		});
 
-		it("should handle WebSocket connection errors", async () => {
-			renderComponent();
+		it("should send agent-shell connect message without credentials", async () => {
+			renderComponent({ embedded: true });
 
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
+			fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
 
 			await waitFor(() => {
-				expect(WebSocket).toHaveBeenCalled();
+				expect(WebSocketMock.instances.length).toBeGreaterThan(0);
+			});
+			const ws = WebSocketMock.instances[0];
+			ws._simulateOpen();
+			await waitFor(() => {
+				expect(ws.send).toHaveBeenCalled();
 			});
 
-			const wsInstance = WebSocket.mock.results[0].value;
-			wsInstance._simulateError(new Error("Connection failed"));
+			const connectMessage = JSON.parse(ws.send.mock.calls[0][0]);
+			expect(connectMessage.type).toBe("connect");
+			expect(connectMessage.connection_mode).toBe("agent");
+			// Agent mode sends no credential payload (empty string, never a password)
+			expect(connectMessage.password || "").toBe("");
+		});
+
+		it("should handle WebSocket connection errors", async () => {
+			renderComponent({ embedded: true });
+			switchToDirectMode();
+
+			fireEvent.change(screen.getByPlaceholderText(/root/i), {
+				target: { value: "testuser" },
+			});
+			fireEvent.change(screen.getByPlaceholderText(/password/i), {
+				target: { value: "testpass" },
+			});
+			fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
+
+			await waitFor(() => {
+				expect(WebSocketMock.instances.length).toBeGreaterThan(0);
+			});
+
+			WebSocketMock.instances[0]._simulateError(new Error("Connection failed"));
 
 			await waitFor(() => {
 				expect(screen.getByText(/error/i)).toBeInTheDocument();
@@ -288,116 +396,84 @@ describe("SshTerminal Component", () => {
 		});
 	});
 
-	describe("Token Validation", () => {
-		it("should show error when token is missing", () => {
-			localStorage.getItem = vi.fn(() => null);
-			renderComponent();
+	describe("Ticket Validation", () => {
+		it("should show error when ticket request fails", async () => {
+			mockFetch.mockImplementationOnce(() =>
+				Promise.resolve({
+					ok: false,
+					json: async () => ({ error: "Invalid session" }),
+				}),
+			);
+			renderComponent({ embedded: true });
+			switchToDirectMode();
 
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.change(screen.getByPlaceholderText(/root/i), {
+				target: { value: "testuser" },
+			});
+			fireEvent.change(screen.getByPlaceholderText(/password/i), {
+				target: { value: "testpass" },
+			});
+			fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
 
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
-
-			expect(screen.getByText(/authentication required/i)).toBeInTheDocument();
-		});
-
-		it("should show error when token is expired", () => {
-			// Mock expired token (exp < now)
-			const expiredToken =
-				"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0Iiwic2Vzc2lvbklkIjoic2VzcyIsImV4cCI6MTAwMDAwMDAwMH0.expired";
-			localStorage.getItem = vi.fn(() => expiredToken);
-
-			renderComponent();
-
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
-
-			expect(screen.getByText(/session expired/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(
+					screen.getByText(/authentication required/i),
+				).toBeInTheDocument();
+			});
 		});
 	});
 
 	describe("SSH Connection States", () => {
 		it("should show connecting state", async () => {
-			renderComponent();
+			renderComponent({ embedded: true });
+			switchToDirectMode();
 
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
+			fireEvent.change(screen.getByPlaceholderText(/root/i), {
+				target: { value: "testuser" },
+			});
+			fireEvent.change(screen.getByPlaceholderText(/password/i), {
+				target: { value: "testpass" },
+			});
+			fireEvent.click(screen.getByRole("button", { name: /^connect$/i }));
 
 			await waitFor(() => {
-				expect(screen.getByText(/connecting/i)).toBeInTheDocument();
+				// Matches both the header badge and the "Connecting to SSH
+				// server..." panel
+				expect(screen.getAllByText(/connecting/i).length).toBeGreaterThan(0);
 			});
 		});
 
-		it("should show connected state when SSH connection is established", async () => {
-			renderComponent();
+		it("should show connected state when connection is established", async () => {
+			renderComponent({ embedded: true });
+			const ws = await connectDirect();
 
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
+			ws._simulateMessage(JSON.stringify({ type: "connected" }));
 
 			await waitFor(() => {
-				expect(WebSocket).toHaveBeenCalled();
-			});
-
-			const wsInstance = WebSocket.mock.results[0].value;
-			wsInstance._simulateOpen();
-			wsInstance._simulateMessage(JSON.stringify({ type: "connected" }));
-
-			await waitFor(() => {
-				expect(screen.getByText(/connected/i)).toBeInTheDocument();
+				expect(
+					screen.getByRole("button", { name: /disconnect/i }),
+				).toBeInTheDocument();
 			});
 		});
 	});
 
 	describe("Disconnect", () => {
-		it("should call onClose when disconnect is clicked", async () => {
+		it("should close WebSocket when disconnect is clicked", async () => {
 			renderComponent({ embedded: true });
+			const ws = await connectDirect();
 
-			// Connect first
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			ws._simulateMessage(JSON.stringify({ type: "connected" }));
+			await waitFor(() => {
+				expect(
+					screen.getByRole("button", { name: /disconnect/i }),
+				).toBeInTheDocument();
+			});
 
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
+			fireEvent.click(screen.getByRole("button", { name: /disconnect/i }));
 
 			await waitFor(() => {
-				expect(WebSocket).toHaveBeenCalled();
+				expect(ws.close).toHaveBeenCalled();
 			});
-
-			const wsInstance = WebSocket.mock.results[0].value;
-			wsInstance._simulateOpen();
-			wsInstance._simulateMessage(JSON.stringify({ type: "connected" }));
-
-			await waitFor(() => {
-				expect(screen.getByText(/connected/i)).toBeInTheDocument();
-			});
-
-			// Click disconnect
-			const disconnectButton = screen.getByRole("button", {
-				name: /disconnect/i,
-			});
-			fireEvent.click(disconnectButton);
-
-			expect(wsInstance.close).toHaveBeenCalled();
 		});
 	});
 
@@ -416,23 +492,9 @@ describe("SshTerminal Component", () => {
 	describe("Install Command", () => {
 		it("should show install command when host has API credentials", async () => {
 			renderComponent({ embedded: true });
+			const ws = await connectDirect();
 
-			// Connect first
-			const usernameInput = screen.getByPlaceholderText(/root/i);
-			const passwordInput = screen.getByPlaceholderText(/password/i);
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-
-			fireEvent.change(usernameInput, { target: { value: "testuser" } });
-			fireEvent.change(passwordInput, { target: { value: "testpass" } });
-			fireEvent.click(connectButton);
-
-			await waitFor(() => {
-				expect(WebSocket).toHaveBeenCalled();
-			});
-
-			const wsInstance = WebSocket.mock.results[0].value;
-			wsInstance._simulateOpen();
-			wsInstance._simulateMessage(JSON.stringify({ type: "connected" }));
+			ws._simulateMessage(JSON.stringify({ type: "connected" }));
 
 			await waitFor(() => {
 				expect(screen.getByText(/install agent/i)).toBeInTheDocument();
