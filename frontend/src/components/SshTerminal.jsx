@@ -108,7 +108,15 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 	const terminalBufferRef = useRef("");
 	const aiInputRef = useRef(null);
 	const aiAgentStopRef = useRef(false);
+	const aiChatScrollRef = useRef(null);
 	const currentLineRef = useRef(""); // Track current line for AI context
+
+	// Keep the AI chat pinned to the bottom as new messages arrive
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-scroll whenever new messages arrive or loading state changes
+	useEffect(() => {
+		const el = aiChatScrollRef.current;
+		if (el) el.scrollTop = el.scrollHeight;
+	}, [aiMessages, aiLoading]);
 
 	// Load cached username from localStorage, keyed by host ID for per-host caching
 	const _getCachedUsername = () => {
@@ -323,7 +331,7 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 
 	// Agent loop: AI replies with `COMMAND: <cmd>` to run it on this session;
 	// we execute it, feed the output back, and continue until it answers.
-	const MAX_AGENT_TURNS = 6;
+	const MAX_AGENT_TURNS = 10;
 
 	const sendAiMessage = async () => {
 		if (!aiInput.trim() || aiLoading || !aiEnabled) return;
@@ -402,14 +410,32 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 				}\n\nContinue: reply with another COMMAND line if you need more checks, or give your final answer if you're done.`;
 			}
 			if (!finalAnswered && !aiAgentStopRef.current) {
-				setAiMessages((prev) => [
-					...prev,
-					{
-						role: "assistant",
-						content: `Stopped after ${MAX_AGENT_TURNS} command turns without a final answer. Ask me to summarize what we found, or continue manually.`,
-						isError: true,
-					},
-				]);
+				// Turn cap reached: force a final answer instead of giving up
+				try {
+					const summary = await aiAPI.assist({
+						question:
+							"You've reached the command-turn limit. Based on everything you've seen so far, give your FINAL ANSWER now: your conclusion and the recommended next steps. Do not request any more commands.",
+						context: getTerminalContext(),
+						history,
+						mode: execMode ? "execute" : "chat",
+					});
+					setAiMessages((prev) => [
+						...prev,
+						{
+							role: "assistant",
+							content: summary.data.response || "(empty response)",
+						},
+					]);
+				} catch {
+					setAiMessages((prev) => [
+						...prev,
+						{
+							role: "assistant",
+							content: `Stopped after ${MAX_AGENT_TURNS} command turns without a final answer. Ask me to summarize what we found, or continue manually.`,
+							isError: true,
+						},
+					]);
+				}
 			}
 		} catch (err) {
 			setAiMessages((prev) => [
@@ -1795,7 +1821,10 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 								</div>
 
 								{/* Messages Area */}
-								<div className="flex-1 overflow-y-auto p-3 space-y-3">
+								<div
+									ref={aiChatScrollRef}
+									className="flex-1 overflow-y-auto p-3 space-y-3"
+								>
 									{aiMessages.length === 0 && (
 										<div className="text-center text-secondary-400 text-xs py-4">
 											<Bot className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -1891,52 +1920,53 @@ const SshTerminal = ({ host, isOpen, onClose, embedded = false }) => {
 											</div>
 										);
 									})}
-									{aiLoading && (
-										<div className="bg-secondary-700/50 rounded-lg p-2 mr-4">
-											<div className="flex items-center gap-2">
+								</div>
+
+								{/* Input Area — while loading, Thinking + Stop replace input + send */}
+								<div className="p-3 border-t border-secondary-700">
+									{aiLoading ? (
+										<div className="flex gap-2">
+											<div className="flex-1 flex items-center gap-2 px-3 py-2 bg-secondary-700 border border-secondary-600 rounded-lg">
 												<Loader2 className="h-4 w-4 animate-spin text-primary-400" />
 												<span className="text-sm text-secondary-400">
 													Thinking...
 												</span>
-												<button
-													type="button"
-													onClick={stopAiAgent}
-													className="ml-auto px-2 py-1 text-xs rounded bg-secondary-600 hover:bg-secondary-500 text-white"
-												>
-													Stop
-												</button>
 											</div>
+											<button
+												type="button"
+												onClick={stopAiAgent}
+												className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+												title="Stop the agent"
+											>
+												Stop
+											</button>
+										</div>
+									) : (
+										<div className="flex gap-2">
+											<input
+												ref={aiInputRef}
+												type="text"
+												value={aiInput}
+												onChange={(e) => setAiInput(e.target.value)}
+												onKeyDown={(e) => {
+													if (e.key === "Enter" && !e.shiftKey) {
+														e.preventDefault();
+														sendAiMessage();
+													}
+												}}
+												placeholder="Ask about the terminal..."
+												className="flex-1 px-3 py-2 text-sm bg-secondary-700 border border-secondary-600 rounded-lg text-white placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+											/>
+											<button
+												type="button"
+												onClick={sendAiMessage}
+												disabled={!aiInput.trim()}
+												className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+											>
+												<Send className="h-4 w-4" />
+											</button>
 										</div>
 									)}
-								</div>
-
-								{/* Input Area */}
-								<div className="p-3 border-t border-secondary-700">
-									<div className="flex gap-2">
-										<input
-											ref={aiInputRef}
-											type="text"
-											value={aiInput}
-											onChange={(e) => setAiInput(e.target.value)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter" && !e.shiftKey) {
-													e.preventDefault();
-													sendAiMessage();
-												}
-											}}
-											placeholder="Ask about the terminal..."
-											className="flex-1 px-3 py-2 text-sm bg-secondary-700 border border-secondary-600 rounded-lg text-white placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-											disabled={aiLoading}
-										/>
-										<button
-											type="button"
-											onClick={sendAiMessage}
-											disabled={!aiInput.trim() || aiLoading}
-											className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											<Send className="h-4 w-4" />
-										</button>
-									</div>
 								</div>
 							</div>
 						)}
