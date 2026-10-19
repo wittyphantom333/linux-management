@@ -1399,8 +1399,11 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 	}()
 
 	// ping loop - now with cancellation support
+	// 10s cadence: Windows hosts behind NATs/stateful firewalls reset idle
+	// TCP sessions in ~20-40s (seen as 1006 flaps since 2026-10-13); 30s
+	// pings barely lost that race.
 	go func() {
-		t := time.NewTicker(30 * time.Second)
+		t := time.NewTicker(10 * time.Second)
 		defer t.Stop()
 		for {
 			select {
@@ -1414,10 +1417,12 @@ func connectOnce(out chan<- wsMsg, dockerEvents <-chan interface{}) error {
 		}
 	}()
 
-	// Set read deadlines and extend them on pong frames to avoid idle timeouts
-	_ = conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+	// Set read deadlines and extend them on pong frames to avoid idle timeouts.
+	// 30s = 3 missed pongs at the 10s ping cadence — still generous, but
+	// detects a dead peer faster than the old 90s window.
+	_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 	conn.SetPongHandler(func(string) error {
-		return conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+		return conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 	})
 
 	// SECURITY: Limit WebSocket message size to prevent DoS attacks (64KB max)
