@@ -76,6 +76,49 @@ export const AuthProvider = ({ children }) => {
 		return updatedPermissions;
 	}, [token, fetchPermissions]);
 
+	// Session keepalive: refresh the access token periodically while logged in.
+	// Each refresh bumps last_activity on the server, preventing the
+	// inactivity timeout (SESSION_INACTIVITY_TIMEOUT_MINUTES) from revoking
+	// the session after 30 minutes of a quiet tab.
+	useEffect(() => {
+		if (!user) return;
+
+		let cancelled = false;
+		let inFlight = false;
+
+		const keepalive = async () => {
+			if (cancelled || inFlight) return;
+			inFlight = true;
+			try {
+				const response = await fetch("/api/v1/auth/refresh-token", {
+					method: "POST",
+					credentials: "include",
+				});
+				if (response.ok) {
+					const data = await response.json().catch(() => ({}));
+					if (data?.token && !cancelled) {
+						setToken(data.token);
+					}
+				} else if (response.status === 401) {
+					// Session is gone — fall back to the same redirect the
+					// API interceptor uses
+					localStorage.removeItem("user");
+					window.location.href = "/login";
+				}
+			} catch (_error) {
+				// Network blip — try again on the next tick
+			} finally {
+				inFlight = false;
+			}
+		};
+
+		const interval = setInterval(keepalive, 5 * 60 * 1000); // 5 min
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
+	}, [user]);
+
 	// Initialize auth state - validate session via API (cookies) or localStorage
 	useEffect(() => {
 		const abortController = new AbortController();
