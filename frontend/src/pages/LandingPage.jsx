@@ -306,15 +306,15 @@ function Hero() {
 					<h1 className="text-[clamp(2.25rem,6vw,4.5rem)] font-extrabold leading-[1.08] tracking-tight text-white">
 						The command center for{" "}
 						<span className="bg-gradient-to-r from-primary-400 via-blue-300 to-violet-400 bg-clip-text text-transparent">
-							your Linux fleet
+							your Linux &amp; Windows fleet
 						</span>
 					</h1>
 				</FadeIn>
 
 				<FadeIn delay={160}>
 					<p className="mt-5 text-lg sm:text-xl text-white/45 max-w-2xl mx-auto leading-relaxed">
-						Packages, patches, compliance, Docker, SSH — unified in one
-						dashboard. Deploy in minutes, manage thousands of hosts.
+						Packages, patches, CIS compliance, Docker, SSH, and an AI terminal
+						copilot — one dashboard for Linux and Windows.
 					</p>
 				</FadeIn>
 
@@ -355,7 +355,7 @@ function Hero() {
 									<div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
 								</div>
 								<span className="ml-2 text-[11px] font-mono text-white/25">
-									monux.yourcompany.com
+									patchmon.yourcompany.com
 								</span>
 							</div>
 							{/* Dashboard body */}
@@ -531,8 +531,8 @@ function BentoFeatures() {
 								Compliance Scanning
 							</h3>
 							<p className="mt-2 text-sm text-white/40 leading-relaxed">
-								CIS Benchmarks via OpenSCAP, Docker Bench for Security, with
-								auto-remediation and trend tracking.
+								CIS Benchmarks for Linux &amp; Windows, Docker Bench for
+								Security, with scoring, trends, and auto-remediation.
 							</p>
 						</BentoCard>
 					</FadeIn>
@@ -796,7 +796,7 @@ function Platform() {
 		{
 			icon: <Server className="w-5 h-5" />,
 			title: "Lightweight Agent",
-			desc: "Single Go binary. Linux & FreeBSD. Outbound-only connections — zero open ports on your hosts.",
+			desc: "One agent for Linux & Windows. Outbound-only connections — zero open ports on your hosts.",
 		},
 		{
 			icon: <Globe className="w-5 h-5" />,
@@ -805,13 +805,13 @@ function Platform() {
 		},
 		{
 			icon: <Code2 className="w-5 h-5" />,
-			title: "Full REST API",
-			desc: "Every feature via /api/v1 with JWT auth. Full Swagger/OpenAPI documentation included.",
+			title: "Full REST API & MCP",
+			desc: "Every feature via /api/v1 with API-key auth. Swagger/OpenAPI docs, plus an MCP server for AI tools.",
 		},
 		{
 			icon: <Cloud className="w-5 h-5" />,
-			title: "Self-Hosted or Cloud",
-			desc: "Docker Compose on your infra, or let us handle everything with Monux Cloud.",
+			title: "Fully Self-Hosted",
+			desc: "Docker Compose or systemd on your own infra — your data never leaves your network.",
 		},
 	];
 
@@ -999,7 +999,7 @@ function HowItWorks() {
 		{
 			n: "02",
 			title: "Enroll",
-			desc: "One shell command installs the Go agent. It auto-enrolls and starts reporting immediately.",
+			desc: "One command installs the agent on Linux or Windows. It auto-enrolls and starts reporting immediately.",
 		},
 		{
 			n: "03",
@@ -1061,8 +1061,8 @@ function CTA() {
 						<br /> of your fleet?
 					</h2>
 					<p className="mt-5 text-lg text-white/40 max-w-xl mx-auto">
-						Join teams using Monux to streamline Linux operations. Open-source,
-						self-hosted, and free to start.
+						Join teams using PatchMon to streamline Linux &amp; Windows
+						operations. Open-source, self-hosted, and free to start.
 					</p>
 					<div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
 						<Link
@@ -1190,7 +1190,7 @@ function Footer() {
 
 				<div className="mt-14 pt-8 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4">
 					<p className="text-[12px] text-white/20">
-						&copy; {new Date().getFullYear()} Monux. All rights reserved.
+						&copy; {new Date().getFullYear()} PatchMon. All rights reserved.
 					</p>
 					<div className="flex items-center gap-5">
 						<a
