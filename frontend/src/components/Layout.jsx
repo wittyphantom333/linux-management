@@ -5,6 +5,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Clock,
+	Code2,
 	Container,
 	GitBranch,
 	Globe,
@@ -1446,6 +1447,15 @@ const Layout = ({ children }) => {
 										<BookOpen className="h-5 w-5" />
 									</a>
 									<a
+										href="/api/v1/api-docs/"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="flex items-center justify-center w-10 h-10 bg-secondary-50 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 rounded-lg transition-colors"
+										title="API Docs"
+									>
+										<Code2 className="h-5 w-5" />
+									</a>
+									<a
 										href="mailto:support@patchmon.net"
 										className="flex items-center justify-center w-10 h-10 bg-secondary-50 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 rounded-lg transition-colors"
 										title="Email Support"
@@ -1481,6 +1491,15 @@ const Layout = ({ children }) => {
 										title="Documentation"
 									>
 										<BookOpen className="h-5 w-5" />
+									</a>
+									<a
+										href="/api/v1/api-docs/"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="flex items-center justify-center w-10 h-10 bg-secondary-50 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 rounded-lg transition-colors"
+										title="API Docs"
+									>
+										<Code2 className="h-5 w-5" />
 									</a>
 									<a
 										href="mailto:support@patchmon.net"
