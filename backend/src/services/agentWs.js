@@ -56,9 +56,48 @@ let prisma;
 /** How long (ms) to wait after disconnect before creating a host_down alert. */
 const HOST_DOWN_DELAY_MS = 10_000;
 
+/**
+ * How long (ms) to keep reporting a host as "connected" in the UI after its
+ * socket closes, giving brief WS flaps (common on Windows hosts) time to
+ * reconnect before the badge flips to offline.
+ */
+const UI_OFFLINE_GRACE_MS = 30_000;
+
+// Pending UI offline grace timers — Map<api_id, NodeJS.Timeout>
+const pendingUiGraceTimers = new Map();
+
 function isConnected(apiId) {
 	const ws = apiIdToSocket.get(apiId);
 	return !!ws && ws.readyState === WebSocket.OPEN;
+}
+
+/**
+ * Cancel any pending UI offline grace timer for this apiId (host reconnected).
+ */
+function cancelUiOfflineGrace(apiId) {
+	const timer = pendingUiGraceTimers.get(apiId);
+	if (timer) {
+		clearTimeout(timer);
+		pendingUiGraceTimers.delete(apiId);
+	}
+}
+
+/**
+ * On disconnect, keep reporting the host as connected in the UI for
+ * UI_OFFLINE_GRACE_MS. If it hasn't reconnected by then, notify subscribers
+ * so the badge flips to offline.
+ */
+function scheduleUiOfflineGrace(apiId) {
+	if (pendingUiGraceTimers.has(apiId)) return;
+	const timer = setTimeout(() => {
+		pendingUiGraceTimers.delete(apiId);
+		if (isConnected(apiId)) return; // reconnected in the meantime
+		logger.info(
+			`[agent-ws] UI grace period expired for ${apiId} — reporting offline to UI`,
+		);
+		notifyConnectionChange(apiId, false);
+	}, UI_OFFLINE_GRACE_MS);
+	pendingUiGraceTimers.set(apiId, timer);
 }
 
 /**
@@ -323,6 +362,9 @@ function init(server, prismaClient) {
 					`[agent-ws] connected api_id=${apiId} protocol=${isSecure ? "wss" : "ws"} total=${apiIdToSocket.size}`,
 				);
 
+				// Host is back — cancel any pending UI offline grace timer
+				cancelUiOfflineGrace(apiId);
+
 				// Notify subscribers of connection
 				notifyConnectionChange(apiId, true);
 
@@ -469,7 +511,7 @@ function init(server, prismaClient) {
 					if (existing === ws) {
 						apiIdToSocket.delete(apiId);
 						connectionMetadata.delete(apiId);
-						notifyConnectionChange(apiId, false);
+						scheduleUiOfflineGrace(apiId);
 
 						// Schedule delayed host_down alert (gives host time to reconnect)
 						(async () => {
@@ -519,7 +561,7 @@ function init(server, prismaClient) {
 					if (existing === ws) {
 						apiIdToSocket.delete(apiId);
 						connectionMetadata.delete(apiId);
-						notifyConnectionChange(apiId, false);
+						scheduleUiOfflineGrace(apiId);
 
 						// Schedule delayed host_down alert (gives host time to reconnect)
 						try {
@@ -1148,10 +1190,17 @@ module.exports = {
 	// Get connection info including protocol (ws/wss)
 	getConnectionInfo: (apiId) => {
 		const metadata = connectionMetadata.get(apiId);
+		// If the socket dropped but a UI offline grace timer is still pending,
+		// keep reporting the host as connected (flap window).
 		if (!metadata) {
+			if (pendingUiGraceTimers.has(apiId)) {
+				return { connected: true, secure: false };
+			}
 			return { connected: false, secure: false };
 		}
-		const connected = metadata.ws.readyState === WebSocket.OPEN;
+		const connected =
+			metadata.ws.readyState === WebSocket.OPEN ||
+			pendingUiGraceTimers.has(apiId);
 		return { connected, secure: metadata.secure };
 	},
 	// Subscribe to connection status changes (for SSE)
