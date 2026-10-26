@@ -30,6 +30,58 @@ function setAgentWsModule(module) {
 // Map to track SSH proxy sessions: sessionId -> { frontendWs, hostId, apiId }
 const sshProxySessions = new Map();
 
+// How long to wait for the agent to acknowledge a proxy/shell connection
+// before failing the session. The agent WS layer has no request/response
+// timeout — if the host link is dead, its replies (shell_connected etc.)
+// never arrive and the UI would hang on "Connecting..." forever.
+const AGENT_CONNECT_TIMEOUT_MS = 30_000;
+
+// sessionId -> { timer, hostName, apiId } for proxy/shell connects awaiting
+// an agent acknowledgment (ssh_proxy_connected / shell_connected).
+const pendingConnectTimers = new Map();
+
+function clearPendingConnect(sessionId) {
+	const entry = pendingConnectTimers.get(sessionId);
+	if (!entry) return;
+	clearTimeout(entry.timer);
+	pendingConnectTimers.delete(sessionId);
+}
+
+/**
+ * Send a connect request (ssh_proxy / shell_open) to the agent with a
+ * timeout: if the agent never acknowledges, send a clear error to the
+ * frontend instead of leaving the terminal stuck on "Connecting...".
+ */
+function sendAgentConnectRequest(agentWs, sessionId, ws, request) {
+	const timer = setTimeout(() => {
+		clearPendingConnect(sessionId);
+		sshProxySessions.delete(sessionId);
+		logger.error(
+			`[ssh-terminal] Agent did not acknowledge session ${sessionId} within ${AGENT_CONNECT_TIMEOUT_MS / 1000}s`,
+		);
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(
+				JSON.stringify({
+					type: "error",
+					message:
+						"Timed out waiting for the agent to start the session (host unreachable or agent not responding)",
+				}),
+			);
+		}
+	}, AGENT_CONNECT_TIMEOUT_MS);
+	pendingConnectTimers.set(sessionId, {
+		timer,
+		hostName: sshProxySessions.get(sessionId)?.hostName || null,
+		apiId: sshProxySessions.get(sessionId)?.apiId || null,
+	});
+	try {
+		agentWs.send(JSON.stringify(request));
+	} catch (err) {
+		clearPendingConnect(sessionId);
+		throw err;
+	}
+}
+
 // SSH Ticket constants (must match authRoutes.js)
 const SSH_TICKET_PREFIX = "ssh:ticket:";
 
@@ -398,6 +450,7 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 								sshProxySessions.set(proxySessionId, {
 									frontendWs: ws,
 									hostId: host.id,
+									hostName: host.friendly_name || host.hostname,
 									apiId: host.api_id,
 									mode: "proxy",
 								});
@@ -476,8 +529,14 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 								);
 
 								try {
-									agentWs.send(JSON.stringify(sshProxyRequest));
+									sendAgentConnectRequest(
+										agentWs,
+										proxySessionId,
+										ws,
+										sshProxyRequest,
+									);
 								} catch (err) {
+									clearPendingConnect(proxySessionId);
 									logger.error(
 										`[ssh-terminal] Failed to send SSH proxy request to agent:`,
 										err,
@@ -534,6 +593,7 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 								sshProxySessions.set(proxySessionId, {
 									frontendWs: ws,
 									hostId: host.id,
+									hostName: host.friendly_name || host.hostname,
 									apiId: host.api_id,
 									mode: "shell",
 								});
@@ -543,16 +603,15 @@ async function handleSshTerminalUpgrade(request, socket, head, pathname) {
 								);
 
 								try {
-									agentWs.send(
-										JSON.stringify({
-											type: "shell_open",
-											session_id: proxySessionId,
-											terminal: data.terminal || "xterm-256color",
-											cols: data.cols || 80,
-											rows: data.rows || 24,
-										}),
-									);
+									sendAgentConnectRequest(agentWs, proxySessionId, ws, {
+										type: "shell_open",
+										session_id: proxySessionId,
+										terminal: data.terminal || "xterm-256color",
+										cols: data.cols || 80,
+										rows: data.rows || 24,
+									});
 								} catch (err) {
+									clearPendingConnect(proxySessionId);
 									logger.error(
 										`[ssh-terminal] Failed to send shell request to agent:`,
 										err,
@@ -946,12 +1005,14 @@ function handleSshProxyMessage(apiId, message) {
 			message.type === "shell_connected"
 		) {
 			// SSH connection / local shell established via agent
+			clearPendingConnect(sessionId);
 			frontendWs.send(JSON.stringify({ type: "connected" }));
 		} else if (
 			message.type === "ssh_proxy_error" ||
 			message.type === "shell_error"
 		) {
 			// SSH / shell error via agent
+			clearPendingConnect(sessionId);
 			frontendWs.send(
 				JSON.stringify({
 					type: "error",
@@ -963,6 +1024,7 @@ function handleSshProxyMessage(apiId, message) {
 			message.type === "shell_closed"
 		) {
 			// SSH connection / local shell closed via agent
+			clearPendingConnect(sessionId);
 			frontendWs.send(JSON.stringify({ type: "closed" }));
 			sshProxySessions.delete(sessionId);
 		}
